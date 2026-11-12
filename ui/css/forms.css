@@ -1,0 +1,190 @@
+/* ==========================================================================
+   Forms
+   ========================================================================== */
+
+.form-control,
+.form-select {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: var(--radius);
+  padding: 0.75rem 1rem;
+  box-shadow: var(--bevel-shadow-inset);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.form-control:hover,
+.form-select:hover {
+  box-shadow: var(--bevel-shadow-inset-hover);
+}
+
+.form-control:focus,
+.form-select:focus {
+  background-color: var(--surface);
+  border-color: var(--accent);
+  color: var(--text);
+  box-shadow: var(--bevel-shadow-inset-hover), 0 0 0 4px var(--accent-soft);
+}
+
+.form-control::placeholder {
+  color: var(--text-faint);
+}
+
+.form-label {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin-bottom: var(--space-2);
+}
+
+.form-text {
+  color: var(--text-faint);
+}
+
+.form-check-input {
+  background-color: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 0.35em;
+}
+
+.form-check-input[type="radio"] {
+  border-radius: 50%;
+}
+
+.form-check-input:checked {
+  background-color: var(--accent);
+  border-color: var(--accent);
+}
+
+.form-check-input:focus {
+  box-shadow: 0 0 0 4px var(--accent-soft);
+}
+
+.form-switch .form-check-input {
+  border-radius: var(--radius-pill);
+}
+
+.input-group-text {
+  background-color: var(--surface-alt);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  border-radius: var(--radius);
+  box-shadow: var(--bevel-shadow-inset);
+}
+
+.form-range::-webkit-slider-thumb {
+  background-color: var(--accent);
+}
+
+.form-range::-moz-range-thumb {
+  background-color: var(--accent);
+}
+
+.form-floating > label {
+  color: var(--text-faint);
+}
+
+/* Select chevron: themed data URI (variables.css), light on dark themes */
+.form-select {
+  --bs-form-select-bg-img: var(--select-chevron);
+}
+
+/* Disabled and read-only fields */
+.form-control:disabled,
+.form-control[readonly],
+.form-select:disabled {
+  background-color: var(--surface-alt);
+  color: var(--text-faint);
+  opacity: 1;
+  box-shadow: none;
+}
+
+/* File input button and colour picker */
+.form-control::file-selector-button {
+  background-color: var(--surface-raised);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.form-control:hover:not(:disabled):not([readonly])::file-selector-button {
+  background-color: var(--accent-soft);
+}
+
+.form-control-color {
+  width: 5rem;
+  height: 3rem;
+  padding: var(--space-2);
+}
+
+/* Validation states */
+.form-control.is-valid,
+.form-select.is-valid,
+.was-validated .form-control:valid,
+.was-validated .form-select:valid {
+  border-color: var(--success);
+}
+
+.form-control.is-invalid,
+.form-select.is-invalid,
+.was-validated .form-control:invalid,
+.was-validated .form-select:invalid {
+  border-color: var(--danger);
+}
+
+.form-control.is-valid:focus,
+.form-select.is-valid:focus {
+  box-shadow: var(--bevel-shadow-inset-hover), 0 0 0 4px var(--success-soft);
+}
+
+.form-control.is-invalid:focus,
+.form-select.is-invalid:focus {
+  box-shadow: var(--bevel-shadow-inset-hover), 0 0 0 4px var(--danger-soft);
+}
+
+.valid-feedback { color: var(--success-text); }
+.invalid-feedback { color: var(--danger-text); }
+
+.form-check-input.is-valid:checked { background-color: var(--success); border-color: var(--success); }
+.form-check-input.is-invalid { border-color: var(--danger); }
+
+/* Range track (Bootstrap's default is a light grey bar) */
+.form-range::-webkit-slider-runnable-track {
+  background-color: var(--surface-alt);
+  border: 1px solid var(--border);
+  box-shadow: var(--bevel-shadow-inset);
+}
+
+.form-range::-moz-range-track {
+  background-color: var(--surface-alt);
+  border: 1px solid var(--border);
+  box-shadow: var(--bevel-shadow-inset);
+}
+
+.form-range:focus::-webkit-slider-thumb { box-shadow: 0 0 0 4px var(--accent-soft); }
+.form-range:focus::-moz-range-thumb { box-shadow: 0 0 0 4px var(--accent-soft); }
+
+/* Toggle buttons: <input class="btn-check"> + <label class="btn btn-outline-primary"> */
+.btn-check:checked + .btn-outline-primary,
+.btn-check:active + .btn-outline-primary,
+.btn-outline-primary.active {
+  background-color: var(--accent);
+  border-color: var(--accent);
+  color: var(--text-on-accent);
+}
+
+/* Textarea floating label: Bootstrap paints a --bs-body-bg patch behind it */
+.form-floating > textarea:focus ~ label::after,
+.form-floating > textarea:not(:placeholder-shown) ~ label::after {
+  background-color: transparent;
+}
+
+.form-floating > .form-control:focus ~ label,
+.form-floating > .form-control:not(:placeholder-shown) ~ label,
+.form-floating > .form-select ~ label {
+  color: var(--text-muted);
+}
+
+/* Floating-label textarea needs an explicit height */
+.form-floating > .form-control.textarea-floating-tall {
+  height: 8rem;
+}

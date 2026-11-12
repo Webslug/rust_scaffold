@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="aero-blue">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rust Scaffold</title>
+  <link rel="stylesheet" href="css/fonts.css">
+  <link rel="stylesheet" href="css/bootstrap.min.css">
+  <link rel="stylesheet" href="css/bootstrap-icons.css">
+  <link rel="stylesheet" href="css/index.css">
+</head>
+<body>
+  <div class="app-window">
+    <header class="app-titlebar" data-tauri-drag-region>
+      <i class="bi bi-hexagon-fill" data-tauri-drag-region></i>
+      <span id="app-title" class="app-title" data-tauri-drag-region>Rust Scaffold</span>
+      <button type="button" id="btn-title" class="window-btn title-toggle" title="Hide the title bar" aria-label="Hide the title bar" aria-pressed="true"><i class="bi bi-fonts"></i></button>
+      <div class="dropdown theme-picker">
+        <button type="button" class="window-btn theme-btn" data-bs-toggle="dropdown" aria-expanded="false" title="Change the theme" aria-label="Change the theme"><i class="bi bi-palette"></i><span id="theme-label" class="theme-btn-label">Aero Blue</span></button>
+        <ul id="theme-menu" class="dropdown-menu dropdown-menu-end"></ul>
+      </div>
+      <div class="window-controls">
+        <button type="button" id="btn-minimize" class="window-btn" title="Minimise" aria-label="Minimise"><i class="bi bi-dash-lg"></i></button>
+        <button type="button" id="btn-maximize" class="window-btn" title="Maximise" aria-label="Maximise"><i class="bi bi-square"></i></button>
+        <button type="button" id="btn-close" class="window-btn window-btn-close" title="Close" aria-label="Close"><i class="bi bi-x-lg"></i></button>
+      </div>
+    </header>
+
+    <button type="button" id="btn-title-reveal" class="window-btn titlebar-reveal" title="Show the title bar" aria-label="Show the title bar"><i class="bi bi-chevron-bar-down"></i></button>
+
+    <main class="app-content" data-tauri-drag-region>
+      <div id="config-warning" class="alert alert-warning d-none" role="alert"></div>
+      <ul class="nav nav-tabs nav-tabs-custom app-tabs" id="app-tabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button type="button" class="nav-link active" id="tab-dashboard" data-bs-toggle="tab" data-bs-target="#page-dashboard" role="tab" aria-controls="page-dashboard" aria-selected="true"><i class="bi bi-speedometer2 me-1"></i>Dashboard</button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button type="button" class="nav-link" id="tab-panels" data-bs-toggle="tab" data-bs-target="#page-panels" role="tab" aria-controls="page-panels" aria-selected="false"><i class="bi bi-layout-text-sidebar-reverse me-1"></i>Panels</button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button type="button" class="nav-link" id="tab-tables" data-bs-toggle="tab" data-bs-target="#page-tables" role="tab" aria-controls="page-tables" aria-selected="false"><i class="bi bi-table me-1"></i>Tables</button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button type="button" class="nav-link" id="tab-cards" data-bs-toggle="tab" data-bs-target="#page-cards" role="tab" aria-controls="page-cards" aria-selected="false"><i class="bi bi-grid-3x2-gap me-1"></i>Cards</button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button type="button" class="nav-link" id="tab-charts" data-bs-toggle="tab" data-bs-target="#page-charts" role="tab" aria-controls="page-charts" aria-selected="false"><i class="bi bi-bar-chart-line me-1"></i>Charts</button>
+        </li>
+      </ul>
+
+      <div class="tab-content tab-content-custom">
+        <div class="tab-pane active" id="page-dashboard" role="tabpanel" aria-labelledby="tab-dashboard" tabindex="0">
+          <div class="sortable-list sortable-list-cards" data-sortable="dashboard-cards">
+            <div class="card card-custom sortable-item" data-sortable-id="rust-example">
+              <div class="card-header">
+                <span class="sort-handle" role="button" tabindex="0" aria-label="Reorder the Rust command example card" title="Drag to reorder, or press Up and Down"><i class="bi bi-grip-vertical"></i></span>
+                <h2 class="h6 card-header-title mb-0">Rust command example</h2>
+              </div>
+              <div class="card-body">
+                <p class="card-text">The button calls a Rust command and shows what it returns.</p>
+                <button type="button" id="btn-app-info" class="btn btn-primary"><i class="bi bi-cpu me-1"></i>Ask Rust</button>
+                <pre id="rust-output" class="rust-output mt-3 mb-0"></pre>
+              </div>
+            </div>
+            <div class="card card-custom sortable-item" data-sortable-id="saved-settings">
+              <div class="card-header">
+                <span class="sort-handle" role="button" tabindex="0" aria-label="Reorder the Saved settings card" title="Drag to reorder, or press Up and Down"><i class="bi bi-grip-vertical"></i></span>
+                <h2 class="h6 card-header-title mb-0">Saved settings</h2>
+              </div>
+              <div class="card-body">
+                <dl class="settings-list mb-0">
+                  <dt>Theme</dt><dd id="info-theme">-</dd>
+                  <dt>Window size</dt><dd id="info-size">-</dd>
+                </dl>
+              </div>
+            </div>
+            <div class="card card-custom sortable-item" data-sortable-id="reorder-help">
+              <div class="card-header">
+                <span class="sort-handle" role="button" tabindex="0" aria-label="Reorder the Reordering card" title="Drag to reorder, or press Up and Down"><i class="bi bi-grip-vertical"></i></span>
+                <h2 class="h6 card-header-title mb-0">Reordering</h2>
+              </div>
+              <div class="card-body">
+                <p class="card-text">Drag a card by its grip, or focus the grip and press Up, Down, Home or End. The order is saved in config.json.</p>
+                <button type="button" id="btn-reset-order" class="btn btn-secondary btn-sm" data-reset-sortable="dashboard-cards"><i class="bi bi-arrow-counterclockwise me-1"></i>Reset dashboard order</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="tab-pane" id="page-panels" role="tabpanel" aria-labelledby="tab-panels" tabindex="0">
+          <div class="d-flex justify-content-end mb-3">
+            <button type="button" class="btn btn-secondary btn-sm" data-reset-sortable="panels-accordion"><i class="bi bi-arrow-counterclockwise me-1"></i>Reset panel order</button>
+          </div>
+          <div class="accordion accordion-custom sortable-list" id="panels-accordion" data-sortable="panels-accordion">
+            <div class="accordion-item sortable-item" data-sortable-id="appearance">
+              <h2 class="accordion-header">
+                <span class="sort-handle" role="button" tabindex="0" aria-label="Reorder the Appearance panel" title="Drag to reorder, or press Up and Down"><i class="bi bi-grip-vertical"></i></span>
+                <button type="button" class="accordion-button" data-bs-toggle="collapse" data-bs-target="#panel-appearance" aria-expanded="true" aria-controls="panel-appearance">Appearance</button>
+              </h2>
+              <div id="panel-appearance" class="accordion-collapse collapse show" data-panel-id="appearance">
+                <div class="accordion-body">Pick a theme from the palette button in the title bar. Each theme sets its own window gradient, and your choice is saved in config.json.</div>
+              </div>
+            </div>
+            <div class="accordion-item sortable-item" data-sortable-id="window">
+              <h2 class="accordion-header">
+                <span class="sort-handle" role="button" tabindex="0" aria-label="Reorder the Window panel" title="Drag to reorder, or press Up and Down"><i class="bi bi-grip-vertical"></i></span>
+                <button type="button" class="accordion-button" data-bs-toggle="collapse" data-bs-target="#panel-window" aria-expanded="true" aria-controls="panel-window">Window</button>
+              </h2>
+              <div id="panel-window" class="accordion-collapse collapse show" data-panel-id="window">
+                <div class="accordion-body">The window size, the title bar and rounded corners are saved in config.json and restored the next time the app starts.</div>
+              </div>
+            </div>
+            <div class="accordion-item sortable-item" data-sortable-id="tray">
+              <h2 class="accordion-header">
+                <span class="sort-handle" role="button" tabindex="0" aria-label="Reorder the Tray icon panel" title="Drag to reorder, or press Up and Down"><i class="bi bi-grip-vertical"></i></span>
+                <button type="button" class="accordion-button" data-bs-toggle="collapse" data-bs-target="#panel-tray" aria-expanded="true" aria-controls="panel-tray">Tray icon</button>
+              </h2>
+              <div id="panel-tray" class="accordion-collapse collapse show" data-panel-id="tray">
+                <div class="accordion-body">The tray icon stays in the panel while the window is hidden. Its menu entries come from tray_items in config.json.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="tab-pane" id="page-tables" role="tabpanel" aria-labelledby="tab-tables" tabindex="0">
+          <div class="d-flex flex-column gap-3">
+          <div class="card card-custom">
+            <div class="card-header"><h2 class="h6 card-header-title mb-0"><i class="bi bi-people me-2"></i>Team</h2></div>
+            <div class="table-search">
+              <label for="search-team" class="table-search-label">Search Team</label>
+              <div class="input-group input-group-lg">
+                <span class="input-group-text" aria-hidden="true"><i class="bi bi-search"></i></span>
+                <input type="search" class="form-control" id="search-team" data-table-search="table-team" data-status-id="team-search-status" aria-controls="table-team" aria-describedby="team-search-status" placeholder="Name, role, status..." autocomplete="off">
+              </div>
+              <p id="team-search-status" class="table-search-status" role="status" aria-live="polite"></p>
+            </div>
+            <div class="table-responsive">
+              <table id="table-team" class="table table-custom table-striped table-hover mb-0">
+                <caption class="visually-hidden">Team members with status and progress</caption>
+                <thead><tr><th scope="col">Name</th><th scope="col">Role</th><th scope="col">Status</th><th scope="col">Progress</th><th scope="col">Updated</th></tr></thead>
+                <tbody>
+                  <tr><th scope="row">Avery Quinn</th><td>Designer</td><td><span class="badge badge-custom badge-success">Active</span></td><td class="col-progress"><div class="progress-custom" role="progressbar" aria-label="Avery Quinn progress" aria-valuenow="75" aria-valuemin="0" aria-valuemax="100"><div class="progress-bar w-75"></div></div></td><td>Today</td></tr>
+                  <tr><th scope="row">Jordan Blake</th><td>Developer</td><td><span class="badge badge-custom badge-success">Active</span></td><td class="col-progress"><div class="progress-custom" role="progressbar" aria-label="Jordan Blake progress" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100"><div class="progress-bar w-100"></div></div></td><td>Today</td></tr>
+                  <tr><th scope="row">Morgan Hale</th><td>Illustrator</td><td><span class="badge badge-custom badge-warning">Away</span></td><td class="col-progress"><div class="progress-custom" role="progressbar" aria-label="Morgan Hale progress" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100"><div class="progress-bar w-50"></div></div></td><td>Yesterday</td></tr>
+                  <tr><th scope="row">Riley Chen</th><td>Animator</td><td><span class="badge badge-custom badge-info">Onboarding</span></td><td class="col-progress"><div class="progress-custom" role="progressbar" aria-label="Riley Chen progress" aria-valuenow="25" aria-valuemin="0" aria-valuemax="100"><div class="progress-bar w-25"></div></div></td><td>Mon</td></tr>
+                  <tr><th scope="row">Sam Okafor</th><td>Producer</td><td><span class="badge badge-custom badge-neutral">Offline</span></td><td class="col-progress"><div class="progress-custom" role="progressbar" aria-label="Sam Okafor progress" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100"><div class="progress-bar w-50"></div></div></td><td>Last week</td></tr>
+                  <tr class="table-no-results" hidden><td colspan="5">No matching team members.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="card card-custom">
+            <div class="card-header"><h2 class="h6 card-header-title mb-0"><i class="bi bi-receipt me-2"></i>Invoices</h2></div>
+            <div class="table-search">
+              <label for="search-invoices" class="table-search-label">Search Invoices</label>
+              <div class="input-group input-group-lg">
+                <span class="input-group-text" aria-hidden="true"><i class="bi bi-search"></i></span>
+                <input type="search" class="form-control" id="search-invoices" data-table-search="table-invoices" data-status-id="invoice-search-status" aria-controls="table-invoices" aria-describedby="invoice-search-status" placeholder="Invoice, customer, status..." autocomplete="off">
+              </div>
+              <p id="invoice-search-status" class="table-search-status" role="status" aria-live="polite"></p>
+            </div>
+            <div class="table-responsive">
+              <table id="table-invoices" class="table table-custom table-hover mb-0">
+                <caption class="visually-hidden">Invoices with amounts and payment status</caption>
+                <thead><tr><th scope="col">Invoice</th><th scope="col">Customer</th><th scope="col" class="num">Amount</th><th scope="col">Status</th></tr></thead>
+                <tbody>
+                  <tr><th scope="row">INV-1042</th><td>Northwind Studio</td><td class="num">1,280.00</td><td><span class="badge badge-custom badge-success">Paid</span></td></tr>
+                  <tr><th scope="row">INV-1043</th><td>Lakeside Media</td><td class="num">640.50</td><td><span class="badge badge-custom badge-warning">Pending</span></td></tr>
+                  <tr><th scope="row">INV-1044</th><td>Harbor and Pine</td><td class="num">2,415.00</td><td><span class="badge badge-custom badge-danger">Overdue</span></td></tr>
+                  <tr><th scope="row">INV-1045</th><td>Foxglove Games</td><td class="num">980.00</td><td><span class="badge badge-custom badge-success">Paid</span></td></tr>
+                  <tr class="table-no-results" hidden><td colspan="4">No matching invoices.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="card card-custom">
+            <div class="card-header"><h2 class="h6 card-header-title mb-0"><i class="bi bi-hdd-network me-2"></i>Services</h2></div>
+            <div class="table-search">
+              <label for="search-services" class="table-search-label">Search Services</label>
+              <div class="input-group input-group-lg">
+                <span class="input-group-text" aria-hidden="true"><i class="bi bi-search"></i></span>
+                <input type="search" class="form-control" id="search-services" data-table-search="table-services" data-status-id="service-search-status" aria-controls="table-services" aria-describedby="service-search-status" placeholder="Service, state, latency..." autocomplete="off">
+              </div>
+              <p id="service-search-status" class="table-search-status" role="status" aria-live="polite"></p>
+            </div>
+            <div class="table-responsive">
+              <table id="table-services" class="table table-custom table-striped mb-0">
+                <caption class="visually-hidden">Service uptime and latency</caption>
+                <thead><tr><th scope="col">Service</th><th scope="col" class="num">Uptime</th><th scope="col" class="num">Latency</th><th scope="col">State</th></tr></thead>
+                <tbody>
+                  <tr><th scope="row">API gateway</th><td class="num">99.98%</td><td class="num">42 ms</td><td><i class="bi bi-check-circle-fill state-success me-1" aria-hidden="true"></i>Operational</td></tr>
+                  <tr><th scope="row">Render queue</th><td class="num">99.41%</td><td class="num">310 ms</td><td><i class="bi bi-exclamation-triangle-fill state-warning me-1" aria-hidden="true"></i>Degraded</td></tr>
+                  <tr><th scope="row">Asset storage</th><td class="num">100%</td><td class="num">18 ms</td><td><i class="bi bi-check-circle-fill state-success me-1" aria-hidden="true"></i>Operational</td></tr>
+                  <tr><th scope="row">Voice service</th><td class="num">97.20%</td><td class="num">-</td><td><i class="bi bi-x-circle-fill state-danger me-1" aria-hidden="true"></i>Offline</td></tr>
+                  <tr class="table-no-results" hidden><td colspan="4">No matching services.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          </div>
+        </div>
+        <div class="tab-pane" id="page-cards" role="tabpanel" aria-labelledby="tab-cards" tabindex="0">
+          <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+            <p class="mb-0">Drag a card by its grip, or focus the grip and press Up, Down, Home or End.</p>
+            <button type="button" class="btn btn-secondary btn-sm" data-reset-sortable="showcase-cards"><i class="bi bi-arrow-counterclockwise me-1"></i>Reset card order</button>
+          </div>
+          <div class="sortable-list sortable-list-cards" data-sortable="showcase-cards">
+            <div class="card card-custom sortable-item" data-sortable-id="overview">
+              <div class="card-header">
+                <span class="sort-handle" role="button" tabindex="0" aria-label="Reorder Overview card" title="Drag to reorder, or press Up and Down"><i class="bi bi-grip-vertical"></i></span>
+                <h2 class="h6 card-header-title mb-0"><i class="bi bi-grid-1x2 me-2"></i>Overview</h2>
+              </div>
+              <div class="card-body">
+                <p class="card-text mb-2">A compact summary area for a future application's most useful information.</p>
+                <span class="badge badge-custom badge-info">Example card</span>
+              </div>
+            </div>
+            <div class="card card-custom sortable-item" data-sortable-id="schedule">
+              <div class="card-header">
+                <span class="sort-handle" role="button" tabindex="0" aria-label="Reorder Schedule card" title="Drag to reorder, or press Up and Down"><i class="bi bi-grip-vertical"></i></span>
+                <h2 class="h6 card-header-title mb-0"><i class="bi bi-calendar3 me-2"></i>Schedule</h2>
+              </div>
+              <div class="card-body">
+                <p class="card-text mb-2">Two fictional milestones are planned for the coming week.</p>
+                <span class="badge badge-custom badge-warning">2 upcoming</span>
+              </div>
+            </div>
+            <div class="card card-custom sortable-item" data-sortable-id="inbox">
+              <div class="card-header">
+                <span class="sort-handle" role="button" tabindex="0" aria-label="Reorder Inbox card" title="Drag to reorder, or press Up and Down"><i class="bi bi-grip-vertical"></i></span>
+                <h2 class="h6 card-header-title mb-0"><i class="bi bi-envelope me-2"></i>Inbox</h2>
+              </div>
+              <div class="card-body">
+                <p class="card-text mb-2">A placeholder for recent messages or notifications.</p>
+                <span class="badge badge-custom badge-success">3 sample messages</span>
+              </div>
+            </div>
+            <div class="card card-custom sortable-item" data-sortable-id="assets">
+              <div class="card-header">
+                <span class="sort-handle" role="button" tabindex="0" aria-label="Reorder Assets card" title="Drag to reorder, or press Up and Down"><i class="bi bi-grip-vertical"></i></span>
+                <h2 class="h6 card-header-title mb-0"><i class="bi bi-box-seam me-2"></i>Assets</h2>
+              </div>
+              <div class="card-body">
+                <p class="card-text mb-2">Show files, images or other resources here in a real project.</p>
+                <span class="badge badge-custom badge-neutral">12 sample files</span>
+              </div>
+            </div>
+            <div class="card card-custom sortable-item" data-sortable-id="status">
+              <div class="card-header">
+                <span class="sort-handle" role="button" tabindex="0" aria-label="Reorder Status card" title="Drag to reorder, or press Up and Down"><i class="bi bi-grip-vertical"></i></span>
+                <h2 class="h6 card-header-title mb-0"><i class="bi bi-activity me-2"></i>Status</h2>
+              </div>
+              <div class="card-body">
+                <p class="card-text mb-2">This sample status is ready to be replaced with real data.</p>
+                <span class="badge badge-custom badge-success">Healthy</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="tab-pane" id="page-charts" role="tabpanel" aria-labelledby="tab-charts" tabindex="0">
+          <div class="charts-intro">
+            <h2 class="h5 mb-1">Charts and data</h2>
+            <p class="mb-0">Offline SVG examples with fictional data. Search and filter each chart independently.</p>
+          </div>
+          <div class="charts-grid">
+            <section class="card card-custom chart-card" data-chart-example="sales" aria-labelledby="chart-title-sales">
+              <div class="card-body">
+                <div class="chart-card-head">
+                  <div><h3 id="chart-title-sales" class="h6 mb-1">Sales and costs</h3><p class="mb-0">Monthly, thousands of dollars</p></div>
+                  <button type="button" class="btn btn-secondary btn-sm" data-chart-table-toggle aria-pressed="false"><i class="bi bi-table me-2" aria-hidden="true"></i><span>Table</span></button>
+                </div>
+                <div class="chart-controls">
+                  <div><label for="chart-search-sales">Search months</label><div class="chart-search-field"><i class="bi bi-search" aria-hidden="true"></i><input id="chart-search-sales" class="form-control" type="search" placeholder="Find a month..." autocomplete="off"></div></div>
+                  <div><label for="chart-filter-sales">Period</label><select id="chart-filter-sales" class="form-select"><option value="all">All months</option><option value="first">Jan to Mar</option><option value="second">Apr to Jun</option></select></div>
+                </div>
+                <p class="chart-status" role="status" aria-live="polite"></p>
+                <div class="chart" data-chart="line" aria-label="Sales and costs by month. Use arrow keys to inspect values, or show the table."></div>
+                <div class="chart-table-wrap" hidden></div>
+              </div>
+            </section>
+            <section class="card card-custom chart-card" data-chart-example="signups" aria-labelledby="chart-title-signups">
+              <div class="card-body">
+                <div class="chart-card-head">
+                  <div><h3 id="chart-title-signups" class="h6 mb-1">Sign-ups by source</h3><p class="mb-0">New accounts each month</p></div>
+                  <button type="button" class="btn btn-secondary btn-sm" data-chart-table-toggle aria-pressed="false"><i class="bi bi-table me-2" aria-hidden="true"></i><span>Table</span></button>
+                </div>
+                <div class="chart-controls">
+                  <div><label for="chart-search-signups">Search months</label><div class="chart-search-field"><i class="bi bi-search" aria-hidden="true"></i><input id="chart-search-signups" class="form-control" type="search" placeholder="Find a month..." autocomplete="off"></div></div>
+                  <div><label for="chart-filter-signups">Period</label><select id="chart-filter-signups" class="form-select"><option value="all">All months</option><option value="first">Jan to Mar</option><option value="second">Apr to Jun</option></select></div>
+                </div>
+                <p class="chart-status" role="status" aria-live="polite"></p>
+                <div class="chart" data-chart="stacked" aria-label="Sign-ups by source and month. Use arrow keys to inspect values, or show the table."></div>
+                <div class="chart-table-wrap" hidden></div>
+              </div>
+            </section>
+            <section class="card card-custom chart-card" data-chart-example="retention" aria-labelledby="chart-title-retention">
+              <div class="card-body">
+                <div class="chart-card-head">
+                  <div><h3 id="chart-title-retention" class="h6 mb-1">Customer retention</h3><p class="mb-0">Customer groups this quarter</p></div>
+                  <button type="button" class="btn btn-secondary btn-sm" data-chart-table-toggle aria-pressed="false"><i class="bi bi-table me-2" aria-hidden="true"></i><span>Table</span></button>
+                </div>
+                <div class="chart-controls">
+                  <div><label for="chart-search-retention">Search groups</label><div class="chart-search-field"><i class="bi bi-search" aria-hidden="true"></i><input id="chart-search-retention" class="form-control" type="search" placeholder="Find a group..." autocomplete="off"></div></div>
+                  <div><label for="chart-filter-retention">Show</label><select id="chart-filter-retention" class="form-select"><option value="all">All groups</option><option value="largest">Largest two</option><option value="smallest">Smallest two</option></select></div>
+                </div>
+                <p class="chart-status" role="status" aria-live="polite"></p>
+                <div class="chart" data-chart="donut" aria-label="Customer retention groups. Use arrow keys to inspect values, or show the table."></div>
+                <div class="chart-table-wrap" hidden></div>
+              </div>
+            </section>
+            <section class="card card-custom chart-card" data-chart-example="segments" aria-labelledby="chart-title-segments">
+              <div class="card-body">
+                <div class="chart-card-head">
+                  <div><h3 id="chart-title-segments" class="h6 mb-1">Customer segments</h3><p class="mb-0">Share of sample customers</p></div>
+                  <button type="button" class="btn btn-secondary btn-sm" data-chart-table-toggle aria-pressed="false"><i class="bi bi-table me-2" aria-hidden="true"></i><span>Table</span></button>
+                </div>
+                <div class="chart-controls">
+                  <div><label for="chart-search-segments">Search segments</label><div class="chart-search-field"><i class="bi bi-search" aria-hidden="true"></i><input id="chart-search-segments" class="form-control" type="search" placeholder="Find a segment..." autocomplete="off"></div></div>
+                  <div><label for="chart-filter-segments">Show</label><select id="chart-filter-segments" class="form-select"><option value="all">All segments</option><option value="largest">Largest two</option><option value="smallest">Smallest two</option></select></div>
+                </div>
+                <p class="chart-status" role="status" aria-live="polite"></p>
+                <div class="chart" data-chart="pie" aria-label="Customer segments. Use arrow keys to inspect values, or show the table."></div>
+                <div class="chart-table-wrap" hidden></div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="js/bootstrap.bundle.min.js"></script>
+  <script src="js/window.js"></script>
+  <script src="js/sortable.js"></script>
+  <script src="js/table_search.js"></script>
+  <script src="js/charts_page.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/theme.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
+  

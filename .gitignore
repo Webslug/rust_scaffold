@@ -1,0 +1,10 @@
+src-tauri/target/
+src-tauri/gen/
+config.json
+debug.log
+config.json.tmp
+*.log
+backup/
+*.swp
+*~
+.DS_Store

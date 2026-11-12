@@ -1,0 +1,62 @@
+/* ==========================================================================
+   Dividers & Progress bars
+   ========================================================================== */
+
+hr.divider-custom {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: var(--space-5) 0;
+}
+
+.divider-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--text-faint);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin: var(--space-5) 0;
+}
+
+.divider-label::before,
+.divider-label::after {
+  content: "";
+  flex: 1;
+  border-top: 1px solid var(--border);
+}
+
+.progress-custom {
+  display: flex; /* Bootstrap's .progress-bar takes its height from a flex parent */
+  background-color: var(--surface-alt);
+  border-radius: var(--radius-pill);
+  height: 0.75rem;
+  overflow: hidden;
+}
+
+.progress-custom .progress-bar {
+  background-color: var(--accent);
+  color: var(--text-on-accent);
+  font-size: 0.75rem;
+  font-weight: 600;
+  justify-content: center;
+}
+
+/* Semantic fills; the label colour matches the button label tokens */
+.progress-custom .progress-bar-success { background-color: var(--success); color: var(--on-success); }
+.progress-custom .progress-bar-warning { background-color: var(--warning); color: var(--on-warning); }
+.progress-custom .progress-bar-danger  { background-color: var(--danger);  color: var(--on-danger); }
+.progress-custom .progress-bar-info    { background-color: var(--info);    color: var(--on-info); }
+
+.progress-custom-lg { height: 1.5rem; }
+
+/* Width steps (no inline styles in HTML) */
+.progress-w-10 { width: 10%; }
+.progress-w-15 { width: 15%; }
+.progress-w-25 { width: 25%; }
+.progress-w-30 { width: 30%; }
+.progress-w-40 { width: 40%; }
+.progress-w-50 { width: 50%; }
+.progress-w-60 { width: 60%; }
+.progress-w-75 { width: 75%; }
+.progress-w-100 { width: 100%; }

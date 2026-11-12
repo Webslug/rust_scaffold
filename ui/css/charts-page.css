@@ -1,0 +1,82 @@
+/* Chart page layout and controls. Surfaces and marks follow the active theme. */
+.charts-intro {
+  margin-bottom: var(--space-4);
+  color: var(--text-muted);
+}
+
+.charts-intro h2 { color: var(--text); }
+
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.charts-grid .chart-card {
+  min-width: 0;
+  background-color: var(--surface);
+}
+
+.chart-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.chart-card-head h3 { color: var(--text); }
+
+.chart-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(9rem, 0.7fr);
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.chart-controls label {
+  display: block;
+  color: var(--text-muted);
+  font-size: var(--chart-control-label-size);
+  margin-bottom: var(--space-1);
+}
+
+.chart-search-field { position: relative; }
+
+.chart-search-field .bi {
+  position: absolute;
+  inset-inline-start: var(--space-2);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.chart-search-field .form-control { padding-inline-start: var(--chart-search-icon-space); }
+
+.chart-controls .form-control,
+.chart-controls .form-select {
+  background-color: var(--surface-raised);
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+.chart-status {
+  min-height: var(--chart-status-height);
+  margin-bottom: var(--space-2);
+  color: var(--text-muted);
+  font-size: var(--chart-control-label-size);
+}
+
+.charts-grid .chart { min-height: var(--chart-min-height); }
+.charts-grid .chart[hidden] { display: none; }
+.charts-grid .chart-table-wrap[hidden] { display: none; }
+
+.chart-full-ring {
+  fill: none;
+  stroke-width: var(--chart-full-ring-width);
+}
+
+@media (max-width: 48rem) {
+  .charts-grid { grid-template-columns: 1fr; }
+  .chart-controls { grid-template-columns: 1fr; }
+}

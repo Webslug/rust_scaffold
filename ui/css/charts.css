@@ -1,0 +1,218 @@
+/* ==========================================================================
+   Charts — styling for assets/js/charts.js (inline SVG, no canvas).
+   Every colour is a token, so a theme switch recolours charts instantly with
+   no redraw. Marks: bars <= 24px with 4px rounded data-ends, 2px lines,
+   8px+ dots, hairline solid gridlines (see the dataviz skill).
+   ========================================================================== */
+
+.chart {
+  position: relative;
+  width: 100%;
+}
+
+.chart:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 4px;
+  border-radius: var(--radius-sm);
+}
+
+.chart svg {
+  display: block;
+  max-width: 100%;
+  overflow: visible;
+}
+
+/* Rings are fixed-size and centred; the others fill the container */
+.chart[data-chart="ring"] svg {
+  margin-inline: auto;
+}
+
+/* Series colours: fixed order, by slot */
+.fill-1 { fill: var(--chart-1); } .stroke-1 { stroke: var(--chart-1); } .key-1 { background-color: var(--chart-1); }
+.fill-2 { fill: var(--chart-2); } .stroke-2 { stroke: var(--chart-2); } .key-2 { background-color: var(--chart-2); }
+.fill-3 { fill: var(--chart-3); } .stroke-3 { stroke: var(--chart-3); } .key-3 { background-color: var(--chart-3); }
+.fill-4 { fill: var(--chart-4); } .stroke-4 { stroke: var(--chart-4); } .key-4 { background-color: var(--chart-4); }
+.fill-5 { fill: var(--chart-5); } .stroke-5 { stroke: var(--chart-5); } .key-5 { background-color: var(--chart-5); }
+.fill-6 { fill: var(--chart-6); } .stroke-6 { stroke: var(--chart-6); } .key-6 { background-color: var(--chart-6); }
+.fill-7 { fill: var(--chart-7); } .stroke-7 { stroke: var(--chart-7); } .key-7 { background-color: var(--chart-7); }
+.fill-8 { fill: var(--chart-8); } .stroke-8 { stroke: var(--chart-8); } .key-8 { background-color: var(--chart-8); }
+
+/* Emphasis: everything but the point of the chart recedes */
+.fill-muted { fill: color-mix(in srgb, var(--text-muted) 45%, transparent); }
+.stroke-muted { stroke: var(--text-muted); }
+
+/* Status colours: reserved for meaning, always paired with an icon + label */
+.stroke-good { stroke: var(--chart-status-good); }
+.stroke-warning { stroke: var(--chart-status-warning); }
+.stroke-critical { stroke: var(--chart-status-critical); }
+
+/* Chrome */
+.chart-grid { stroke: var(--border); stroke-width: 1; fill: none; }
+.chart-baseline { stroke: var(--border-strong); stroke-width: 1; fill: none; }
+.chart-line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.chart-area { stroke: none; fill-opacity: 0.1; }
+.chart-dot { stroke: var(--chart-surface); stroke-width: 2; }
+.chart-crosshair { stroke: var(--text-faint); stroke-width: 1; }
+.chart-ring-track { fill: none; stroke: color-mix(in srgb, var(--chart-1) 18%, var(--chart-surface)); }
+.chart-ring-value { fill: none; stroke-linecap: round; }
+
+/* Text wears text tokens, never the series colour */
+.chart-text { fill: var(--text-muted); font-family: var(--font-body); font-size: 12px; }
+.chart-text-strong { fill: var(--text); font-family: var(--font-body); font-size: 12px; font-weight: 600; }
+.chart-text-hero { fill: var(--text); font-family: var(--font-heading); font-size: 26px; font-weight: 700; }
+
+/* Hit areas are invisible but larger than the marks; hover lifts the mark */
+.chart-hit { fill: transparent; cursor: default; }
+.chart-hit:hover,
+.chart-hit.is-active { fill: color-mix(in srgb, var(--text) 7%, transparent); }
+.chart-slice { transition: opacity var(--transition-fast); }
+.chart-slice.is-active { opacity: 0.8; }
+.chart-cell.is-active { stroke: var(--text); stroke-width: 2; }
+
+/* Heatmap: one hue, intensity from the surface up to the full colour */
+.heat-0 { fill: color-mix(in srgb, var(--chart-1) 8%, var(--chart-surface)); }
+.heat-1 { fill: color-mix(in srgb, var(--chart-1) 25%, var(--chart-surface)); }
+.heat-2 { fill: color-mix(in srgb, var(--chart-1) 42%, var(--chart-surface)); }
+.heat-3 { fill: color-mix(in srgb, var(--chart-1) 60%, var(--chart-surface)); }
+.heat-4 { fill: color-mix(in srgb, var(--chart-1) 80%, var(--chart-surface)); }
+.heat-5 { fill: var(--chart-1); }
+.heat-key-0 { background-color: color-mix(in srgb, var(--chart-1) 8%, var(--chart-surface)); }
+.heat-key-1 { background-color: color-mix(in srgb, var(--chart-1) 25%, var(--chart-surface)); }
+.heat-key-2 { background-color: color-mix(in srgb, var(--chart-1) 42%, var(--chart-surface)); }
+.heat-key-3 { background-color: color-mix(in srgb, var(--chart-1) 60%, var(--chart-surface)); }
+.heat-key-4 { background-color: color-mix(in srgb, var(--chart-1) 80%, var(--chart-surface)); }
+.heat-key-5 { background-color: var(--chart-1); }
+
+/* Legend: always present for two or more series */
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-1) var(--space-3);
+  list-style: none;
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.chart-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.chart-legend strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.chart-key {
+  display: inline-block;
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 3px;
+}
+
+.chart-key-line {
+  height: 3px;
+  width: 1rem;
+  border-radius: var(--radius-pill);
+}
+
+/* Tooltip: one element for the page, styled like Bootstrap's .tooltip-inner */
+.chart-tooltip {
+  position: fixed;
+  z-index: 1090;
+  pointer-events: none;
+  background-color: var(--surface-raised);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  padding: 0.5rem 0.85rem;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  max-width: 16rem;
+}
+
+[data-theme="aero-blue"] .chart-tooltip {
+  background-color: rgba(255, 255, 255, 0.96);
+}
+
+.chart-tip-title {
+  color: var(--text-muted);
+  margin-bottom: 0.15rem;
+}
+
+.chart-tip-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.chart-tip-row .chart-key-line { flex: none; }
+.chart-tip-row strong { font-weight: 700; color: var(--text); }
+.chart-tip-row span:last-child { color: var(--text-muted); }
+
+/* Table twin */
+.chart-table-wrap {
+  overflow-x: auto;
+}
+
+.chart-table-wrap table {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Stat tiles */
+.stat-tile {
+  padding: var(--space-4);
+  height: 100%;
+}
+
+.stat-tile .stat-label {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.stat-tile .stat-figure {
+  font-family: var(--font-heading);
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--text);
+}
+
+.stat-delta {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.stat-delta-good { color: var(--success-text); }
+.stat-delta-bad { color: var(--danger-text); }
+
+.spark {
+  width: 100%;
+  height: 2.25rem;
+}
+
+/* Hero-style centre label and the ring gauge caption */
+.gauge-caption {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.chart-card-head {
+  margin-bottom: var(--space-3);
+}
+
+.chart-card-head p {
+  font-size: 0.875rem;
+}
+
+.chart-card-head .btn {
+  white-space: nowrap;
+  flex: none;
+}

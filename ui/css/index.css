@@ -1,0 +1,18 @@
+/* Only the template modules used by this scaffold. Load after Bootstrap. */
+
+@import "variables.css";
+@import "typography.css";
+@import "buttons.css";
+@import "cards.css";
+@import "tables.css";
+@import "charts.css";
+@import "charts-page.css";
+@import "tabs.css";
+@import "accordion.css";
+@import "alerts.css";
+@import "dividers.css";
+@import "sortable.css";
+@import "bootswatch.css";
+@import "accessibility.css";
+@import "window.css";
+@import "performance.css";

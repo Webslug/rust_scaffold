@@ -1,0 +1,107 @@
+/* ==========================================================================
+   Bootstrap bridge. Points Bootstrap's plain colour utilities and component
+   variables at our theme tokens, so standard Bootstrap markup follows the
+   active theme. Bootstrap reads some colours as red,green,blue triplets that
+   hex tokens cannot supply, so these few classes are overridden here instead
+   (the utilities carry !important, so these must too). The --bs-* surface
+   and subtle-colour bridge lives in variables.css.
+   ========================================================================== */
+
+/* Text and border colour utilities */
+.text-primary { color: var(--accent-text) !important; }
+.text-success { color: var(--success-text) !important; }
+.text-warning { color: var(--warning-text) !important; }
+.text-danger  { color: var(--danger-text) !important; }
+.text-info    { color: var(--info-text) !important; }
+
+.border-primary { border-color: var(--accent) !important; }
+.border-success { border-color: var(--success) !important; }
+.border-warning { border-color: var(--warning) !important; }
+.border-danger  { border-color: var(--danger) !important; }
+.border-info    { border-color: var(--info) !important; }
+
+/* Background utilities, and the text-bg-* pairs used by badges */
+.bg-primary, .text-bg-primary { background-color: var(--accent) !important; }
+.bg-success, .text-bg-success { background-color: var(--success) !important; }
+.bg-warning, .text-bg-warning { background-color: var(--warning) !important; }
+.bg-danger,  .text-bg-danger  { background-color: var(--danger) !important; }
+.bg-info,    .text-bg-info    { background-color: var(--info) !important; }
+
+.text-bg-primary, .badge.bg-primary { color: var(--text-on-accent) !important; }
+.text-bg-success, .badge.bg-success { color: var(--on-success) !important; }
+.text-bg-warning, .badge.bg-warning { color: var(--on-warning) !important; }
+.text-bg-danger,  .badge.bg-danger  { color: var(--on-danger) !important; }
+.text-bg-info,    .badge.bg-info    { color: var(--on-info) !important; }
+
+/* Component variables (no !important needed) */
+.progress {
+  --bs-progress-bg: var(--surface-alt);
+  --bs-progress-bar-bg: var(--accent);
+  --bs-progress-bar-color: var(--text-on-accent);
+}
+
+.nav-pills {
+  --bs-nav-pills-link-active-bg: var(--accent);
+  --bs-nav-pills-link-active-color: var(--text-on-accent);
+}
+
+.pagination {
+  --bs-pagination-active-bg: var(--accent);
+  --bs-pagination-active-border-color: var(--accent);
+  --bs-pagination-active-color: var(--text-on-accent);
+}
+
+.btn-outline-secondary {
+  --bs-btn-color: var(--text);
+  --bs-btn-border-color: var(--border-strong);
+  --bs-btn-hover-bg: var(--surface-alt);
+  --bs-btn-hover-border-color: var(--border-strong);
+  --bs-btn-hover-color: var(--text);
+  --bs-btn-active-bg: var(--surface-alt);
+  --bs-btn-active-border-color: var(--border-strong);
+  --bs-btn-active-color: var(--text);
+}
+
+.btn-outline-success {
+  --bs-btn-color: var(--success-text);
+  --bs-btn-border-color: var(--success);
+  --bs-btn-hover-bg: var(--success);
+  --bs-btn-hover-border-color: var(--success);
+  --bs-btn-hover-color: var(--on-success);
+  --bs-btn-active-bg: var(--success);
+  --bs-btn-active-border-color: var(--success);
+  --bs-btn-active-color: var(--on-success);
+}
+
+.btn-outline-warning {
+  --bs-btn-color: var(--warning-text);
+  --bs-btn-border-color: var(--warning);
+  --bs-btn-hover-bg: var(--warning);
+  --bs-btn-hover-border-color: var(--warning);
+  --bs-btn-hover-color: var(--on-warning);
+  --bs-btn-active-bg: var(--warning);
+  --bs-btn-active-border-color: var(--warning);
+  --bs-btn-active-color: var(--on-warning);
+}
+
+.btn-outline-danger {
+  --bs-btn-color: var(--danger-text);
+  --bs-btn-border-color: var(--danger);
+  --bs-btn-hover-bg: var(--danger);
+  --bs-btn-hover-border-color: var(--danger);
+  --bs-btn-hover-color: var(--on-danger);
+  --bs-btn-active-bg: var(--danger);
+  --bs-btn-active-border-color: var(--danger);
+  --bs-btn-active-color: var(--on-danger);
+}
+
+.btn-outline-info {
+  --bs-btn-color: var(--info-text);
+  --bs-btn-border-color: var(--info);
+  --bs-btn-hover-bg: var(--info);
+  --bs-btn-hover-border-color: var(--info);
+  --bs-btn-hover-color: var(--on-info);
+  --bs-btn-active-bg: var(--info);
+  --bs-btn-active-border-color: var(--info);
+  --bs-btn-active-color: var(--on-info);
+}

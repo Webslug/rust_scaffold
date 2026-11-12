@@ -1,0 +1,291 @@
+/* ==========================================================================
+   Frameless window frame. The native window is transparent; everything
+   visible is .app-window, a single rounded element that fills the window
+   exactly. One rounded edge only: stacking separately rounded children
+   produced corner halos in the water_tracker app.
+   ========================================================================== */
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  /* The template paints --bg on body; here the corners must stay clear. */
+  background: transparent;
+}
+
+.app-window {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border: 1px solid var(--window-border);
+  border-radius: var(--window-radius);
+  overflow: hidden;
+  background: linear-gradient(180deg, var(--window-bg-top), var(--window-bg-bottom));
+  /* Bevel: a sharp 1px edge (light top and left, shade bottom and right)
+     with a softer 2px ring inside it for depth. */
+  box-shadow:
+    inset 0 1px 0 var(--window-highlight),
+    inset 1px 0 0 var(--window-highlight),
+    inset 0 -1px 0 var(--window-lowlight),
+    inset -1px 0 0 var(--window-lowlight),
+    inset 0 2px 0 var(--window-highlight-soft),
+    inset 2px 0 0 var(--window-highlight-soft),
+    inset 0 -2px 0 var(--window-lowlight-soft),
+    inset -2px 0 0 var(--window-lowlight-soft);
+}
+
+.app-titlebar {
+  display: flex;
+  align-items: center;
+  flex: 0 0 var(--titlebar-height);
+  gap: var(--space-2);
+  padding: 0 var(--space-3);
+  border-bottom: 1px solid var(--window-border);
+  background: linear-gradient(180deg, var(--titlebar-sheen-top), var(--titlebar-sheen-bottom));
+  color: var(--text);
+  font-family: var(--font-heading);
+  font-size: 0.85rem;
+  font-weight: 600;
+  user-select: none;
+}
+
+.app-titlebar .bi {
+  color: var(--accent-text);
+}
+
+.app-content {
+  flex: 1 1 auto;
+  overflow: auto;
+  padding: var(--space-3);
+}
+
+/* ---- title bar controls ---- */
+.app-title {
+  flex: 1 1 auto;
+}
+
+.window-controls {
+  display: flex;
+  gap: var(--space-1);
+  margin-right: calc(var(--space-2) * -1);
+}
+
+.window-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.5rem;
+  padding: 0;
+  border: 1px solid var(--window-border);
+  border-radius: var(--radius-sm);
+  background: linear-gradient(180deg, var(--titlebar-sheen-top), var(--titlebar-sheen-bottom));
+  color: var(--text);
+  font-size: 0.75rem;
+  box-shadow: inset 0 1px 0 var(--window-highlight), 0 1px 2px var(--window-lowlight);
+  transition: background var(--transition-fast);
+}
+
+.window-btn:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent-border);
+}
+
+.window-btn:active {
+  box-shadow: inset 0 1px 3px var(--window-lowlight);
+}
+
+.window-btn-close:hover {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--on-danger);
+}
+
+/* Maximised: fill the screen with square corners and no frame bevel. */
+.maximized .app-window {
+  border-radius: 0;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.rust-output {
+  min-height: 2.5rem;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-alt);
+  box-shadow: var(--bevel-shadow-inset);
+  color: var(--text);
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.8rem;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* ---- title toggle and theme picker (in the title bar) ---- */
+.title-toggle {
+  margin-left: auto;
+  margin-right: var(--space-1);
+}
+
+/* config.json: "show_titlebar": false. The whole bar goes and the content
+   fills the rounded window. A small button in the top corner brings it back;
+   the content background stays draggable (data-tauri-drag-region). */
+.titlebar-hidden .app-titlebar {
+  display: none;
+}
+
+.titlebar-reveal {
+  display: none;
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  z-index: 10;
+  opacity: 0.5;
+}
+
+.titlebar-hidden .titlebar-reveal {
+  display: inline-flex;
+}
+
+.titlebar-reveal:hover {
+  opacity: 1;
+}
+
+/* config.json: "rounded_corners": false */
+html.square-corners {
+  --window-radius: 0px;
+}
+
+.theme-btn {
+  width: auto;
+  gap: var(--space-2);
+  padding: 0 var(--space-2);
+}
+
+.theme-btn-label {
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.theme-picker .dropdown-menu {
+  /* Solid, not the template's translucent glass: the menu overlaps text. */
+  background-color: var(--window-bg-bottom);
+  background-image: linear-gradient(var(--accent-soft), var(--accent-soft));
+  max-height: calc(100vh - var(--titlebar-height) - var(--space-3));
+  overflow-y: auto;
+  font-size: 0.85rem;
+}
+
+.theme-picker .dropdown-item.active {
+  background: var(--accent);
+  color: var(--text-on-accent);
+}
+
+/* ---- pages (Bootstrap tabs in the content area) ---- */
+/* Compact versions of the template tabs: the window is small. */
+.app-tabs .nav-link {
+  padding: var(--space-2) var(--space-3);
+  font-size: 0.85rem;
+}
+
+.app-tabs {
+  /* Room for the reveal button when the title bar is hidden. */
+  padding-right: 2.5rem;
+  /* The content panel's own top border is the baseline. A second line here
+     ran past the panel's rounded corner (Baby Pink) or doubled up (Sketchy). */
+  border-bottom: 0;
+}
+
+/* Bevel highlight only: the template's drop shadow under the selected tab
+   looked heavy. */
+.app-tabs .nav-link,
+.app-tabs .nav-link:hover,
+.app-tabs .nav-link.active {
+  box-shadow: inset 0 1px 0 var(--bevel-top-hover);
+}
+
+.app-content .tab-content-custom {
+  padding: var(--space-3);
+  /* No backdrop blur here: it forces a costly repaint on every resize. */
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* ---- sortable cards ---- */
+/* Compact grip for the small window; touch-action stops a touch drag from
+   scrolling the page instead. */
+.app-content .sort-handle {
+  width: 2.25rem;
+  font-size: 1rem;
+  touch-action: none;
+  user-select: none;
+}
+
+.sortable-item.dragging {
+  box-shadow: var(--bevel-shadow-hover), 0 0 0 2px var(--accent);
+}
+
+.settings-list {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-1) var(--space-3);
+}
+
+.settings-list dt {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.settings-list dd {
+  margin: 0;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.85rem;
+}
+
+/* ---- accordion panels ---- */
+/* No height animation: it repaints every frame and the window is small. */
+.accordion-collapse.collapsing {
+  transition: none;
+}
+
+.app-content .accordion-custom .accordion-body {
+  padding: var(--space-3);
+}
+
+/* ---- tables page ---- */
+.app-content .table-custom thead th,
+.app-content .table-custom tbody th,
+.app-content .table-custom tbody td {
+  padding: var(--space-2) var(--space-3);
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.app-content .table-custom tbody th {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.app-content .table-custom .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.app-content .table-custom .col-progress {
+  min-width: 6rem;
+}
+
+/* Status badges: the theme's soft semantic fills, with AA-safe text colours. */
+.badge-success { background-color: var(--success-soft); color: var(--success-text); }
+.badge-warning { background-color: var(--warning-soft); color: var(--warning-text); }
+.badge-danger  { background-color: var(--danger-soft);  color: var(--danger-text); }
+.badge-info    { background-color: var(--info-soft);    color: var(--info-text); }
+.badge-neutral { background-color: var(--surface-alt);  color: var(--text-muted); }
+
+.state-success { color: var(--success-text); }
+.state-warning { color: var(--warning-text); }
+.state-danger  { color: var(--danger-text); }

@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "status": "incomplete",
+  "label": "baseline",
+  "started_utc": "2026-11-12T15:55:57+00:00",
+  "binary_sha256": "7ebc7813f8fba43aefc610401f350a737b5140fca66216f710dc4c418075ac93",
+  "binary_size_bytes": 4340952,
+  "environment": {
+    "theme": "slate",
+    "window_size": [
+      640,
+      480
+    ],
+    "display": ":0",
+    "session_type": "x11",
+    "desktop": "LXQt",
+    "screen_mode": [
+      "1920x1080    143.98   119.93    60.00*   59.94    50.00"
+    ],
+    "compositor": "active",
+    "picom_version": "v9",
+    "xdotool_version": "xdotool version 3.20160805.1",
+    "imagemagick_version": "Version: ImageMagick 6.9.11-60 Q16 x86_64 2021-01-25 https://imagemagick.org",
+    "system": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+    "gdk_scale": "",
+    "webkit_disable_compositing": ""
+  },
+  "scenarios": {}
+}

@@ -1,0 +1,36 @@
+# Rust Scaffold: system requirements
+#
+# Rust has no pip-style requirements file. Crate dependencies are pinned in
+# src-tauri/Cargo.toml and src-tauri/Cargo.lock and cargo fetches them on the
+# first build. This file lists what must already be installed on the machine.
+# No Node.js, npm or Tauri CLI is needed.
+
+# ---- All platforms ----
+rust >= 1.77.2            # Tauri 2 minimum. Tested with 1.98.0 (rustup, stable)
+cargo                     # installed together with rust
+
+# ---- Linux (Debian and Ubuntu package names) ----
+# Tested on Ubuntu 22.04 (Lubuntu, LXQt, X11).
+build-essential           # C compiler and linker, cargo needs "cc"
+pkg-config
+curl
+wget
+file
+libwebkit2gtk-4.1-dev     # WebKitGTK 4.1 (tested with 2.50.4)
+libgtk-3-dev              # GTK 3 (tested with 3.24.33)
+libssl-dev
+librsvg2-dev
+libayatana-appindicator3-dev   # tray icon (runtime: libayatana-appindicator3-1)
+# libxdo-dev is listed in the official Tauri guide. It was not installed on the
+# test machine and the project built and ran without it.
+#
+# Running a built binary needs only the runtime libraries:
+#   libwebkit2gtk-4.1-0, libgtk-3-0, libayatana-appindicator3-1
+#
+# Optional on X11: picom (or any compositor). Without one the transparent
+# rounded corners render black. run.sh starts picom if it is installed.
+
+# ---- Windows 10 and 11 (not tested on this project) ----
+# Microsoft C++ Build Tools    # "Desktop development with C++" workload
+# Rust, MSVC toolchain         # stable-x86_64-pc-windows-msvc, via rustup-init.exe
+# Microsoft Edge WebView2      # preinstalled on Windows 11 and current Windows 10

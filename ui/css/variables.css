@@ -1,0 +1,908 @@
+/* ==========================================================================
+   Design tokens — Slate (default theme)
+   Anchor: restrained dark UI in the vein of GitHub / Linear / Stripe —
+   neutral surfaces, one confident accent color, generous spacing, no
+   gradients or decoration doing the work that contrast and spacing should.
+   Every other theme overrides only these custom properties, scoped under
+   [data-theme="..."] on <html>. Never restate component rules per theme.
+   ========================================================================== */
+
+:root,
+[data-theme="slate"] {
+  /* Surfaces */
+  --bg: #14161a;
+  --surface: #1c1f26;
+  --surface-alt: #23262f;
+  --surface-raised: #282c36;
+  --border: #2e323c;
+  --border-strong: #3a3f4b;
+
+  /* Text */
+  --text: #e6e8eb;
+  --text-muted: #9aa1ac;
+  --text-faint: #8b9099;
+  --text-on-accent: #ffffff;
+
+  /* Accent */
+  --accent: #6164ec;
+  --accent-hover: #818cf8;
+  --accent-active: #4f46e5;
+  --accent-soft: rgba(99, 102, 241, 0.14);
+  --accent-border: rgba(99, 102, 241, 0.4);
+
+  /* Semantic */
+  --success: #3fb950;
+  --success-soft: rgba(63, 185, 80, 0.14);
+  --warning: #d29922;
+  --warning-soft: rgba(210, 153, 34, 0.14);
+  --danger: #f85149;
+  --danger-soft: rgba(248, 81, 73, 0.14);
+  --info: #58a6ff;
+  --info-soft: rgba(88, 166, 255, 0.14);
+
+  /* Typography */
+  --font-heading: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Inter", "Segoe UI", system-ui, sans-serif;
+
+  /* Radii — rounded everywhere except the navbar, per AGENTS.md */
+  --radius-sm: 6px;
+  --radius: 9px;
+  --radius-lg: 13px;
+  --radius-pill: 999px;
+  --radius-navbar: 0px;
+
+  /* Spacing scale */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 1rem;
+  --space-4: 1.5rem;
+  --space-5: 2.5rem;
+  --space-6: 4rem;
+
+  /* Shadow */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.45);
+
+  /* Motion */
+  --transition-fast: 120ms ease;
+  --transition: 200ms ease;
+
+  /* Accessibility: text size steps (root font-size, so every rem scales)
+     and the keyboard focus outline width. */
+  --text-scale-large: 112.5%;
+  --text-scale-larger: 125%;
+  --focus-ring-width: 3px;
+
+  /* Bevel — raised (buttons, cards, badges, tabs, dialogs) and recessed
+     (form fields) edge treatments. Each theme overrides only the four
+     raw --bevel-* colors below; the composite --bevel-shadow-* tokens
+     are defined once here and recompute automatically per theme because
+     var() references resolve at used-value time, not definition time. */
+  --bevel-top: rgba(255, 255, 255, 0.07);
+  --bevel-bottom: rgba(0, 0, 0, 0.35);
+  --bevel-top-hover: rgba(255, 255, 255, 0.12);
+  --bevel-bottom-hover: rgba(0, 0, 0, 0.45);
+
+  /* Raised: a top-edge highlight only (never a bottom inset line — that
+     would sit right against border-bottom and read as a double border),
+     plus an outer drop shadow to carry the "lifted" weight underneath. */
+  --bevel-shadow: inset 0 1px 0 var(--bevel-top), var(--shadow-sm);
+  --bevel-shadow-hover: inset 0 1px 0 var(--bevel-top-hover), var(--shadow);
+
+  /* Recessed: a single top-inset shadow suggesting a sunken slot. */
+  --bevel-shadow-inset: inset 0 1px 3px var(--bevel-bottom);
+  --bevel-shadow-inset-hover: inset 0 1px 4px var(--bevel-bottom-hover);
+
+  /* Accessibility tokens. Text-role variants default to the decorative
+     colour and are overridden per theme only where that colour fails
+     WCAG AA (4.5:1) as text. --on-* are button labels on the semantic
+     fills. --focus-ring is the keyboard focus outline colour. */
+  --accent-text: var(--accent);
+  --success-text: var(--success);
+  --warning-text: var(--warning);
+  --danger-text: var(--danger);
+  --info-text: var(--info);
+  --on-success: #06210c;
+  --on-warning: #231a02;
+  --on-danger: #2a0a08;
+  --on-info: #041627;
+  --focus-ring: var(--accent-text);
+
+  /* Browser chrome: toolbar colour (meta theme-color, set by theme-switcher.js)
+     and native control/scrollbar scheme. */
+  --theme-color: #1c1f26;
+  color-scheme: dark;
+}
+
+/* Bootstrap bridge. Bootstrap's own components (list groups, popovers,
+   offcanvas, disabled fields, placeholders...) read --bs-* variables whose
+   defaults are light-mode greys. Pointing them at our tokens makes any
+   Bootstrap control we have not restyled pick up the active theme instead
+   of showing a white box on a dark page. */
+:root {
+  --bs-body-color: var(--text);
+  --bs-emphasis-color: var(--text);
+  --bs-heading-color: var(--text);
+  --bs-secondary-color: var(--text-muted);
+  --bs-tertiary-color: var(--text-faint);
+  --bs-secondary-bg: var(--surface-alt);
+  --bs-tertiary-bg: var(--surface-alt);
+  --bs-border-color: var(--border);
+  --bs-border-color-translucent: var(--border);
+  --bs-link-color: var(--accent-text);
+  --bs-link-hover-color: var(--accent-text);
+  --bs-code-color: var(--accent-text);
+
+  /* Surfaces used by plain Bootstrap cards, tables, list groups, dropdowns */
+  --bs-body-bg: var(--surface);
+
+  /* Semantic colours. Bootstrap's plain .alert, .badge, .list-group-item-*
+     and .btn-outline-* read these subtle/emphasis variables. */
+  --bs-primary: var(--accent);
+  --bs-primary-text-emphasis: var(--accent-text);
+  --bs-primary-bg-subtle: var(--accent-soft);
+  --bs-primary-border-subtle: var(--accent-border);
+  --bs-secondary-text-emphasis: var(--text-muted);
+  --bs-secondary-bg-subtle: var(--surface-alt);
+  --bs-secondary-border-subtle: var(--border);
+  --bs-success: var(--success);
+  --bs-success-text-emphasis: var(--success-text);
+  --bs-success-bg-subtle: var(--success-soft);
+  --bs-success-border-subtle: var(--success);
+  --bs-warning: var(--warning);
+  --bs-warning-text-emphasis: var(--warning-text);
+  --bs-warning-bg-subtle: var(--warning-soft);
+  --bs-warning-border-subtle: var(--warning);
+  --bs-danger: var(--danger);
+  --bs-danger-text-emphasis: var(--danger-text);
+  --bs-danger-bg-subtle: var(--danger-soft);
+  --bs-danger-border-subtle: var(--danger);
+  --bs-info: var(--info);
+  --bs-info-text-emphasis: var(--info-text);
+  --bs-info-bg-subtle: var(--info-soft);
+  --bs-info-border-subtle: var(--info);
+
+  /* Chevron for <select>, a data URI so it needs no network. Stroke colour
+     cannot use var(), so light themes override the whole token. */
+  --select-chevron: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23c5cad3' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+
+  /* Hamburger icon of the navbar toggler: white on the dark themes so it
+     reads as a button; the two light themes override it with dark ink. */
+  --toggler-icon: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='%23ffffff' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2.5' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+}
+
+/* Chart palette (assets/js/charts.js). Eight categorical hues in a FIXED
+   order, validated with the dataviz skill's validate_palette.js against every
+   theme surface: all hard gates pass. Series 1 is always slot 1, never
+   re-ranked. Dark values are the default; the two light themes use the light
+   steps. Status colours are reserved for meaning (good/warning/critical) and
+   are never used as series colours. --chart-surface is the colour behind the
+   marks, used for the gaps and rings that separate them. */
+:root {
+  --chart-1: #3987e5; --chart-2: #d95926; --chart-3: #199e70; --chart-4: #c98500;
+  --chart-5: #d55181; --chart-6: #008300; --chart-7: #9085e9; --chart-8: #e66767;
+  --chart-status-good: #0ca30c;
+  --chart-status-warning: #fab219;
+  --chart-status-critical: #d03b3b;
+  --chart-surface: var(--theme-color);
+  --chart-control-label-size: 0.875rem;
+  --chart-search-icon-space: 2rem;
+  --chart-status-height: 1.25rem;
+  --chart-min-height: 13rem;
+  --chart-full-ring-width: 1.5rem;
+}
+
+[data-theme="aero-blue"],
+[data-theme="baby-pink"],
+[data-theme="materia"],
+[data-theme="sketchy"] {
+  --chart-1: #2a78d6; --chart-2: #eb6834; --chart-3: #1baf7a; --chart-4: #eda100;
+  --chart-5: #e87ba4; --chart-6: #008300; --chart-7: #4a3aa7; --chart-8: #e34948;
+}
+
+[data-theme="aero-blue"] { --chart-surface: #f5fbff; }
+
+/* Slate shares the :root block above as the fallback for every theme, so
+   its own AA text-role overrides live in a separate block and cannot leak
+   into themes that do not define them. */
+[data-theme="slate"] {
+  --accent-text: #8285f0;
+  --danger-text: #f56963;
+}
+
+/* ==========================================================================
+   Theme overrides — each theme swaps ONLY color tokens (surfaces, text,
+   accent, semantic). Radii, spacing, fonts, shadow and motion are shared
+   from :root above and never restated here. Dark themes reuse the same
+   semantic (success/warning/danger/info) set as Slate; Baby Pink is the
+   one light theme and gets its own accessible light semantic set.
+   ========================================================================== */
+
+/* Aero Blue — Windows Vista Aero: light sky-gradient background, glass
+   surfaces (translucent + blurred, see the backdrop-filter rules colocated
+   in navbar.css/cards.css/etc.), glossy buttons. The one theme where --bg
+   is a gradient rather than a flat color — body's rule uses the `background`
+   shorthand (not background-color) specifically so this works. */
+[data-theme="aero-blue"] {
+  --bg: linear-gradient(180deg, #bfe3fb 0%, #dff0fc 40%, #f5fbff 75%, #ffffff 100%);
+  --surface: rgba(255, 255, 255, 0.55);
+  --surface-alt: rgba(223, 242, 253, 0.6);
+  --surface-raised: rgba(255, 255, 255, 0.78);
+  --border: rgba(255, 255, 255, 0.65);
+  --border-strong: rgba(90, 155, 205, 0.5);
+
+  --text: #11304f;
+  --text-muted: #45607a;
+  --text-faint: #46627c;
+  --text-on-accent: #ffffff;
+
+  --accent: #287ab6;
+  --accent-hover: #3f8fc7;
+  --accent-active: #1a639a;
+  --accent-soft: rgba(47, 143, 214, 0.16);
+  --accent-border: rgba(47, 143, 214, 0.45);
+
+  /* Light-mode semantic set, same reasoning as Baby Pink */
+  --success: #1a7f37; --success-soft: rgba(26, 127, 55, 0.12);
+  --warning: #9a6700; --warning-soft: rgba(154, 103, 0, 0.12);
+  --danger: #cf222e;  --danger-soft: rgba(207, 34, 46, 0.12);
+  --info: #0969da;    --info-soft: rgba(9, 105, 218, 0.12);
+
+  /* Glass bevel: white highlight, ink-based lowlight (same reasoning as
+     Baby Pink's override) */
+  --bevel-top: rgba(255, 255, 255, 0.95);
+  --bevel-bottom: rgba(17, 48, 79, 0.14);
+  --bevel-top-hover: rgba(255, 255, 255, 1);
+  --bevel-bottom-hover: rgba(17, 48, 79, 0.22);
+
+  /* WCAG AA text-role overrides (see assets/py/audit_template.py) */
+  --accent-text: #216398;
+  --success-text: #176340;
+  --warning-text: #69531c;
+  --danger-text: #9c2637;
+  --info-text: #0c54a8;
+  --on-success: #ffffff;
+  --on-warning: #ffffff;
+  --on-danger: #ffffff;
+  --on-info: #ffffff;
+  --theme-color: #e2f2fd;
+  color-scheme: light;
+  --select-chevron: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%2311304f' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+  --toggler-icon: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='%2311304f' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2.5' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+}
+
+/* Dark Mode — built for the tired-eyes coder, not for looking dramatic in
+   a screenshot. Pure black + pure white + a blue-heavy accent (the
+   previous #050506 / #f2f2f4 / cyan) is the actual worst combination for
+   eye strain: max contrast causes glare/halation, and blue wavelengths
+   are the specific ones that fatigue tired eyes most. Anchored instead to
+   the Gruvbox/Solarized school of "designed for long sessions": warm
+   off-black (never pure black), warm off-white (never pure white), and
+   an accent shifted from cyan to amber — same reason night-shift/f.lux
+   color-temperature filters exist. */
+[data-theme="dark-mode"] {
+  --bg: #1b1a17;
+  --surface: #232120;
+  --surface-alt: #2b2926;
+  --surface-raised: #33302c;
+  --border: #3a3733;
+  --border-strong: #48443e;
+
+  --text: #ebe4d8;
+  --text-muted: #a89e8e;
+  --text-faint: #9a9385;
+  --text-on-accent: #1f1607;
+
+  --accent: #e0a458;
+  --accent-hover: #edbb7a;
+  --accent-active: #c4883f;
+  --accent-soft: rgba(224, 164, 88, 0.14);
+  --accent-border: rgba(224, 164, 88, 0.4);
+
+  --success: #a3c15e; --success-soft: rgba(163, 193, 94, 0.14);
+  --warning: #d29922; --warning-soft: rgba(210, 153, 34, 0.14);
+  --danger: #e0715a;  --danger-soft: rgba(224, 113, 90, 0.14);
+  --info: #7ba9c9;    --info-soft: rgba(123, 169, 201, 0.14);
+
+  /* WCAG AA text-role overrides (see assets/py/audit_template.py) */
+  --danger-text: #e1806a;
+  --theme-color: #232120;
+}
+
+/* Baby Pink — the one LIGHT theme (explicit requirement) */
+/* Strawberry milk / bubblegum — sweeter and more saturated than the
+   previous dusty-mauve pass, per Kim: correct color family, but didn't
+   invoke "yummy, want to eat it." A warm cream-pink background (like
+   strawberry-milk itself, not a cool clinical white) plus a genuinely
+   vivid candy-pink accent instead of a muted pastel. */
+/* Baby Pink: opulent pearly pink. Frosted glass over a bubblegum gradient
+   with champagne-gold hairlines. Blur and gold button edges are in bootswatch.css. */
+[data-theme="baby-pink"] {
+  --bg: radial-gradient(circle at 12% 8%, rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0) 38%), radial-gradient(circle at 88% 28%, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 34%), radial-gradient(circle at 50% 100%, rgba(255, 228, 176, 0.55), rgba(255, 228, 176, 0) 45%), linear-gradient(135deg, #ffc4dd 0%, #ffaed2 35%, #f8b4ea 70%, #ffd3e8 100%);
+  --surface: rgba(255, 255, 255, 0.6);
+  --surface-alt: rgba(255, 255, 255, 0.72);
+  --surface-raised: rgba(255, 255, 255, 0.9);
+  --border: rgba(205, 150, 60, 0.5);
+  --border-strong: rgba(190, 135, 45, 0.85);
+
+  --text: #4a1730;
+  --text-muted: #75325a;
+  --text-faint: #6e3454;
+  /* Sweet, saturated bubblegum/strawberry pink — dark ink still reads
+     better on it than white */
+  --text-on-accent: #4a1730;
+
+  --accent: #ff7ab8;
+  --accent-hover: #ff9ecb;
+  --accent-active: #f2549e;
+  --accent-soft: rgba(255, 122, 184, 0.2);
+  --accent-border: rgba(255, 122, 184, 0.45);
+
+  /* Light-theme bevel: a white top-highlight is invisible on a white card,
+     so raised elements (--bevel-shadow = top-highlight + --shadow-sm) lean
+     entirely on the drop shadow for definition — --shadow-sm/--shadow are
+     overridden here, stronger and ink-tinted, specifically because the
+     :root defaults (built for dark surfaces) read as barely-there on white. */
+  --bevel-top: rgba(255, 255, 255, 0.9);
+  --bevel-bottom: rgba(58, 23, 40, 0.18);
+  --bevel-top-hover: rgba(255, 255, 255, 1);
+  --bevel-bottom-hover: rgba(58, 23, 40, 0.28);
+  --shadow-sm: 0 1px 2px rgba(58, 23, 40, 0.12);
+  --shadow: 0 8px 28px -4px rgba(190, 130, 50, 0.38);
+  --shadow-lg: 0 14px 40px -6px rgba(190, 130, 50, 0.45);
+
+  /* Soft, extra-round corners */
+  --radius-sm: 14px;
+  --radius: 20px;
+  --radius-lg: 28px;
+
+  /* Pastel candy tints (mint, butter, rose, lavender) so alerts and badges
+     stay clean over the pink gradient. Accessible light-mode semantic set (Primer-light-derived, not Slate's dark set) */
+  --success: #1a7f37; --success-soft: rgba(214, 255, 232, 0.88);
+  --warning: #9a6700; --warning-soft: rgba(255, 244, 204, 0.9);
+  --danger: #cf222e;  --danger-soft: rgba(255, 226, 234, 0.9);
+  --info: #0969da;    --info-soft: rgba(236, 228, 255, 0.9);
+
+  /* WCAG AA text-role overrides (see assets/py/audit_template.py) */
+  --accent-text: #85265a;
+  --success-text: #14502a;
+  --warning-text: #6b4000;
+  --danger-text: #8f1522;
+  --info-text: #0b4590;
+  --on-success: #ffffff;
+  --on-warning: #ffffff;
+  --on-danger: #ffffff;
+  --on-info: #ffffff;
+  --theme-color: #ffaed2;
+  color-scheme: light;
+  --select-chevron: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%234a1730' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+  --toggler-icon: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='%234a1730' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2.5' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+}
+
+/* Lilac — comfort + hot chocolate: warm cocoa-brown surfaces (not a cool
+   violet-black) with a soft mauve-lilac accent, aiming for a cozy,
+   feminine feel rather than the previous saturated "grape soda" purple. */
+[data-theme="lilac"] {
+  --bg: #1c1512;
+  --surface: #251c17;
+  --surface-alt: #2e231d;
+  --surface-raised: #382b23;
+  --border: #40312a;
+  --border-strong: #4f3c32;
+
+  --text: #f1e6de;
+  --text-muted: #c3a696;
+  --text-faint: #a18b7e;
+  --text-on-accent: #2b1830;
+
+  --accent: #bb92d6;
+  --accent-hover: #d2b2e6;
+  --accent-active: #9c6fbb;
+  --accent-soft: rgba(187, 146, 214, 0.16);
+  --accent-border: rgba(187, 146, 214, 0.42);
+
+  --success: #3fb950; --success-soft: rgba(63, 185, 80, 0.14);
+  --warning: #d29922; --warning-soft: rgba(210, 153, 34, 0.14);
+  --danger: #f85149;  --danger-soft: rgba(248, 81, 73, 0.14);
+  --info: #58a6ff;    --info-soft: rgba(88, 166, 255, 0.14);
+
+  /* WCAG AA text-role overrides (see assets/py/audit_template.py) */
+  --danger-text: #f7675f;
+  --theme-color: #251c17;
+}
+
+/* Regal — dark red + gold. Kim's read on the first pass: worst of the
+   set, the gold ring around the primary button looked "weird," not
+   majestic. Reworked on two changes: (1) every bordered control gets a
+   soft gold hairline via --border/--border-strong themselves — the whole
+   structure is trimmed in gold, not just one button — and (2) the primary
+   button drops the hard-edged gold ring for a velvet crimson gradient
+   with a soft gold glow and gold text instead (see buttons.css). */
+[data-theme="regal"] {
+  --bg: #120707;
+  --surface: #1c0d0d;
+  --surface-alt: #261211;
+  --surface-raised: #301715;
+  --border: rgba(212, 175, 55, 0.22);
+  --border-strong: rgba(212, 175, 55, 0.42);
+
+  --text: #f3e6d8;
+  --text-muted: #c2a082;
+  --text-faint: #9b7e67;
+  --text-on-accent: #241505;
+
+  --accent: #d4af37;
+  --accent-hover: #e6c866;
+  --accent-active: #b8952b;
+  --accent-soft: rgba(212, 175, 55, 0.14);
+  --accent-border: rgba(212, 175, 55, 0.4);
+
+  /* A second, named color: the theme is Gold AND Red — gold alone (the
+     lone --accent above) reads as just "gold", so the primary button
+     below is deliberately overridden to a deep crimson with a gold rim,
+     the actual monarch's-cloak combination, instead of leaving red as a
+     background tint nobody sees. */
+  --regal-red: #8a1220;
+  --regal-red-hover: #a3182b;
+  --regal-red-active: #6e0e19;
+
+  --success: #3fb950; --success-soft: rgba(63, 185, 80, 0.14);
+  --warning: #d29922; --warning-soft: rgba(210, 153, 34, 0.14);
+  --danger: #b3222f;  --danger-soft: rgba(179, 34, 47, 0.16);
+  --info: #58a6ff;    --info-soft: rgba(88, 166, 255, 0.14);
+
+  /* WCAG AA text-role overrides (see assets/py/audit_template.py) */
+  --danger-text: #cb6b6e;
+  --on-danger: #ffffff;
+  --theme-color: #1c0d0d;
+}
+
+/* Racing Green — dark, British Racing Green accent */
+[data-theme="racing-green"] {
+  --bg: #081410;
+  --surface: #0e1f18;
+  --surface-alt: #142a20;
+  --surface-raised: #1a3528;
+  --border: #1e3d2c;
+  --border-strong: #2b4d3a;
+
+  --text: #e6f2ea;
+  --text-muted: #9dbfab;
+  --text-faint: #769784;
+  --text-on-accent: #ffffff;
+
+  --accent: #2f6b45;
+  --accent-hover: #3f9760;
+  --accent-active: #24532f;
+  --accent-soft: rgba(47, 107, 69, 0.16);
+  --accent-border: rgba(47, 107, 69, 0.45);
+
+  --success: #3fb950; --success-soft: rgba(63, 185, 80, 0.14);
+  --warning: #d29922; --warning-soft: rgba(210, 153, 34, 0.14);
+  --danger: #f85149;  --danger-soft: rgba(248, 81, 73, 0.14);
+  --info: #58a6ff;    --info-soft: rgba(88, 166, 255, 0.14);
+
+  /* Higher-density bevel: the deep green swallows a subtle edge, so this
+     theme gets a stronger highlight/lowlight contrast and a heavier drop
+     shadow than every other dark theme (--shadow-sm/--shadow are normally
+     :root-global — overriding them here only affects Racing Green, since
+     --bevel-shadow resolves them at used-value time). */
+  --bevel-top: rgba(255, 255, 255, 0.16);
+  --bevel-bottom: rgba(0, 0, 0, 0.55);
+  --bevel-top-hover: rgba(255, 255, 255, 0.26);
+  --bevel-bottom-hover: rgba(0, 0, 0, 0.65);
+  --shadow-sm: 0 2px 5px rgba(0, 0, 0, 0.5);
+  --shadow: 0 8px 22px rgba(0, 0, 0, 0.55);
+
+  /* WCAG AA text-role overrides (see assets/py/audit_template.py) */
+  --accent-text: #6d997d;
+  --danger-text: #f75e56;
+  --theme-color: #0e1f18;
+}
+
+/* Orange + Black */
+[data-theme="orange-black"] {
+  --bg: #0a0a0a;
+  --surface: #131313;
+  --surface-alt: #1c1c1c;
+  --surface-raised: #242424;
+  --border: #2b2b2b;
+  --border-strong: #383838;
+
+  --text: #f5f1ec;
+  --text-muted: #b3aca3;
+  --text-faint: #8c867e;
+  --text-on-accent: #1a0900;
+
+  --accent: #f97316;
+  --accent-hover: #fb923c;
+  --accent-active: #ea580c;
+  --accent-soft: rgba(249, 115, 22, 0.14);
+  --accent-border: rgba(249, 115, 22, 0.4);
+
+  --success: #3fb950; --success-soft: rgba(63, 185, 80, 0.14);
+  --warning: #d29922; --warning-soft: rgba(210, 153, 34, 0.14);
+  --danger: #f85149;  --danger-soft: rgba(248, 81, 73, 0.14);
+  --info: #58a6ff;    --info-soft: rgba(88, 166, 255, 0.14);
+  --theme-color: #131313;
+}
+
+/* Regal Blue — an admiral's dress uniform: steel and sapphire, not a
+   bright corporate blue. Kim: the right family but missing the
+   "masculine, in charge" authority. Two changes, mirroring what worked
+   for Regal (gold trim everywhere via --border): (1) --border/-strong get
+   a cool steel-silver hairline instead of plain navy, trimming the whole
+   structure the way braid trims a uniform, and (2) the accent is deepened
+   and desaturated toward a commanding, muted sapphire rather than a
+   bright cobalt — authority reads as restraint and weight, not brightness. */
+[data-theme="regal-blue"] {
+  --bg: #05070f;
+  --surface: #0c1120;
+  --surface-alt: #121a2e;
+  --surface-raised: #182238;
+  --border: rgba(148, 163, 184, 0.2);
+  --border-strong: rgba(148, 163, 184, 0.4);
+
+  --text: #e6ebf7;
+  --text-muted: #9aa8c4;
+  --text-faint: #7986a2;
+  --text-on-accent: #ffffff;
+
+  --accent: #3d5a94;
+  --accent-hover: #5273ad;
+  --accent-active: #2c4270;
+  --accent-soft: rgba(61, 90, 148, 0.18);
+  --accent-border: rgba(148, 163, 184, 0.4);
+
+  --success: #3fb950; --success-soft: rgba(63, 185, 80, 0.14);
+  --warning: #d29922; --warning-soft: rgba(210, 153, 34, 0.14);
+  --danger: #f85149;  --danger-soft: rgba(248, 81, 73, 0.14);
+  --info: #58a6ff;    --info-soft: rgba(88, 166, 255, 0.14);
+
+  /* WCAG AA text-role overrides (see assets/py/audit_template.py) */
+  --accent-text: #7086b2;
+  --theme-color: #0c1120;
+}
+
+/* Rose — dark, moody rose accent (distinct from the light Baby Pink theme) */
+[data-theme="rose"] {
+  --bg: #150a0d;
+  --surface: #1f1116;
+  --surface-alt: #29161d;
+  --surface-raised: #331b23;
+  --border: #3d2129;
+  --border-strong: #4f2b35;
+
+  --text: #f5e6ea;
+  --text-muted: #c199a6;
+  --text-faint: #9d7f8a;
+  --text-on-accent: #ffffff;
+
+  /* Deeper wine-red rose, pushed further toward red per Kim's feedback
+     that the muted mauve pass still didn't read as "rose" enough. */
+  --accent: #9c2d43;
+  --accent-hover: #b8425a;
+  --accent-active: #7c2035;
+  --accent-soft: rgba(156, 45, 67, 0.18);
+  --accent-border: rgba(156, 45, 67, 0.45);
+
+  --success: #3fb950; --success-soft: rgba(63, 185, 80, 0.14);
+  --warning: #d29922; --warning-soft: rgba(210, 153, 34, 0.14);
+  --danger: #f85149;  --danger-soft: rgba(248, 81, 73, 0.14);
+  --info: #58a6ff;    --info-soft: rgba(88, 166, 255, 0.14);
+
+  /* WCAG AA text-role overrides (see assets/py/audit_template.py) */
+  --accent-text: #bd7181;
+  --theme-color: #1f1116;
+}
+
+/* ==========================================================================
+   Bootswatch-inspired themes: Vapor, Quartz, Materia, Sketchy. Palettes,
+   radii, fonts and shadows follow the Bootswatch originals (v5.3); text and
+   fill colours are nudged where an original fails WCAG AA. Component-level
+   extras (glass blur, hand-drawn corners, ripple) live in bootswatch.css.
+   ========================================================================== */
+
+/* Vapor: dark synthwave. Deep purple page, neon cyan text, pink and purple
+   accents, near-square corners, glow instead of drop shadows. */
+[data-theme="vapor"] {
+  --bg: #1a0933;
+  --surface: #230b42;
+  --surface-alt: #2c1052;
+  --surface-raised: #35165f;
+  --border: #44207a;
+  --border-strong: #6a35b0;
+
+  --text: #32fbe2;
+  --text-muted: #8fe6f0;
+  --text-faint: #86d2e0;
+  --text-on-accent: #ffffff;
+
+  --accent: #6f42c1;
+  --accent-hover: #8a5fdb;
+  --accent-active: #5a32a8;
+  --accent-soft: rgba(111, 66, 193, 0.28);
+  --accent-border: rgba(138, 95, 219, 0.6);
+
+  --success: #3cf281; --success-soft: rgba(60, 242, 129, 0.14);
+  --warning: #ffc107; --warning-soft: rgba(255, 193, 7, 0.14);
+  --danger: #e44c55;  --danger-soft: rgba(228, 76, 85, 0.16);
+  --info: #1ba2f6;    --info-soft: rgba(27, 162, 246, 0.16);
+
+  --font-heading: "Lato", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Lato", "Segoe UI", system-ui, sans-serif;
+
+  --radius-sm: 2px;
+  --radius: 3px;
+  --radius-lg: 4px;
+
+  --shadow-sm: 0 0 4px rgba(234, 57, 184, 0.4);
+  --shadow: 0 0 1rem rgba(234, 57, 184, 0.3);
+  --shadow-lg: 0 0 2rem rgba(50, 251, 226, 0.25);
+  --bevel-top: rgba(255, 255, 255, 0.08);
+  --bevel-bottom: rgba(0, 0, 0, 0.5);
+  --bevel-top-hover: rgba(255, 255, 255, 0.14);
+  --bevel-bottom-hover: rgba(0, 0, 0, 0.6);
+
+  --accent-text: #44d9e8;
+  --danger-text: #ff7a82;
+  --info-text: #5cc0ff;
+  --theme-color: #230b42;
+  color-scheme: dark;
+  --select-chevron: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%2332fbe2' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+  --toggler-icon: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='%2332fbe2' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2.5' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+}
+
+/* Quartz: glass panels over a cyan, indigo and pink gradient. The gradient
+   ends are darkened from the original so white text keeps AA contrast. */
+[data-theme="quartz"] {
+  --bg: linear-gradient(90deg, #19688e 0%, #44488f 50%, #a82160 100%);
+  --surface: rgba(20, 10, 60, 0.38);
+  --surface-alt: rgba(20, 10, 60, 0.5);
+  --surface-raised: rgba(38, 24, 84, 0.78);
+  --border: rgba(255, 255, 255, 0.3);
+  --border-strong: rgba(255, 255, 255, 0.55);
+
+  --text: #ffffff;
+  --text-muted: #f2f3ff;
+  --text-faint: #e8eafc;
+  --text-on-accent: #ffffff;
+
+  --accent: #d62a76;
+  --accent-hover: #e8498e;
+  --accent-active: #b01f60;
+  --accent-soft: rgba(214, 42, 118, 0.3);
+  --accent-border: rgba(255, 255, 255, 0.5);
+
+  --success: #41d7a7; --success-soft: rgba(5, 45, 35, 0.78);
+  --warning: #ffc107; --warning-soft: rgba(50, 30, 0, 0.78);
+  --danger: #fd7e14;  --danger-soft: rgba(60, 25, 0, 0.78);
+  --info: #39cbfb;    --info-soft: rgba(0, 35, 60, 0.78);
+
+  --font-heading: "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-body: "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+
+  --radius-sm: 10px;
+  --radius: 8px;
+  --radius-lg: 11px;
+
+  --shadow-sm: 0 1px 1px rgba(0, 0, 0, 0.1);
+  --shadow: 1px 3px 24px -1px rgba(0, 0, 0, 0.15);
+  --shadow-lg: 1px 8px 32px -1px rgba(0, 0, 0, 0.25);
+  --bevel-top: rgba(255, 255, 255, 0.22);
+  --bevel-bottom: rgba(0, 0, 0, 0.3);
+  --bevel-top-hover: rgba(255, 255, 255, 0.32);
+  --bevel-bottom-hover: rgba(0, 0, 0, 0.4);
+
+  --accent-text: #ffffff;
+  --theme-color: #44488f;
+  color-scheme: dark;
+  --select-chevron: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23ffffff' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+  --toggler-icon: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='%23ffffff' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2.5' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+}
+
+/* Materia: Material Design. White page, Roboto, flat fills, layered
+   shadows, small corners. The raised-edge highlight is switched off. */
+[data-theme="materia"] {
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --surface-alt: #f2f2f2;
+  --surface-raised: #ffffff;
+  --border: #e0e0e0;
+  --border-strong: #b0b0b0;
+
+  --text: #444444;
+  --text-muted: #5f5f5f;
+  --text-faint: #666666;
+  --text-on-accent: #ffffff;
+
+  --accent: #1976d2;
+  --accent-hover: #2196f3;
+  --accent-active: #1565c0;
+  --accent-soft: rgba(33, 150, 243, 0.14);
+  --accent-border: rgba(33, 150, 243, 0.45);
+
+  --success: #2a7030; --success-soft: rgba(42, 112, 48, 0.12);
+  --warning: #ff9800; --warning-soft: rgba(255, 152, 0, 0.16);
+  --danger: #e51c23;  --danger-soft: rgba(229, 28, 35, 0.1);
+  --info: #9c27b0;    --info-soft: rgba(156, 39, 176, 0.1);
+
+  --font-heading: "Roboto", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Roboto", "Segoe UI", system-ui, sans-serif;
+
+  --radius-sm: 2px;
+  --radius: 4px;
+  --radius-lg: 6px;
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.2), 0 1px 2px rgba(0, 0, 0, 0.24);
+  --shadow: 0 3px 6px rgba(0, 0, 0, 0.16), 0 3px 6px rgba(0, 0, 0, 0.23);
+  --shadow-lg: 0 10px 20px rgba(0, 0, 0, 0.19), 0 6px 6px rgba(0, 0, 0, 0.23);
+  --bevel-top: rgba(255, 255, 255, 0);
+  --bevel-bottom: rgba(0, 0, 0, 0.14);
+  --bevel-top-hover: rgba(255, 255, 255, 0);
+  --bevel-bottom-hover: rgba(0, 0, 0, 0.2);
+
+  --accent-text: #1565c0;
+  --success-text: #2a7030;
+  --warning-text: #8a5200;
+  --danger-text: #c4161c;
+  --info-text: #8e24aa;
+  --on-success: #ffffff;
+  --on-warning: #212121;
+  --on-danger: #ffffff;
+  --on-info: #ffffff;
+  --theme-color: #ffffff;
+  color-scheme: light;
+  --select-chevron: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23444444' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+  --toggler-icon: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='%23444444' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2.5' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+}
+
+/* Sketchy: black ink on paper. Flat, thick borders, big irregular corners
+   (see bootswatch.css), Neucha body text and Cabin Sketch headings. */
+[data-theme="sketchy"] {
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --surface-alt: #f7f7f9;
+  --surface-raised: #ffffff;
+  --border: #333333;
+  --border-strong: #333333;
+
+  --text: #212529;
+  --text-muted: #555555;
+  --text-faint: #666666;
+  --text-on-accent: #ffffff;
+
+  --accent: #333333;
+  --accent-hover: #555555;
+  --accent-active: #111111;
+  --accent-soft: rgba(51, 51, 51, 0.1);
+  --accent-border: rgba(51, 51, 51, 0.5);
+
+  --success: #1b6f2f; --success-soft: rgba(27, 111, 47, 0.12);
+  --warning: #ffc107; --warning-soft: rgba(255, 193, 7, 0.2);
+  --danger: #c82333;  --danger-soft: rgba(200, 35, 51, 0.1);
+  --info: #117a8b;    --info-soft: rgba(17, 122, 139, 0.12);
+
+  --font-heading: "Cabin Sketch", "Comic Sans MS", cursive;
+  --font-body: "Neucha", "Comic Sans MS", cursive;
+
+  --radius-sm: 15px;
+  --radius: 25px;
+  --radius-lg: 35px;
+
+  --shadow-sm: 0 0 0 rgba(0, 0, 0, 0);
+  --shadow: 0 0 0 rgba(0, 0, 0, 0);
+  --shadow-lg: 0 0 0 rgba(0, 0, 0, 0);
+  --bevel-top: rgba(255, 255, 255, 0);
+  --bevel-bottom: rgba(0, 0, 0, 0);
+  --bevel-top-hover: rgba(255, 255, 255, 0);
+  --bevel-bottom-hover: rgba(0, 0, 0, 0);
+
+  --accent-text: #333333;
+  --success-text: #1b6f2f;
+  --warning-text: #7a5a00;
+  --danger-text: #c82333;
+  --info-text: #0f6674;
+  --on-success: #ffffff;
+  --on-warning: #212529;
+  --on-danger: #ffffff;
+  --on-info: #ffffff;
+  --theme-color: #ffffff;
+  color-scheme: light;
+  --select-chevron: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23333333' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+  --toggler-icon: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='%23333333' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2.5' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+}
+
+/* ==========================================================================
+   Accessibility preferences (rules that use these live in accessibility.css)
+   ========================================================================== */
+
+/* Opaque surfaces for visitors who ask for less transparency or more
+   contrast. The glass themes use translucent surface tokens over a gradient;
+   each value is that same colour flattened over the middle of the theme's
+   background. */
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  [data-theme="aero-blue"] {
+    --surface: #f1f8fe;
+    --surface-alt: #dff1fd;
+    --surface-raised: #f8fcfe;
+  }
+
+  [data-theme="baby-pink"] {
+    --surface: #ffe7f1;
+    --surface-alt: #ffeff6;
+    --surface-raised: #fff9fc;
+  }
+
+  [data-theme="quartz"] {
+    --surface: #32306f;
+    --surface-alt: #2c2966;
+    --surface-raised: #2d2361;
+  }
+}
+
+/* More contrast: muted text and borders use the full-strength colours. */
+@media (prefers-contrast: more) {
+  :root,
+  [data-theme] {
+    --text-muted: var(--text);
+    --text-faint: var(--text);
+    --border: var(--text);
+    --border-strong: var(--text);
+    --focus-ring-width: 4px;
+  }
+}
+
+/* ==========================================================================
+   App window tokens (Rust + Tauri scaffold). Not part of the Bootstrap
+   template: keep this block when refreshing variables.css from it.
+   The frameless window is one rounded frame painted with a subtle
+   top-to-bottom gradient. Light themes run from a pale tint to white;
+   dark themes run from a slightly lifted, tinted shade down to the
+   theme's base colour, so text contrast stays the same as the template.
+   ========================================================================== */
+
+:root,
+[data-theme="slate"] {
+  --window-radius: 16px;
+  --window-bg-top: #262a36;
+  --window-bg-bottom: #14161a;
+  --window-border: rgba(255, 255, 255, 0.10);
+  --window-highlight: rgba(255, 255, 255, 0.08);
+  --window-lowlight: rgba(0, 0, 0, 0.45);
+  --window-highlight-soft: rgba(255, 255, 255, 0.04);
+  --window-lowlight-soft: rgba(0, 0, 0, 0.25);
+  --titlebar-sheen-top: rgba(255, 255, 255, 0.06);
+  --titlebar-sheen-bottom: rgba(255, 255, 255, 0.01);
+  --titlebar-height: 2.25rem;
+}
+
+/* Light themes share the edge treatment, only the tint differs. */
+[data-theme="aero-blue"],
+[data-theme="baby-pink"],
+[data-theme="materia"],
+[data-theme="sketchy"] {
+  --window-border: rgba(255, 255, 255, 0.75);
+  --window-highlight: rgba(255, 255, 255, 0.85);
+  --window-lowlight: rgba(0, 0, 0, 0.12);
+  --window-highlight-soft: rgba(255, 255, 255, 0.45);
+  --window-lowlight-soft: rgba(0, 0, 0, 0.05);
+  --titlebar-sheen-top: rgba(255, 255, 255, 0.65);
+  --titlebar-sheen-bottom: rgba(255, 255, 255, 0.25);
+}
+
+[data-theme="aero-blue"]    { --window-bg-top: #c6e5fb; --window-bg-bottom: #ffffff; }
+[data-theme="baby-pink"]    { --window-bg-top: #ffcde3; --window-bg-bottom: #ffffff; }
+[data-theme="materia"]      { --window-bg-top: #dfeaf7; --window-bg-bottom: #ffffff; }
+[data-theme="sketchy"]      { --window-bg-top: #ececec; --window-bg-bottom: #ffffff; }
+
+[data-theme="dark-mode"]    { --window-bg-top: #2c2822; --window-bg-bottom: #1b1a17; }
+[data-theme="lilac"]        { --window-bg-top: #2e2233; --window-bg-bottom: #1c1512; }
+[data-theme="regal"]        { --window-bg-top: #2c1010; --window-bg-bottom: #120707; }
+[data-theme="racing-green"] { --window-bg-top: #133222; --window-bg-bottom: #081410; }
+[data-theme="orange-black"] { --window-bg-top: #2a1809; --window-bg-bottom: #0a0a0a; }
+[data-theme="regal-blue"]   { --window-bg-top: #14213f; --window-bg-bottom: #05070f; }
+[data-theme="rose"]         { --window-bg-top: #30131d; --window-bg-bottom: #150a0d; }
+[data-theme="vapor"]        { --window-bg-top: #3b1569; --window-bg-bottom: #1a0933; }
+[data-theme="quartz"]       { --window-bg-top: #24618a; --window-bg-bottom: #4a2a6e; }

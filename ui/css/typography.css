@@ -1,0 +1,160 @@
+/* ==========================================================================
+   Typography — Space Grotesk (headings/brand) + Inter (body/UI)
+   ========================================================================== */
+
+body {
+  font-family: var(--font-body);
+  /* shorthand, not background-color — Aero Blue's --bg is a gradient */
+  background: var(--bg);
+  background-attachment: fixed;
+  color: var(--text);
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+h1, h2, h3, h4, h5, h6,
+.display-heading {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.text-muted-custom {
+  color: var(--text-muted) !important;
+}
+
+.text-faint {
+  color: var(--text-faint) !important;
+}
+
+.text-accent {
+  color: var(--accent-text) !important;
+}
+
+.eyebrow {
+  font-family: var(--font-heading);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+a {
+  color: var(--accent-text);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+a:hover {
+  color: var(--accent-text);
+  text-decoration: underline;
+}
+
+/* The underline on hover is for links inside text. Controls that happen to be
+   anchors (nav, menus, buttons, brand, pagination, lists) keep their own look. */
+.nav-link:hover,
+.dropdown-item:hover,
+.btn:hover,
+.navbar-brand:hover,
+.page-link:hover,
+.list-group-item-action:hover,
+.footer-social a:hover,
+.skip-link:hover {
+  text-decoration: none;
+}
+
+code, pre, kbd {
+  font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+
+code {
+  background-color: var(--surface-alt);
+  color: var(--accent-text);
+  padding: 0.15em 0.4em;
+  border-radius: var(--radius-sm);
+  font-size: 0.875em;
+}
+
+::selection {
+  background-color: var(--accent-soft);
+  color: var(--text);
+}
+
+/* Centered lead paragraph with a readable measure (hero intro) */
+.lead-measure {
+  max-width: 42rem;
+  margin-inline: auto;
+}
+
+/* Semantic text colours that stay readable on every theme (AA text tokens) */
+.text-success-custom { color: var(--success-text) !important; }
+.text-warning-custom { color: var(--warning-text) !important; }
+.text-danger-custom  { color: var(--danger-text) !important; }
+.text-info-custom    { color: var(--info-text) !important; }
+
+/* Quotes, figures, inline text, code blocks */
+.blockquote-custom {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  font-size: 1.15rem;
+  background-color: var(--surface);
+  border-left: 4px solid var(--accent);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  box-shadow: var(--bevel-shadow);
+}
+
+.blockquote-footer {
+  color: var(--text-faint);
+}
+
+.figure-caption {
+  color: var(--text-muted);
+}
+
+mark,
+.mark {
+  background-color: var(--warning-soft);
+  color: var(--text);
+  padding: 0.1em 0.3em;
+  border-radius: var(--radius-sm);
+}
+
+kbd {
+  background-color: var(--surface-raised);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--bevel-shadow);
+  padding: 0.15em 0.5em;
+  font-size: 0.85em;
+}
+
+pre {
+  background-color: var(--surface-alt);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--bevel-shadow-inset);
+  padding: var(--space-3);
+}
+
+pre code {
+  background: none;
+  color: inherit;
+  padding: 0;
+}
+
+hr {
+  border-color: var(--border);
+  opacity: 1;
+}
+
+.img-thumbnail {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--bevel-shadow);
+  padding: var(--space-2);
+}

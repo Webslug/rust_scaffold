@@ -1,0 +1,324 @@
+{
+  "schema_version": 1,
+  "status": "complete",
+  "label": "pre_charts",
+  "started_utc": "2026-11-12T17:25:44+00:00",
+  "binary_sha256": "dcb02d7ed4392aa0c01b0079514ff88daa22542b92649400613e01e8112a82fb",
+  "binary_size_bytes": 4342800,
+  "environment": {
+    "theme": "slate",
+    "window_size": [
+      640,
+      480
+    ],
+    "display": ":0",
+    "session_type": "x11",
+    "desktop": "LXQt",
+    "screen_mode": [
+      "1920x1080    143.98   119.93    60.00*   59.94    50.00"
+    ],
+    "compositor": "active",
+    "picom_version": "v9",
+    "xdotool_version": "xdotool version 3.20160805.1",
+    "imagemagick_version": "Version: ImageMagick 6.9.11-60 Q16 x86_64 2021-01-25 https://imagemagick.org",
+    "system": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+    "gdk_scale": "",
+    "webkit_disable_compositing": ""
+  },
+  "scenarios": {
+    "normal": {
+      "scenario": "dashboard-panels",
+      "method": "xdotool-click-imagemagick-pixel-v1",
+      "sample_pixel": [
+        100,
+        245
+      ],
+      "click_points": {
+        "dashboard": [
+          45,
+          72
+        ],
+        "panels": [
+          190,
+          72
+        ]
+      },
+      "poll_median_ms": 42.59,
+      "poll_raw_ms": [
+        118.42,
+        42.53,
+        39.78,
+        43.53,
+        41.25,
+        48.6,
+        42.25,
+        42.66
+      ],
+      "warmups": 4,
+      "pause_ms": 250,
+      "samples": [
+        {
+          "elapsed_ms": 188.8,
+          "polls": 1,
+          "to": "panels"
+        },
+        {
+          "elapsed_ms": 164.03,
+          "polls": 1,
+          "to": "dashboard"
+        },
+        {
+          "elapsed_ms": 187.46,
+          "polls": 1,
+          "to": "panels"
+        },
+        {
+          "elapsed_ms": 215.01,
+          "polls": 1,
+          "to": "dashboard"
+        },
+        {
+          "elapsed_ms": 178.2,
+          "polls": 1,
+          "to": "panels"
+        },
+        {
+          "elapsed_ms": 216.66,
+          "polls": 1,
+          "to": "dashboard"
+        },
+        {
+          "elapsed_ms": 197.26,
+          "polls": 1,
+          "to": "panels"
+        },
+        {
+          "elapsed_ms": 187.22,
+          "polls": 1,
+          "to": "dashboard"
+        },
+        {
+          "elapsed_ms": 184.46,
+          "polls": 1,
+          "to": "panels"
+        },
+        {
+          "elapsed_ms": 179.18,
+          "polls": 1,
+          "to": "dashboard"
+        },
+        {
+          "elapsed_ms": 191.65,
+          "polls": 1,
+          "to": "panels"
+        },
+        {
+          "elapsed_ms": 179.01,
+          "polls": 1,
+          "to": "dashboard"
+        },
+        {
+          "elapsed_ms": 217.99,
+          "polls": 1,
+          "to": "panels"
+        },
+        {
+          "elapsed_ms": 187.12,
+          "polls": 1,
+          "to": "dashboard"
+        },
+        {
+          "elapsed_ms": 202.97,
+          "polls": 1,
+          "to": "panels"
+        },
+        {
+          "elapsed_ms": 207.98,
+          "polls": 1,
+          "to": "dashboard"
+        },
+        {
+          "elapsed_ms": 178.11,
+          "polls": 1,
+          "to": "panels"
+        },
+        {
+          "elapsed_ms": 205.1,
+          "polls": 1,
+          "to": "dashboard"
+        },
+        {
+          "elapsed_ms": 214.89,
+          "polls": 1,
+          "to": "panels"
+        },
+        {
+          "elapsed_ms": 165.36,
+          "polls": 1,
+          "to": "dashboard"
+        }
+      ],
+      "geometry": {
+        "x": 640,
+        "y": 300,
+        "width": 640,
+        "height": 480
+      },
+      "window_state": "normal",
+      "summary": {
+        "count": 20,
+        "median_ms": 188.13,
+        "p90_ms": 215.01,
+        "mad_ms": 9.974999999999994,
+        "poll_floor_ms": 42.59
+      }
+    },
+    "maximized": {
+      "scenario": "dashboard-panels",
+      "method": "xdotool-click-imagemagick-pixel-v1",
+      "sample_pixel": [
+        100,
+        245
+      ],
+      "click_points": {
+        "dashboard": [
+          45,
+          72
+        ],
+        "panels": [
+          190,
+          72
+        ]
+      },
+      "poll_median_ms": 98.74,
+      "poll_raw_ms": [
+        131.91,
+        99.58,
+        96.54,
+        101.63,
+        97.89,
+        97.43,
+        100.19,
+        95.29
+      ],
+      "warmups": 4,
+      "pause_ms": 250,
+      "samples": [
+        {
+          "elapsed_ms": 217.74,
+          "polls": 1,
+          "to": "panels"
+        },
+        {
+          "elapsed_ms": 232.61,
+          "polls": 1,
+          "to": "dashboard"
+        },
+        {
+          "elapsed_ms": 219.28,
+          "polls": 1,
+          "to": "panels"
+        },
+        {
+          "elapsed_ms": 236.04,
+          "polls": 1,
+          "to": "dashboard"
+        },
+        {
+          "elapsed_ms": 216.36,
+          "polls": 1,
+          "to": "panels"
+        },
+        {
+          "elapsed_ms": 216.75,
+          "polls": 1,
+          "to": "dashboard"
+        },
+        {
+          "elapsed_ms": 221.76,
+          "polls": 1,
+          "to": "panels"
+        },
+        {
+          "elapsed_ms": 217.12,
+          "polls": 1,
+          "to": "dashboard"
+        },
+        {
+          "elapsed_ms": 229.28,
+          "polls": 1,
+          "to": "panels"
+        },
+        {
+          "elapsed_ms": 217.26,
+          "polls": 1,
+          "to": "dashboard"
+        },
+        {
+          "elapsed_ms": 218.95,
+          "polls": 1,
+          "to": "panels"
+        },
+        {
+          "elapsed_ms": 217.64,
+          "polls": 1,
+          "to": "dashboard"
+        },
+        {
+          "elapsed_ms": 221.07,
+          "polls": 1,
+          "to": "panels"
+        },
+        {
+          "elapsed_ms": 230.39,
+          "polls": 1,
+          "to": "dashboard"
+        },
+        {
+          "elapsed_ms": 215.07,
+          "polls": 1,
+          "to": "panels"
+        },
+        {
+          "elapsed_ms": 215.99,
+          "polls": 1,
+          "to": "dashboard"
+        },
+        {
+          "elapsed_ms": 226.66,
+          "polls": 1,
+          "to": "panels"
+        },
+        {
+          "elapsed_ms": 214.36,
+          "polls": 1,
+          "to": "dashboard"
+        },
+        {
+          "elapsed_ms": 218.57,
+          "polls": 1,
+          "to": "panels"
+        },
+        {
+          "elapsed_ms": 211.1,
+          "polls": 1,
+          "to": "dashboard"
+        }
+      ],
+      "geometry": {
+        "x": 0,
+        "y": 0,
+        "width": 1920,
+        "height": 1028
+      },
+      "window_state": "maximized",
+      "summary": {
+        "count": 20,
+        "median_ms": 218.155,
+        "p90_ms": 230.39,
+        "mad_ms": 2.539999999999992,
+        "poll_floor_ms": 98.74
+      }
+    }
+  }
+}

@@ -1,0 +1,117 @@
+/* ==========================================================================
+   Containers, section layout, theme switcher, tooltips
+   ========================================================================== */
+
+.page-section {
+  padding: var(--space-6) 0;
+}
+
+.page-section-alt {
+  background-color: var(--surface);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.section-heading {
+  text-align: center;
+  margin-bottom: var(--space-5);
+}
+
+.section-heading h2 {
+  margin-top: var(--space-2);
+}
+
+.section-heading p {
+  color: var(--text-muted);
+  max-width: 40rem;
+  margin: 0 auto;
+}
+
+.panel {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  box-shadow: var(--bevel-shadow);
+}
+
+/* Theme switcher */
+.theme-switcher .dropdown-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.theme-swatch {
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 50%;
+  display: inline-block;
+  border: 1px solid var(--border-strong);
+  background-color: var(--accent);
+}
+
+.theme-swatch-slate        { background-color: #6366f1; }
+.theme-swatch-aero-blue    { background-color: #38bdf8; }
+.theme-swatch-dark-mode    { background-color: #22d3ee; }
+.theme-swatch-baby-pink    { background-color: #ec4899; }
+.theme-swatch-lilac        { background-color: #a78bfa; }
+.theme-swatch-regal        { background-color: #d4af37; }
+.theme-swatch-racing-green { background-color: #2f6b45; }
+.theme-swatch-orange-black { background-color: #f97316; }
+.theme-swatch-regal-blue   { background-color: #3b5bdb; }
+.theme-swatch-rose         { background-color: #fb7185; }
+.theme-swatch-vapor        { background-color: #ea39b8; }
+.theme-swatch-quartz       { background-color: #686dc3; }
+.theme-swatch-materia      { background-color: #2196f3; }
+.theme-swatch-sketchy      { background-color: #333333; }
+
+/* Tooltips — used on every control per AGENTS.md */
+.tooltip-inner {
+  background-color: var(--surface-raised);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.85rem;
+  font-size: 0.8rem;
+  box-shadow: var(--shadow);
+}
+
+.tooltip.bs-tooltip-top .tooltip-arrow::before { border-top-color: var(--border); }
+.tooltip.bs-tooltip-bottom .tooltip-arrow::before { border-bottom-color: var(--border); }
+.tooltip.bs-tooltip-start .tooltip-arrow::before { border-left-color: var(--border); }
+.tooltip.bs-tooltip-end .tooltip-arrow::before { border-right-color: var(--border); }
+
+/* Tooltips are informational only. Without this a tooltip that lands on a
+   neighbouring control (e.g. beside a navbar item) steals its clicks. */
+.tooltip {
+  pointer-events: none;
+}
+
+/* Fixed width for the horizontal-collapse demo (Bootstrap needs a width) */
+.collapse-horizontal-width {
+  width: 18rem;
+}
+
+/* Ratio box demo and the toolbar search width */
+.ratio-demo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--bevel-shadow-inset);
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.img-circle-demo {
+  width: 9rem;
+  height: 9rem;
+  object-fit: contain;
+}
+
+.toolbar-search {
+  width: 14rem;
+}

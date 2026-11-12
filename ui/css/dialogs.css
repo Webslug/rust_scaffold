@@ -1,0 +1,99 @@
+/* ==========================================================================
+   Modals / Dialogs
+   ========================================================================== */
+
+.modal-custom .modal-content {
+  background-color: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--bevel-shadow), var(--shadow-lg);
+}
+
+.modal-custom .modal-header {
+  border-bottom: 1px solid var(--border);
+  padding: var(--space-4);
+}
+
+.modal-custom .modal-title {
+  font-family: var(--font-heading);
+  font-weight: 600;
+}
+
+.modal-custom .modal-body {
+  padding: var(--space-4);
+  color: var(--text-muted);
+}
+
+.modal-custom .modal-footer {
+  border-top: 1px solid var(--border);
+  padding: var(--space-4);
+}
+
+.modal-custom .btn-close {
+  filter: invert(1) grayscale(1) brightness(1.8);
+}
+
+/* Light themes: Bootstrap's close icon is already dark — inverting it
+   (the default rule above, tuned for dark surfaces) would make it white
+   on a light surface and invisible. */
+[data-theme="aero-blue"] .modal-custom .btn-close,
+[data-theme="baby-pink"] .modal-custom .btn-close {
+  filter: none;
+}
+
+/* The header is its own raised bar, like a card header */
+.offcanvas-custom .offcanvas-header {
+  background-color: var(--surface-alt);
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--bevel-shadow);
+}
+
+/* Offcanvas (slide-in panel) */
+.offcanvas-custom {
+  --bs-offcanvas-bg: var(--surface-raised);
+  --bs-offcanvas-color: var(--text);
+  --bs-offcanvas-border-color: var(--border);
+  /* A raised slab: a lit top face fading into the surface, a highlight line
+     along the top edge, and a deep shadow so it floats above the page. */
+  background-image: linear-gradient(180deg, var(--bevel-top) 0%, transparent 14rem);
+  box-shadow: inset 0 1px 0 var(--bevel-top-hover), var(--shadow-lg), 0 0 40px rgba(0, 0, 0, 0.18);
+}
+
+.offcanvas-custom .offcanvas-title {
+  font-family: var(--font-heading);
+  font-weight: 600;
+}
+
+.offcanvas-custom .offcanvas-body {
+  color: var(--text-muted);
+}
+
+/* Popovers */
+.popover {
+  --bs-popover-bg: var(--surface-raised);
+  --bs-popover-border-color: var(--border-strong);
+  --bs-popover-border-radius: var(--radius-lg);
+  --bs-popover-inner-border-radius: calc(var(--radius-lg) - 1px);
+  --bs-popover-header-bg: var(--surface-alt);
+  --bs-popover-header-color: var(--text);
+  --bs-popover-body-color: var(--text-muted);
+  --bs-popover-arrow-border: var(--border-strong);
+  box-shadow: var(--bevel-shadow), var(--shadow-lg);
+  border-radius: var(--radius-lg);
+}
+
+.popover-header {
+  font-family: var(--font-heading);
+  font-weight: 600;
+}
+
+/* The close icon Bootstrap ships is dark. Every themed surface except the
+   two light themes is dark, so invert it everywhere and undo it there. */
+.btn-close {
+  filter: invert(1) grayscale(1) brightness(1.8);
+}
+
+[data-theme="aero-blue"] .btn-close,
+[data-theme="baby-pink"] .btn-close {
+  filter: none;
+}

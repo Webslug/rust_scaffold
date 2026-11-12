@@ -1,0 +1,33 @@
+[package]
+name = "rust-scaffold"
+version = "0.1.0"
+description = "Lean Rust + Tauri desktop application scaffold"
+authors = ["Kim"]
+edition = "2021"
+
+[lib]
+name = "rust_scaffold_lib"
+crate-type = ["rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Builds with plain cargo (no Tauri CLI, no Node). With no devUrl the
+# frontend in ../ui is always embedded, so custom-protocol stays on.
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
+
+# Size-focused release build. Cuts the binary substantially at the cost of a
+# slower full rebuild (a few minutes). panic = "abort" drops the unwinding code.
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"

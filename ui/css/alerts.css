@@ -1,0 +1,51 @@
+/* ==========================================================================
+   Alerts & Toasts
+   ========================================================================== */
+
+.alert-custom {
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  padding: var(--space-3) var(--space-4);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  box-shadow: var(--bevel-shadow);
+}
+
+.alert-custom i {
+  font-size: 1.2rem;
+}
+
+.alert-success-custom { background-color: var(--success-soft); border-color: var(--success); color: var(--success-text); }
+.alert-warning-custom { background-color: var(--warning-soft); border-color: var(--warning); color: var(--warning-text); }
+.alert-danger-custom  { background-color: var(--danger-soft);  border-color: var(--danger);  color: var(--danger-text); }
+.alert-info-custom    { background-color: var(--info-soft);    border-color: var(--info);    color: var(--info-text); }
+
+.toast-custom {
+  background-color: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--bevel-shadow), var(--shadow-lg);
+}
+
+.toast-custom .toast-header {
+  background-color: var(--surface-alt);
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+
+.badge-custom {
+  border-radius: var(--radius-pill);
+  padding: 0.4em 0.85em;
+  font-weight: 600;
+  font-size: 0.75rem;
+  box-shadow: var(--bevel-shadow);
+}
+
+/* Lifts the toast stack clear of the back-to-top button (3.5rem button +
+   its bottom offset) so the two never overlap in the bottom-right corner. */
+.toast-container-raised {
+  bottom: calc(3.5rem + var(--space-4));
+}

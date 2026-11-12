@@ -1,0 +1,324 @@
+{
+  "schema_version": 1,
+  "status": "complete",
+  "label": "pre_search_cards",
+  "started_utc": "2026-11-12T16:55:45+00:00",
+  "binary_sha256": "7ebc7813f8fba43aefc610401f350a737b5140fca66216f710dc4c418075ac93",
+  "binary_size_bytes": 4340952,
+  "environment": {
+    "theme": "slate",
+    "window_size": [
+      640,
+      480
+    ],
+    "display": ":0",
+    "session_type": "x11",
+    "desktop": "LXQt",
+    "screen_mode": [
+      "1920x1080    143.98   119.93    60.00*   59.94    50.00"
+    ],
+    "compositor": "active",
+    "picom_version": "v9",
+    "xdotool_version": "xdotool version 3.20160805.1",
+    "imagemagick_version": "Version: ImageMagick 6.9.11-60 Q16 x86_64 2021-01-25 https://imagemagick.org",
+    "system": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+    "gdk_scale": "",
+    "webkit_disable_compositing": ""
+  },
+  "scenarios": {
+    "normal": {
+      "scenario": "dashboard-panels",
+      "method": "xdotool-click-imagemagick-pixel-v1",
+      "sample_pixel": [
+        100,
+        245
+      ],
+      "click_points": {
+        "dashboard": [
+          45,
+          72
+        ],
+        "panels": [
+          190,
+          72
+        ]
+      },
+      "poll_median_ms": 39.38,
+      "poll_raw_ms": [
+        96.89,
+        40.52,
+        38.85,
+        38.72,
+        42.15,
+        38.6,
+        39.91,
+        38.54
+      ],
+      "warmups": 4,
+      "pause_ms": 250,
+      "samples": [
+        {
+          "elapsed_ms": 171.62,
+          "polls": 1,
+          "to": "panels"
+        },
+        {
+          "elapsed_ms": 204.02,
+          "polls": 1,
+          "to": "dashboard"
+        },
+        {
+          "elapsed_ms": 175.1,
+          "polls": 1,
+          "to": "panels"
+        },
+        {
+          "elapsed_ms": 155.34,
+          "polls": 1,
+          "to": "dashboard"
+        },
+        {
+          "elapsed_ms": 171.19,
+          "polls": 1,
+          "to": "panels"
+        },
+        {
+          "elapsed_ms": 176.81,
+          "polls": 1,
+          "to": "dashboard"
+        },
+        {
+          "elapsed_ms": 159.34,
+          "polls": 1,
+          "to": "panels"
+        },
+        {
+          "elapsed_ms": 164.97,
+          "polls": 1,
+          "to": "dashboard"
+        },
+        {
+          "elapsed_ms": 168.57,
+          "polls": 1,
+          "to": "panels"
+        },
+        {
+          "elapsed_ms": 175.32,
+          "polls": 1,
+          "to": "dashboard"
+        },
+        {
+          "elapsed_ms": 171.26,
+          "polls": 1,
+          "to": "panels"
+        },
+        {
+          "elapsed_ms": 182.15,
+          "polls": 1,
+          "to": "dashboard"
+        },
+        {
+          "elapsed_ms": 171.78,
+          "polls": 1,
+          "to": "panels"
+        },
+        {
+          "elapsed_ms": 189.13,
+          "polls": 1,
+          "to": "dashboard"
+        },
+        {
+          "elapsed_ms": 186.31,
+          "polls": 1,
+          "to": "panels"
+        },
+        {
+          "elapsed_ms": 172.46,
+          "polls": 1,
+          "to": "dashboard"
+        },
+        {
+          "elapsed_ms": 162.13,
+          "polls": 1,
+          "to": "panels"
+        },
+        {
+          "elapsed_ms": 183.52,
+          "polls": 1,
+          "to": "dashboard"
+        },
+        {
+          "elapsed_ms": 163.37,
+          "polls": 1,
+          "to": "panels"
+        },
+        {
+          "elapsed_ms": 166.88,
+          "polls": 1,
+          "to": "dashboard"
+        }
+      ],
+      "geometry": {
+        "x": 640,
+        "y": 300,
+        "width": 640,
+        "height": 480
+      },
+      "window_state": "normal",
+      "summary": {
+        "count": 20,
+        "median_ms": 171.7,
+        "p90_ms": 186.31,
+        "mad_ms": 5.920000000000002,
+        "poll_floor_ms": 39.38
+      }
+    },
+    "maximized": {
+      "scenario": "dashboard-panels",
+      "method": "xdotool-click-imagemagick-pixel-v1",
+      "sample_pixel": [
+        100,
+        245
+      ],
+      "click_points": {
+        "dashboard": [
+          45,
+          72
+        ],
+        "panels": [
+          190,
+          72
+        ]
+      },
+      "poll_median_ms": 100.19,
+      "poll_raw_ms": [
+        139.43,
+        98.72,
+        104.49,
+        99.19,
+        101.19,
+        97.8,
+        96.83,
+        101.91
+      ],
+      "warmups": 4,
+      "pause_ms": 250,
+      "samples": [
+        {
+          "elapsed_ms": 207.01,
+          "polls": 1,
+          "to": "panels"
+        },
+        {
+          "elapsed_ms": 207.94,
+          "polls": 1,
+          "to": "dashboard"
+        },
+        {
+          "elapsed_ms": 212.32,
+          "polls": 1,
+          "to": "panels"
+        },
+        {
+          "elapsed_ms": 225.03,
+          "polls": 1,
+          "to": "dashboard"
+        },
+        {
+          "elapsed_ms": 211.15,
+          "polls": 1,
+          "to": "panels"
+        },
+        {
+          "elapsed_ms": 221.26,
+          "polls": 1,
+          "to": "dashboard"
+        },
+        {
+          "elapsed_ms": 218.68,
+          "polls": 1,
+          "to": "panels"
+        },
+        {
+          "elapsed_ms": 212.84,
+          "polls": 1,
+          "to": "dashboard"
+        },
+        {
+          "elapsed_ms": 213.78,
+          "polls": 1,
+          "to": "panels"
+        },
+        {
+          "elapsed_ms": 220.97,
+          "polls": 1,
+          "to": "dashboard"
+        },
+        {
+          "elapsed_ms": 222.59,
+          "polls": 1,
+          "to": "panels"
+        },
+        {
+          "elapsed_ms": 221.12,
+          "polls": 1,
+          "to": "dashboard"
+        },
+        {
+          "elapsed_ms": 208.15,
+          "polls": 1,
+          "to": "panels"
+        },
+        {
+          "elapsed_ms": 211.59,
+          "polls": 1,
+          "to": "dashboard"
+        },
+        {
+          "elapsed_ms": 213.12,
+          "polls": 1,
+          "to": "panels"
+        },
+        {
+          "elapsed_ms": 261.78,
+          "polls": 1,
+          "to": "dashboard"
+        },
+        {
+          "elapsed_ms": 221.84,
+          "polls": 1,
+          "to": "panels"
+        },
+        {
+          "elapsed_ms": 225.1,
+          "polls": 1,
+          "to": "dashboard"
+        },
+        {
+          "elapsed_ms": 251.63,
+          "polls": 1,
+          "to": "panels"
+        },
+        {
+          "elapsed_ms": 217.5,
+          "polls": 1,
+          "to": "dashboard"
+        }
+      ],
+      "geometry": {
+        "x": 0,
+        "y": 0,
+        "width": 1920,
+        "height": 1028
+      },
+      "window_state": "maximized",
+      "summary": {
+        "count": 20,
+        "median_ms": 218.09,
+        "p90_ms": 225.1,
+        "mad_ms": 5.510000000000005,
+        "poll_floor_ms": 100.19
+      }
+    }
+  }
+}

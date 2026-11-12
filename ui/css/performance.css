@@ -1,0 +1,11 @@
+/* Maximised X11/WebKitGTK tab switches were 6 to 12 times slower with the
+   template's layered shadows. Keep borders and focus outlines, but avoid
+   shadow and backdrop paint across the large desktop window. */
+*,
+*::before,
+*::after {
+  box-shadow: none !important;
+  text-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}

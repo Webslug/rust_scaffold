@@ -1,0 +1,132 @@
+/* ==========================================================================
+   Component extras for the Bootswatch-inspired themes (Vapor, Quartz,
+   Materia, Sketchy, plus the glass of Baby Pink). Colours, radii, fonts and shadows are tokens in
+   variables.css; only what a token cannot express lives here.
+   ========================================================================== */
+
+/* Vapor: neon glow on headings */
+[data-theme="vapor"] h1,
+[data-theme="vapor"] h2,
+[data-theme="vapor"] h3 {
+  text-shadow: 0 0 1px rgba(50, 251, 226, 0.6), 0 0 0.5rem rgba(50, 251, 226, 0.3);
+}
+
+/* Quartz: translucent, blurred glass over the gradient page */
+[data-theme="quartz"] body,
+[data-theme="baby-pink"] body {
+  background-attachment: fixed;
+}
+
+[data-theme="quartz"] .card-custom,
+[data-theme="baby-pink"] .card-custom,
+[data-theme="quartz"] .panel,
+[data-theme="baby-pink"] .panel,
+[data-theme="quartz"] .alert-custom,
+[data-theme="baby-pink"] .alert-custom,
+[data-theme="quartz"] .accordion-custom .accordion-item,
+[data-theme="baby-pink"] .accordion-custom .accordion-item,
+[data-theme="quartz"] .navbar-custom,
+[data-theme="baby-pink"] .navbar-custom,
+[data-theme="quartz"] .dropdown-menu,
+[data-theme="baby-pink"] .dropdown-menu {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* Materia: flat, uppercase buttons with no border on cards */
+[data-theme="materia"] .btn {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+[data-theme="materia"] .card-custom {
+  border-color: transparent;
+}
+
+/* Sketchy: thick ink borders and irregular, hand-drawn corners */
+[data-theme="sketchy"] .btn,
+[data-theme="sketchy"] .form-control,
+[data-theme="sketchy"] .form-select,
+[data-theme="sketchy"] .card-custom,
+[data-theme="sketchy"] .panel,
+[data-theme="sketchy"] .alert-custom,
+[data-theme="sketchy"] .dropdown-menu {
+  border-width: 2px;
+  border-style: solid;
+}
+
+[data-theme="sketchy"] .btn,
+[data-theme="sketchy"] .form-control,
+[data-theme="sketchy"] .form-select {
+  border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
+}
+
+[data-theme="sketchy"] .card-custom,
+[data-theme="sketchy"] .panel,
+[data-theme="sketchy"] .alert-custom,
+[data-theme="sketchy"] .dropdown-menu {
+  border-radius: 25px 10px 30px 12px / 12px 30px 10px 25px;
+}
+
+/* Baby Pink: champagne-gold edge and glow on the primary button, soft white
+   glow behind headings */
+[data-theme="baby-pink"] .btn-primary {
+  border-color: #d4a24a;
+}
+
+[data-theme="baby-pink"] .btn-primary:hover,
+[data-theme="baby-pink"] .btn-primary:focus {
+  box-shadow: var(--bevel-shadow-hover), 0 0 0 4px rgba(212, 162, 74, 0.3);
+}
+
+[data-theme="baby-pink"] h1,
+[data-theme="baby-pink"] h2,
+[data-theme="baby-pink"] h3 {
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+/* Baby Pink: candy-soft alerts, badges and progress bar */
+[data-theme="baby-pink"] .alert-custom {
+  border: 2px solid rgba(255, 255, 255, 0.95);
+  box-shadow: var(--shadow-sm);
+}
+
+[data-theme="baby-pink"] .badge-custom {
+  border: 1px solid rgba(255, 255, 255, 0.95);
+}
+
+[data-theme="baby-pink"] .progress-custom {
+  background-color: rgba(255, 255, 255, 0.7);
+}
+
+[data-theme="baby-pink"] .progress-custom .progress-bar:not([class*="progress-bar-"]) {
+  background-image: linear-gradient(90deg, #ff7ab8, #f59be0);
+}
+
+/* Baby Pink: pastel candy buttons (mint, butter, rose, lavender) with deep
+   ink labels. The glossy sheen comes from buttons.css. */
+[data-theme="baby-pink"] .btn-success { background-color: #b9f3d9; border-color: #8fe3bb; color: #14502a; }
+[data-theme="baby-pink"] .btn-warning { background-color: #ffe08a; border-color: #f5cc5c; color: #6b4000; }
+[data-theme="baby-pink"] .btn-danger  { background-color: #ffb8c8; border-color: #ff94ab; color: #8f1522; }
+[data-theme="baby-pink"] .btn-info    { background-color: #d9c8ff; border-color: #bfa6f5; color: #3d2a8a; }
+
+[data-theme="baby-pink"] .btn-success:hover,
+[data-theme="baby-pink"] .btn-success:focus { background-color: #cdf8e6; border-color: #8fe3bb; color: #14502a; }
+[data-theme="baby-pink"] .btn-warning:hover,
+[data-theme="baby-pink"] .btn-warning:focus { background-color: #ffe9aa; border-color: #f5cc5c; color: #6b4000; }
+[data-theme="baby-pink"] .btn-danger:hover,
+[data-theme="baby-pink"] .btn-danger:focus  { background-color: #ffcbd8; border-color: #ff94ab; color: #8f1522; }
+[data-theme="baby-pink"] .btn-info:hover,
+[data-theme="baby-pink"] .btn-info:focus    { background-color: #e6dbff; border-color: #bfa6f5; color: #3d2a8a; }
+
+/* Baby Pink: pink-to-lilac gradient navbar with a gold underline */
+[data-theme="baby-pink"] .navbar-custom {
+  background-image: linear-gradient(90deg, rgba(255, 255, 255, 0.85), rgba(255, 196, 224, 0.8) 50%, rgba(240, 200, 250, 0.85));
+  border-bottom: 2px solid rgba(205, 150, 60, 0.6);
+}
+
+/* Baby Pink: the tab panel joins the first tab with a square top-left
+   corner and is round everywhere else */
+[data-theme="baby-pink"] .tab-content-custom {
+  border-radius: 0 var(--radius) var(--radius) var(--radius);
+}

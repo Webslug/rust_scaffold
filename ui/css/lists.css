@@ -1,0 +1,120 @@
+/* ==========================================================================
+   Lists and navs — list groups, pills, underline nav, scrollspy box
+   ========================================================================== */
+
+.list-group {
+  --bs-list-group-bg: var(--surface);
+  --bs-list-group-color: var(--text);
+  --bs-list-group-border-color: var(--border);
+  --bs-list-group-border-radius: var(--radius);
+  --bs-list-group-action-color: var(--text-muted);
+  --bs-list-group-action-hover-color: var(--text);
+  --bs-list-group-action-hover-bg: var(--accent-soft);
+  --bs-list-group-action-active-color: var(--text);
+  --bs-list-group-action-active-bg: var(--accent-soft);
+  --bs-list-group-active-bg: var(--accent);
+  --bs-list-group-active-border-color: var(--accent);
+  --bs-list-group-active-color: var(--text-on-accent);
+  --bs-list-group-disabled-color: var(--text-faint);
+  --bs-list-group-disabled-bg: var(--surface);
+  box-shadow: var(--bevel-shadow);
+}
+
+.list-group-item {
+  padding: var(--space-3) var(--space-4);
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.list-group-item-action:focus-visible {
+  position: relative;
+  z-index: 1;
+}
+
+.list-group-numbered > .list-group-item::before {
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+/* Pill nav */
+.nav-pills-custom {
+  gap: var(--space-2);
+}
+
+.nav-pills-custom .nav-link {
+  color: var(--text-muted);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  padding: 0.6rem 1.4rem;
+  font-weight: 600;
+  box-shadow: var(--bevel-shadow);
+  transition: box-shadow var(--transition-fast), color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.nav-pills-custom .nav-link:hover {
+  color: var(--text);
+  background-color: var(--surface-alt);
+  box-shadow: var(--bevel-shadow-hover);
+}
+
+.nav-pills-custom .nav-link.active {
+  color: var(--text-on-accent);
+  background-color: var(--accent);
+  border-color: var(--accent);
+  box-shadow: var(--bevel-shadow-hover), var(--shadow);
+}
+
+.nav-pills-custom .nav-link.disabled {
+  color: var(--text-faint);
+  box-shadow: none;
+}
+
+/* Underline nav */
+.nav-underline-custom {
+  --bs-nav-link-color: var(--text-muted);
+  --bs-nav-link-hover-color: var(--text);
+  --bs-nav-underline-link-active-color: var(--accent-text);
+  --bs-nav-underline-border-width: 3px;
+  gap: var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.nav-underline-custom .nav-link.active {
+  border-bottom-color: var(--accent-text);
+}
+
+/* Scrollspy demo box */
+.scrollspy-box {
+  height: 15rem;
+  overflow-y: auto;
+  position: relative;
+  padding: var(--space-3) var(--space-4);
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--bevel-shadow-inset);
+}
+
+.scrollspy-box h4,
+.scrollspy-box h5 {
+  margin-top: var(--space-3);
+}
+
+.scrollspy-box p {
+  color: var(--text-muted);
+}
+
+/* Image card art (the template ships no remote or stock photos) */
+.card-img-art {
+  height: 11rem;
+  object-fit: contain;
+  padding: var(--space-3);
+  background-color: var(--surface-alt);
+}
+
+.card-horizontal-art {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: var(--space-3);
+  background-color: var(--surface-alt);
+}

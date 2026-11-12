@@ -1,0 +1,93 @@
+/* ==========================================================================
+   Sortable lists — drag-and-drop reordering (assets/js/sortable.js)
+   ========================================================================== */
+
+/* 80% of the container, centred; full width on phones */
+.w-80 {
+  width: 80%;
+  margin-inline: auto;
+}
+
+@media (max-width: 767.98px) {
+  .w-80 {
+    width: 100%;
+  }
+}
+
+.sort-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 3rem;
+  background-color: var(--surface);
+  color: var(--text-muted);
+  font-size: 1.25rem;
+  cursor: grab;
+  transition: color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.sort-handle:hover {
+  color: var(--accent-text);
+  background-color: var(--accent-soft);
+}
+
+.sort-handle:active {
+  cursor: grabbing;
+}
+
+/* Accordion: handle beside the button, inside the header */
+.sortable-item .accordion-header {
+  display: flex;
+  align-items: stretch;
+}
+
+.sortable-item .accordion-header .sort-handle {
+  border-right: 1px solid var(--border);
+}
+
+.sortable-item .accordion-header .accordion-button {
+  flex: 1;
+}
+
+/* Card: handle leads the header */
+.sortable-item .card-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0;
+}
+
+.sortable-item .card-header .sort-handle {
+  align-self: stretch;
+  border-right: 1px solid var(--border);
+}
+
+.sortable-item .card-header .card-header-title {
+  padding: var(--space-3) var(--space-4) var(--space-3) 0;
+}
+
+/* Drag feedback */
+.sortable-item.dragging {
+  opacity: 0.45;
+}
+
+.sortable-list .sortable-item.drop-before {
+  box-shadow: 0 -4px 0 0 var(--accent);
+}
+
+.sortable-list .sortable-item.drop-after {
+  box-shadow: 0 4px 0 0 var(--accent);
+}
+
+.sortable-list-cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sortable-item.dragging {
+    opacity: 0.6;
+  }
+}

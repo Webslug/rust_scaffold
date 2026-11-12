@@ -1,0 +1,203 @@
+/* ==========================================================================
+   Accessibility — keyboard focus, skip link, reduced motion, user
+   preferences (contrast, transparency, forced colors, text size).
+   Loaded last so its rules win ties against the component modules.
+   ========================================================================== */
+
+/* Keyboard focus. Bootstrap sets `outline: 0` on several controls, so the
+   selector list matches its specificity and wins on source order. Uses
+   :focus-visible so mouse clicks do not leave a ring behind. */
+:is(a, button, input, select, textarea, summary, [tabindex],
+    .btn, .nav-link, .dropdown-item, .page-link, .accordion-button,
+    .form-check-input, .form-range, .btn-close):focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* Skip link: off-screen until it receives keyboard focus. */
+.skip-link {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+  z-index: 2000;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  background-color: var(--surface-raised);
+  color: var(--accent-text);
+  font-weight: 600;
+  box-shadow: var(--bevel-shadow);
+  transform: translateY(-200%);
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+  text-decoration: underline;
+}
+
+/* The skip target is focused programmatically; no ring needed on it. */
+main:focus {
+  outline: none;
+}
+
+/* Reduced motion: collapse the shared duration tokens to zero (every
+   component transition reads them) and drop the press/hover movement. */
+@media (prefers-reduced-motion: reduce) {
+  :root,
+  [data-theme] {
+    --transition-fast: 0ms linear;
+    --transition: 0ms linear;
+  }
+
+  .btn:active,
+  .card-custom:hover {
+    transform: none;
+  }
+
+  html {
+    scroll-behavior: auto;
+  }
+
+  .placeholder-glow .placeholder,
+  .placeholder-wave {
+    animation: none;
+  }
+}
+
+/* ==========================================================================
+   Touch and small screens
+   ========================================================================== */
+
+/* Anchored sections and skip-link targets must not hide under the sticky
+   navbar. */
+html {
+  scroll-padding-top: 6rem;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* No 300 ms double-tap-zoom delay on controls; a tap highlight that matches
+   the theme instead of the browser's grey box. */
+a, button, input, select, textarea, label, summary, [role="button"] {
+  touch-action: manipulation;
+}
+
+:root {
+  -webkit-tap-highlight-color: var(--accent-soft);
+}
+
+/* Notched phones: keep fixed controls and the footer clear of the home bar
+   and rounded corners (needs viewport-fit=cover, set in the page head). */
+.btn-top,
+.btn-toc {
+  bottom: calc(var(--space-4) + env(safe-area-inset-bottom));
+}
+
+.btn-top {
+  right: calc(var(--space-4) + env(safe-area-inset-right));
+}
+
+.btn-toc {
+  left: calc(var(--space-4) + env(safe-area-inset-left));
+}
+
+/* Finger-sized targets (WCAG 2.5.8 asks for 24px, platform guidance 44px) */
+@media (pointer: coarse) {
+  .nav-link,
+  .dropdown-item,
+  .page-link,
+  .list-group-item-action,
+  .accordion-button,
+  .footer-links a {
+    min-height: 2.75rem;
+    display: flex;
+    align-items: center;
+  }
+
+  .footer-links a {
+    display: inline-flex;
+  }
+
+  .form-check-input {
+    width: 1.5em;
+    height: 1.5em;
+    margin-top: 0.1em;
+  }
+
+  .form-check {
+    min-height: 2.75rem;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .form-check .form-check-input {
+    float: none;
+    margin-left: 0;
+    flex: none;
+  }
+
+  .btn-close {
+    padding: 1.1em;
+  }
+}
+
+/* ==========================================================================
+   User preferences
+   Contrast and opaque-surface tokens are in variables.css (the last two
+   blocks). Below: the rules that cannot be done with tokens alone.
+   ========================================================================== */
+
+/* Reduced transparency or more contrast: no glass blur. */
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  *,
+  *::before,
+  *::after {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+}
+
+/* Windows High Contrast and other forced-colors modes replace our colours
+   with the user's palette and drop shadows. Keep what carries meaning: the
+   theme swatches, and a visible selected state. The selected state is an
+   outline, not a filled background: browsers draw a backplate behind text
+   in forced colors, and a Highlight fill with HighlightText on top became
+   white text on a white backplate in Chromium. */
+@media (forced-colors: active) {
+  .theme-swatch {
+    forced-color-adjust: none;
+    border: 1px solid CanvasText;
+  }
+
+  /* The dropdown caret is a bordered triangle; forced colors would turn its
+     transparent sides into a solid bar. */
+  .dropdown-toggle::after {
+    forced-color-adjust: none;
+  }
+
+  .active,
+  .btn-check:checked + .btn,
+  [aria-current="true"],
+  [aria-current="page"],
+  .page-item.active .page-link {
+    outline: 3px solid Highlight;
+    outline-offset: -3px;
+  }
+}
+
+/* User text size (set by text-size.js on <html data-text-size="...">).
+   Scaling the root font-size scales everything sized in rem. */
+html[data-text-size="large"] {
+  font-size: var(--text-scale-large);
+}
+
+html[data-text-size="larger"] {
+  font-size: var(--text-scale-larger);
+}
+
+/* At the larger text sizes the navbar row can be wider than the window just
+   above the large breakpoint. Let it wrap onto a second row instead. */
+html[data-text-size] .navbar-custom .navbar-collapse {
+  flex-wrap: wrap;
+  row-gap: var(--space-2);
+}
