@@ -23,17 +23,6 @@ body {
   border-radius: var(--window-radius);
   overflow: hidden;
   background: linear-gradient(180deg, var(--window-bg-top), var(--window-bg-bottom));
-  /* Bevel: a sharp 1px edge (light top and left, shade bottom and right)
-     with a softer 2px ring inside it for depth. */
-  box-shadow:
-    inset 0 1px 0 var(--window-highlight),
-    inset 1px 0 0 var(--window-highlight),
-    inset 0 -1px 0 var(--window-lowlight),
-    inset -1px 0 0 var(--window-lowlight),
-    inset 0 2px 0 var(--window-highlight-soft),
-    inset 2px 0 0 var(--window-highlight-soft),
-    inset 0 -2px 0 var(--window-lowlight-soft),
-    inset -2px 0 0 var(--window-lowlight-soft);
 }
 
 .app-titlebar {
@@ -84,7 +73,6 @@ body {
   background: linear-gradient(180deg, var(--titlebar-sheen-top), var(--titlebar-sheen-bottom));
   color: var(--text);
   font-size: 0.75rem;
-  box-shadow: inset 0 1px 0 var(--window-highlight), 0 1px 2px var(--window-lowlight);
   transition: background var(--transition-fast);
 }
 
@@ -92,11 +80,6 @@ body {
   background: var(--accent-soft);
   border-color: var(--accent-border);
 }
-
-.window-btn:active {
-  box-shadow: inset 0 1px 3px var(--window-lowlight);
-}
-
 .window-btn-close:hover {
   background: var(--danger);
   border-color: var(--danger);
@@ -107,7 +90,6 @@ body {
 .maximized .app-window {
   border-radius: 0;
   border-color: transparent;
-  box-shadow: none;
 }
 
 .rust-output {
@@ -116,7 +98,6 @@ body {
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--surface-alt);
-  box-shadow: var(--bevel-shadow-inset);
   color: var(--text);
   font-family: "IBM Plex Mono", ui-monospace, monospace;
   font-size: 0.8rem;
@@ -246,19 +227,8 @@ html.square-corners {
   border-bottom: 0;
 }
 
-/* Bevel highlight only: the template's drop shadow under the selected tab
-   looked heavy. */
-.app-tabs .nav-link,
-.app-tabs .nav-link:hover,
-.app-tabs .nav-link.active {
-  box-shadow: inset 0 1px 0 var(--bevel-top-hover);
-}
-
 .app-content .tab-content-custom {
   padding: var(--space-3);
-  /* No backdrop blur here: it forces a costly repaint on every resize. */
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
 }
 
 /* ---- sortable cards ---- */
@@ -270,11 +240,6 @@ html.square-corners {
   touch-action: none;
   user-select: none;
 }
-
-.sortable-item.dragging {
-  box-shadow: var(--bevel-shadow-hover), 0 0 0 2px var(--accent);
-}
-
 .settings-list {
   display: grid;
   grid-template-columns: max-content 1fr;
@@ -330,7 +295,8 @@ html.square-corners {
 .badge-warning { background-color: var(--warning-soft); color: var(--warning-text); }
 .badge-danger  { background-color: var(--danger-soft);  color: var(--danger-text); }
 .badge-info    { background-color: var(--info-soft);    color: var(--info-text); }
-.badge-neutral { background-color: var(--surface-alt);  color: var(--text-muted); }
+/* Bordered: its fill matches the striped-row background. */
+.badge-neutral { background-color: var(--surface-alt);  color: var(--text-muted); border: 1px solid var(--border-strong); }
 
 .state-success { color: var(--success-text); }
 .state-warning { color: var(--warning-text); }

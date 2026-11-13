@@ -17,7 +17,6 @@
   --bs-list-group-active-color: var(--text-on-accent);
   --bs-list-group-disabled-color: var(--text-faint);
   --bs-list-group-disabled-bg: var(--surface);
-  box-shadow: var(--bevel-shadow);
 }
 
 .list-group-item {
@@ -46,26 +45,22 @@
   border-radius: var(--radius-pill);
   padding: 0.6rem 1.4rem;
   font-weight: 600;
-  box-shadow: var(--bevel-shadow);
-  transition: box-shadow var(--transition-fast), color var(--transition-fast), background-color var(--transition-fast);
+  transition: color var(--transition-fast), background-color var(--transition-fast);
 }
 
 .nav-pills-custom .nav-link:hover {
   color: var(--text);
   background-color: var(--surface-alt);
-  box-shadow: var(--bevel-shadow-hover);
 }
 
 .nav-pills-custom .nav-link.active {
   color: var(--text-on-accent);
   background-color: var(--accent);
   border-color: var(--accent);
-  box-shadow: var(--bevel-shadow-hover), var(--shadow);
 }
 
 .nav-pills-custom .nav-link.disabled {
   color: var(--text-faint);
-  box-shadow: none;
 }
 
 /* Underline nav */
@@ -91,7 +86,6 @@
   background-color: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  box-shadow: var(--bevel-shadow-inset);
 }
 
 .scrollspy-box h4,

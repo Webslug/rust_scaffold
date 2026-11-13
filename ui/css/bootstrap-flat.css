@@ -1,0 +1,71 @@
+/* Bootstrap 5.3 ships shadows on focus rings, buttons, cards, dropdowns,
+   modals, offcanvas panels, popovers, toasts, progress bars, table cells and
+   the .shadow utilities. This app shows depth with borders and keyboard focus
+   with outlines (accessibility.css), so the vendor shadows are switched off
+   here instead of editing bootstrap.min.css. Component variables are reset on
+   the class that defines them; literal shadows use Bootstrap's own selectors,
+   which win here on source order. Our own shadows (light themes) come from
+   the --shadow-* tokens in variables.css and are unaffected. */
+
+:root,
+[data-bs-theme] {
+  --bs-box-shadow: none;
+  --bs-box-shadow-sm: none;
+  --bs-box-shadow-lg: none;
+  --bs-box-shadow-inset: none;
+  --bs-focus-ring-width: 0;
+}
+
+.btn {
+  --bs-btn-box-shadow: none;
+  --bs-btn-focus-box-shadow: none;
+}
+
+.btn-close { --bs-btn-close-focus-shadow: none; }
+.card { --bs-card-box-shadow: none; }
+.accordion { --bs-accordion-btn-focus-box-shadow: none; }
+.pagination { --bs-pagination-focus-box-shadow: none; }
+.dropdown-menu,
+.dropdown-menu-dark { --bs-dropdown-box-shadow: none; }
+.modal { --bs-modal-box-shadow: none; }
+.offcanvas,
+.offcanvas-sm,
+.offcanvas-md,
+.offcanvas-lg,
+.offcanvas-xl,
+.offcanvas-xxl { --bs-offcanvas-box-shadow: none; }
+.popover { --bs-popover-box-shadow: none; }
+.toast { --bs-toast-box-shadow: none; }
+.progress,
+.progress-stacked { --bs-progress-box-shadow: none; }
+
+.form-control:focus,
+.form-select:focus,
+.form-check-input:focus,
+.form-control.is-valid:focus,
+.was-validated .form-control:valid:focus,
+.form-select.is-valid:focus,
+.was-validated .form-select:valid:focus,
+.form-check-input.is-valid:focus,
+.was-validated .form-check-input:valid:focus,
+.form-control.is-invalid:focus,
+.was-validated .form-control:invalid:focus,
+.form-select.is-invalid:focus,
+.was-validated .form-select:invalid:focus,
+.form-check-input.is-invalid:focus,
+.was-validated .form-check-input:invalid:focus,
+.nav-link:focus-visible,
+.navbar-toggler:focus,
+.accordion-button:not(.collapsed),
+.table > :not(caption) > * > * {
+  box-shadow: none;
+}
+
+/* Separate rules: WebKit drops a whole rule that names ::-moz-range-thumb. */
+.form-range:focus::-webkit-slider-thumb {
+  box-shadow: none;
+}
+
+.form-range:focus::-moz-range-thumb {
+  box-shadow: none;
+}

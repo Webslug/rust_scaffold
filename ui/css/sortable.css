@@ -70,14 +70,8 @@
 /* Drag feedback */
 .sortable-item.dragging {
   opacity: 0.45;
-}
-
-.sortable-list .sortable-item.drop-before {
-  box-shadow: 0 -4px 0 0 var(--accent);
-}
-
-.sortable-list .sortable-item.drop-after {
-  box-shadow: 0 4px 0 0 var(--accent);
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
 
 .sortable-list-cards {

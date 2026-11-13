@@ -25,7 +25,6 @@
   background-color: var(--surface-raised);
   color: var(--accent-text);
   font-weight: 600;
-  box-shadow: var(--bevel-shadow);
   transform: translateY(-200%);
 }
 
@@ -148,15 +147,6 @@ a, button, input, select, textarea, label, summary, [role="button"] {
    ========================================================================== */
 
 /* Reduced transparency or more contrast: no glass blur. */
-@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
-  *,
-  *::before,
-  *::after {
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-  }
-}
-
 /* Windows High Contrast and other forced-colors modes replace our colours
    with the user's palette and drop shadows. Keep what carries meaning: the
    theme swatches, and a visible selected state. The selected state is an

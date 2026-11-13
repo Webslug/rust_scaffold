@@ -142,7 +142,7 @@ the Options tab and how. Every key is documented in [docs/usage.md](docs/usage.m
 ## Project layout
 
     build.sh              build release executable only
-    run.sh, run.bat       launch (run.sh --build builds first)
+    run.sh, run.bat       launch from dist/ (--build builds first)
     requirements.txt      system requirements
     dist/                 built executable, with config.json and options.json
                           (both created beside it at first run)
@@ -166,12 +166,12 @@ and fields are listed in [docs/usage.md](docs/usage.md).
 
 ## Known limitations
 
-- **Rendering.** Layered CSS shadows made the app slow when maximised on the
-  test machine. They are now disabled; maximised tab switching was measured
-  at about 0.1 seconds under scripted input. See
-  [the performance report](docs/performance_fix_2026-11-12.md) for the method
-  and remaining test limits. Drag, resize and Windows performance have not
-  been remeasured.
+- **No shadows or blur.** WebKitGTK paints on the CPU, and even one small
+  shadow on cards and buttons made a maximised window lag on the test
+  machine. The stylesheets use borders and background tints for depth instead;
+  Bootstrap's built-in shadows are switched off in `ui/css/bootstrap-flat.css`.
+  See "No shadows or blur" in [docs/usage.md](docs/usage.md). Drag, resize and
+  Windows performance have not been remeasured.
 - **Linux tray icons** do not receive click or double-click events from Tauri,
   so use the tray menu. On Windows a double-click toggles the window.
 - **Transparency** needs a compositor on X11.

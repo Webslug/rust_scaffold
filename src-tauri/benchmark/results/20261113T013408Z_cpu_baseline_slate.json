@@ -1,0 +1,30 @@
+{
+  "label": "baseline",
+  "theme": "slate",
+  "binary": "/tmp/cpu_bins/baseline/rust-scaffold",
+  "steps": 36,
+  "rounds": [
+    {
+      "web_cpu_s": 19.14,
+      "picom_cpu_s": 2.47,
+      "elapsed_s": 34.74789957900066,
+      "window": {
+        "x": 0,
+        "y": 0,
+        "width": 1920,
+        "height": 1028
+      }
+    },
+    {
+      "web_cpu_s": 19.21,
+      "picom_cpu_s": 2.31,
+      "elapsed_s": 34.661690082999485,
+      "window": {
+        "x": 0,
+        "y": 0,
+        "width": 1920,
+        "height": 1028
+      }
+    }
+  ]
+}

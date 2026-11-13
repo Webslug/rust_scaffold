@@ -11,7 +11,10 @@ README.md in the project root.
 `run.sh` launches `dist/rust-scaffold` (run `./build.sh` first, or use
 `./run.sh --build`). It starts the app detached from the terminal with its
 output discarded and returns the prompt at once (set `DEBUG_MODE` to get a log
-file instead, see below). `run.bat` builds and launches the Windows binary.
+file instead, see below). `run.bat` does the same on Windows: it launches
+`dist\rust-scaffold.exe`, and `run.bat --build` first builds it with cargo and
+copies it to `dist\` (stopping without launching if the build fails). Not yet
+tested on Windows.
 
 Settings live beside the executable, not in the working directory:
 `config.json`, `options.json` and `debug.log` are read from and written to the
@@ -272,8 +275,8 @@ local Bootstrap template. It uses SVG and no network or JavaScript package.
 Mock data and filter rules live in `ui/js/charts_page.js`; the layout and
 controls are in `ui/index.html` and `ui/css/charts-page.css`. Add a new data
 entry and chart card there to extend the examples. Palette and background
-tokens live in `ui/css/variables.css`; keep the paint-saving overrides in
-`ui/css/performance.css` when changing chart styles.
+tokens live in `ui/css/variables.css`. Do not give charts or their cards
+shadows (see "No shadows or blur" below).
 
 ### Add an accordion panel
 
@@ -294,9 +297,37 @@ No inline `style=""` attributes (the content security policy would block them).
 Add a class to a CSS file instead. Colours, spacing and radii come from the
 tokens in `ui/css/variables.css`. App-specific rules live in `ui/css/window.css`.
 
+### No shadows or blur
+
+WebKitGTK on Linux paints the page on the CPU, and a shadow or blur makes every
+repaint of the elements under it more expensive. In a maximised window this is
+felt directly: tab switches, scrolling and clicks lag. Measured history on the
+test machine (i7-6700, RTX 3060, LXQt/X11 with picom):
+
+- The template's layered bevel shadows made maximised tab switches 6 to 12
+  times slower (see [the performance report](performance_fix_2026-11-12.md)).
+- On 13 November 2026 a single small shadow (`0 1px 3px`, 12% opacity) on
+  cards, accordion panels and buttons, light themes only, made the light
+  themes noticeably slow when maximised by hand. It was removed.
+
+So the stylesheets contain no `box-shadow`, `text-shadow`, `backdrop-filter` or
+`filter: drop-shadow()`. Show depth with borders, background tints and
+spacing; show keyboard focus with outlines (`ui/css/accessibility.css`).
+Bootstrap's own shadows (focus rings, buttons, cards, dropdowns, modals,
+offcanvas panels, toasts, popovers and table cells) are switched off in
+`ui/css/bootstrap-flat.css`, without editing `bootstrap.min.css`. Table
+striping and hover are plain backgrounds in `ui/css/tables.css`, because
+Bootstrap draws them with a shadow on every cell.
+
+If you want to try an effect anyway: build it to a separate folder (not with
+`build.sh`, which replaces `dist/rust-scaffold`), compare it with the current
+build using `src-tauri/benchmark/cpu.py` in the target theme, and check it by
+hand with the window maximised before keeping it.
+
 ## Use as a template for a new project
 
-Copy the folder, delete `src-tauri/target`, `config.json` and `debug.log`, then
+Copy the folder, delete `src-tauri/target` and `dist/` (which holds the built
+binary, `config.json`, `options.json` and `debug.log`), then
 rename:
 
 | File | What to change |
@@ -335,11 +366,9 @@ executable. With `false` no log file is written.
 
 ## Known limitations
 
-- Layered CSS shadows previously made the app slow when maximised. They are
-  disabled in `ui/css/performance.css`; scripted maximised tab switches now
-  measure about 0.1 seconds. See
-  [the performance report](performance_fix_2026-11-12.md) for the method and
-  test limits. Drag and resize performance has not been remeasured.
+- Shadows and blur make the app slow when maximised, so there are none (see
+  "No shadows or blur"). Drag and resize performance has not been remeasured
+  since they were removed.
 - Linux tray icons have no click or double-click events (see above).
 - Transparent windows need a compositor on X11.
 - Windows support is written but has not been tested.

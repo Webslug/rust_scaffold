@@ -1,5 +1,5 @@
 /* Options tab: controls drawn from options.json by js/options.js. Flat on
-   purpose: depth comes from borders, not shadows (see performance.css). */
+   purpose: depth comes from borders, not shadows. */
 
 .options-toolbar {
   display: flex;

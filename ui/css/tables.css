@@ -38,14 +38,21 @@
   vertical-align: middle;
 }
 
-/* Striping/hover now come from --bs-table-striped-bg / --bs-table-hover-bg
-   above — Bootstrap applies those itself, no manual nth-of-type override
-   needed (and the old one was a same-color no-op against --bs-table-bg). */
+/* Striping and hover as plain cell backgrounds. Bootstrap paints them with
+   an inset box-shadow on every cell, which bootstrap-flat.css switches off. */
+.table-custom.table-striped > tbody > tr:nth-of-type(odd) > * {
+  background-color: var(--bs-table-striped-bg);
+  color: var(--bs-table-striped-color);
+}
+
+.table-custom.table-hover > tbody > tr:hover > * {
+  background-color: var(--bs-table-hover-bg);
+  color: var(--bs-table-hover-color);
+}
 
 .table-responsive-wrap {
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  box-shadow: var(--bevel-shadow);
   overflow: hidden;
 }
 

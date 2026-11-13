@@ -114,6 +114,24 @@ calls both differences **inconclusive** under its noise thresholds. This
 scenario switches Dashboard and Panels; it does not time chart rendering,
 filtering or search. Those controls were checked separately on the desktop.
 
+## Paint-cost check (cpu.py)
+
+`bench.py` times one visible change and its noise threshold is about 200 ms, so
+it cannot see small styling costs. `cpu.py` measures the CPU time of the WebKit
+web process (layout and painting) and of picom while the maximised app cycles
+through all tabs with the arrow keys and scrolls each page:
+
+    python3 src-tauri/benchmark/cpu.py run --label NAME --theme aero-blue \
+      --binary /path/to/variant/rust-scaffold --rounds 2
+
+Keep each variant binary in its own folder and named `rust-scaffold` (the
+window is found by that name). Run variants alternately in one session and
+compare the medians; on the test machine repeated rounds of one build agreed
+within about 0.1 s of 19 s. It takes over the mouse and keyboard for about 35
+seconds per round, so ask before running it. Results are saved as
+`results/*_cpu_*.json`. A smaller number means less painting work; it does not
+replace a hand check of how the window feels.
+
 ## Extending the checks
 
 `tab_switch.py` contains the UI points, colour calibration and action loop.

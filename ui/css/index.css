@@ -1,6 +1,7 @@
 /* Only the template modules used by this scaffold. Load after Bootstrap. */
 
 @import "variables.css";
+@import "bootstrap-flat.css";
 @import "typography.css";
 @import "buttons.css";
 @import "cards.css";
@@ -19,4 +20,3 @@
 @import "bootswatch.css";
 @import "accessibility.css";
 @import "window.css";
-@import "performance.css";

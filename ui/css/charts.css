@@ -129,7 +129,6 @@
   color: var(--text);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
-  box-shadow: var(--shadow);
   padding: 0.5rem 0.85rem;
   font-size: 0.8rem;
   line-height: 1.4;

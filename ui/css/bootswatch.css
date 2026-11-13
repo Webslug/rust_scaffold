@@ -5,34 +5,11 @@
    ========================================================================== */
 
 /* Vapor: neon glow on headings */
-[data-theme="vapor"] h1,
-[data-theme="vapor"] h2,
-[data-theme="vapor"] h3 {
-  text-shadow: 0 0 1px rgba(50, 251, 226, 0.6), 0 0 0.5rem rgba(50, 251, 226, 0.3);
-}
-
 /* Quartz: translucent, blurred glass over the gradient page */
 [data-theme="quartz"] body,
 [data-theme="baby-pink"] body {
   background-attachment: fixed;
 }
-
-[data-theme="quartz"] .card-custom,
-[data-theme="baby-pink"] .card-custom,
-[data-theme="quartz"] .panel,
-[data-theme="baby-pink"] .panel,
-[data-theme="quartz"] .alert-custom,
-[data-theme="baby-pink"] .alert-custom,
-[data-theme="quartz"] .accordion-custom .accordion-item,
-[data-theme="baby-pink"] .accordion-custom .accordion-item,
-[data-theme="quartz"] .navbar-custom,
-[data-theme="baby-pink"] .navbar-custom,
-[data-theme="quartz"] .dropdown-menu,
-[data-theme="baby-pink"] .dropdown-menu {
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-}
-
 /* Materia: flat, uppercase buttons with no border on cards */
 [data-theme="materia"] .btn {
   text-transform: uppercase;
@@ -73,22 +50,9 @@
 [data-theme="baby-pink"] .btn-primary {
   border-color: #d4a24a;
 }
-
-[data-theme="baby-pink"] .btn-primary:hover,
-[data-theme="baby-pink"] .btn-primary:focus {
-  box-shadow: var(--bevel-shadow-hover), 0 0 0 4px rgba(212, 162, 74, 0.3);
-}
-
-[data-theme="baby-pink"] h1,
-[data-theme="baby-pink"] h2,
-[data-theme="baby-pink"] h3 {
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.85);
-}
-
 /* Baby Pink: candy-soft alerts, badges and progress bar */
 [data-theme="baby-pink"] .alert-custom {
   border: 2px solid rgba(255, 255, 255, 0.95);
-  box-shadow: var(--shadow-sm);
 }
 
 [data-theme="baby-pink"] .badge-custom {
