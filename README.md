@@ -16,7 +16,7 @@
 A starting point for small desktop apps. It is application-agnostic: copy the
 folder, rename it, and replace the example content. It uses plain HTML, CSS and
 JavaScript for the interface (no React, no Vite, no Node.js) and a small Rust
-core. The release binary is about 4.3 MB, well under the 50 MB target.
+core. The release binary is about 4.5 MB, well under the 50 MB target.
 
 ## Features
 
@@ -39,7 +39,7 @@ core. The release binary is about 4.3 MB, well under the 50 MB target.
   keyboard. The Cards tab has its own saved order and reset button. The order
   and collapsed panels are saved; table searches are local to each table.
 - Offline SVG examples of line, stacked bar, doughnut and pie charts. Each chart
-  has its own search, filter and data-table view; colors follow the selected theme.
+  has its own search, filter and data-table view; colours follow the selected theme.
 - A tray icon with a context menu you can extend from the settings file, and an
   optional start-minimised mode.
 - A settings file (`config.json`) beside the executable. It is created on first
@@ -49,6 +49,9 @@ core. The release binary is about 4.3 MB, well under the 50 MB target.
   checkboxes, radio buttons, text boxes, number boxes, sliders, list groups,
   selects and buttons) are described in `options.json`, which you can edit
   without rebuilding. New settings need no Rust changes.
+- GPU rendering by default on Linux with the NVIDIA driver (see
+  [GPU rendering](#gpu-rendering)), with an automatic fall back to the CPU and
+  a switch on the Options tab.
 - Example of the interface calling a Rust command.
 - Bootstrap 5 and Bootstrap Icons, bundled locally. The app works offline.
 
@@ -57,8 +60,30 @@ core. The release binary is about 4.3 MB, well under the 50 MB target.
 </p>
 
 <p align="center">
-  <img src="ui/img/tables.jpg" alt="Searchable tabes" width="720">
+  <img src="ui/img/tables.jpg" alt="Searchable tables" width="720">
 </p>
+
+## GPU rendering
+
+On Linux with the NVIDIA proprietary driver the page is drawn by the GPU. At
+start-up the app checks that a GPU buffer can really be allocated, then sets
+the two WebKitGTK variables that turn the GPU renderer on
+(`WEBKIT_FORCE_DMABUF_RENDERER` and `WEBKIT_DMABUF_RENDERER_FORCE_SHM`).
+WebKitGTK does not use the GPU on this driver by default.
+
+- **Needs NVIDIA kernel mode setting on** (`nvidia-drm.modeset=1`, and no
+  `nomodeset` on the kernel command line). If it is off, the app falls back to
+  the CPU instead of showing a black window.
+- **Switch:** "Hardware acceleration" on the Options tab (`hardware_acceleration`
+  in `config.json`, default on). It applies at the next start.
+- **Which path is active:** the Help page shows "Rendering".
+- **Other drivers and Windows:** WebKitGTK's own default applies; nothing is
+  forced.
+- **Measured** on the test machine (RTX 3060): about 8 to 10 percent less
+  web-process CPU while scrolling and switching pages, and less scroll tearing.
+  Not measured: drag and resize in GPU mode, and Windows.
+
+Details and the mode-setting steps: [docs/gpu_rendering.md](docs/gpu_rendering.md).
 
 ## Requirements
 
@@ -182,7 +207,7 @@ find. Every key is documented in [docs/usage.md](docs/usage.md).
       fonts/, img/
     src-tauri/            the Rust side
       src/                main.rs, lib.rs, config.rs, options.rs, search.rs,
-                          files.rs, commands.rs, tray.rs
+                          files.rs, commands.rs, tray.rs, gpu.rs
       benchmark/          repeatable X11 desktop tests and saved results
       options.default.json  written as options.json when that file is missing
       search.default.json   written as search.json when that file is missing
@@ -307,15 +332,17 @@ setting. Every other option on the tab works.
 
 ## Known limitations
 
-- **No shadows or blur.** WebKitGTK paints on the CPU, and even one small
-  shadow on cards and buttons made a maximised window lag on the test
-  machine. The stylesheets use borders and background tints for depth instead;
+- **No shadows or blur.** Even one small shadow on cards and buttons made a
+  maximised window lag on the test machine. That test was made before GPU
+  rendering was enabled and has not been repeated with it. The stylesheets use borders and background tints for depth instead;
   Bootstrap's built-in shadows are switched off in `ui/css/bootstrap-flat.css`.
-  See "No shadows or blur" in [docs/usage.md](docs/usage.md). Drag, resize and
-  Windows performance have not been remeasured.
+  See "No shadows or blur" in [docs/usage.md](docs/usage.md). Drag and resize
+  performance and Windows have not been remeasured.
 - **Linux tray icons** do not receive click or double-click events from Tauri,
   so use the tray menu. On Windows a double-click toggles the window.
 - **Transparency** needs a compositor on X11.
+- **GPU rendering** is only enabled for the NVIDIA proprietary driver with
+  kernel mode setting on; elsewhere the CPU path is used.
 - **Windows** support is written but has not been tested.
 
 ## Credits

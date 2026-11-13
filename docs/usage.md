@@ -398,7 +398,9 @@ tokens in `ui/css/variables.css`. App-specific rules live in `ui/css/window.css`
 
 ### No shadows or blur
 
-WebKitGTK on Linux paints the page on the CPU, and a shadow or blur makes every
+WebKitGTK paints the page on the CPU unless GPU rendering is on (it is by
+default on NVIDIA with mode setting, but the measurements below were made
+before that), and a shadow or blur makes every
 repaint of the elements under it more expensive. In a maximised window this is
 felt directly: tab switches, scrolling and clicks lag. Measured history on the
 test machine (i7-6700, RTX 3060, LXQt/X11 with picom):
