@@ -106,7 +106,8 @@ fn known_field(key: &str) -> Option<&'static [Kind]> {
         "theme" => Some(&[Kind::Choice]),
         "width" | "height" => Some(&[Kind::Number]),
         "show_titlebar" | "rounded_corners" | "start_minimised" | "menu_collapsed" | "high_contrast"
-        | "large_targets" | "underline_links" | "strong_focus" | "reduce_motion" => Some(&[Kind::Bool]),
+        | "large_targets" | "underline_links" | "strong_focus" | "reduce_motion"
+        | "hardware_acceleration" => Some(&[Kind::Bool]),
         "menu_layout" | "titlebar_scale" | "text_size" => Some(&[Kind::Choice]),
         _ => None,
     }

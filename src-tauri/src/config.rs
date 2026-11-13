@@ -79,6 +79,9 @@ pub struct Config {
     pub strong_focus: bool,
     /// Accessibility: no transitions or movement, whatever the system says.
     pub reduce_motion: bool,
+    /// Draw the page on the GPU where the system supports it. Read once at
+    /// startup, so a change applies the next time the app starts.
+    pub hardware_acceleration: bool,
     /// Settings defined only in options.json, unknown to this struct. Kept
     /// here so saving never drops them. Values are booleans, numbers or text.
     pub extras: BTreeMap<String, Value>,
@@ -105,6 +108,7 @@ impl Default for Config {
             underline_links: false,
             strong_focus: false,
             reduce_motion: false,
+            hardware_acceleration: true,
             extras: BTreeMap::new(),
         }
     }
@@ -448,6 +452,7 @@ mod tests {
         cfg.underline_links = true;
         cfg.strong_focus = true;
         cfg.reduce_motion = true;
+        cfg.hardware_acceleration = false;
         save(&mut state, cfg.clone()).unwrap();
         assert_eq!(load(path).config, cfg);
     }
@@ -460,6 +465,8 @@ mod tests {
         assert_eq!(state.status, LoadStatus::Ok);
         assert_eq!(state.config.theme, "rose");
         assert_eq!(state.config.menu_layout, "vertical");
+        // Older files without the key keep GPU rendering on.
+        assert!(state.config.hardware_acceleration);
         assert_eq!(state.config.titlebar_scale, 100);
         assert_eq!(state.config.text_size, 100);
     }

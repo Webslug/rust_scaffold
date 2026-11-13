@@ -1,4 +1,4 @@
-/* Help page. Fills in the name, version and settings folder
+/* Help page. Fills in the name, version, rendering mode and settings folder
    from Rust each time the page is opened. The search library line on this
    page is filled in by search.js. */
 (function () {
@@ -12,6 +12,7 @@
       document.getElementById("help-app-name").textContent = info.name;
       document.getElementById("help-version").textContent = info.version;
       document.getElementById("help-config-path").textContent = info.config_path;
+      document.getElementById("help-rendering").textContent = info.rendering;
     }).catch(function (err) {
       document.getElementById("help-version").textContent = "Unknown (" + err + ")";
     });

@@ -218,3 +218,55 @@ instead, for example `sudo mount /dev/sda2 /mnt`.
   "off" file, points the one-boot test entry at it, and arms the undo (which
   deletes the test image and entry). The normal startup image and settings
   are not changed.
+- 13 November 2026, version 2 test boot (11:04): **mode setting on**
+  (runtime modeset `Y`), desktop fine, GBM buffer OK. Undo ran at 11:05:34,
+  removed the test image and entry. This boot stays GPU-capable until the
+  next reboot.
+- Same boot, WebKit checks (copy of the app in `/tmp/gpu_try`, `dist/`
+  untouched):
+  - Default: WebKit policy still `never`. WebKitGTK does not use the
+    DMA-BUF renderer on the NVIDIA proprietary driver unless forced.
+  - `WEBKIT_FORCE_DMABUF_RENDERER=1`: policy `always`, renderer RTX 3060,
+    platform GBM. But the app window is **black** ("AcceleratedSurface was
+    unable to construct a complete framebuffer"). Same with buffer formats
+    `XR24` and `AR24`.
+  - `WEBKIT_FORCE_DMABUF_RENDERER=1 WEBKIT_DMABUF_RENDERER_FORCE_SHM=1`:
+    the app renders correctly. Not yet known whether this is faster than
+    the normal CPU path; needs `cpu.py` on this same boot.
+- Step 4 (permanent) not done. Decide after the measurement.
+- Same boot, measured with `cpu.py` (vertical, maximised, 2 rounds each,
+  `dist/rust-scaffold`, WebKit web process CPU per 35 s round):
+  - Slate: normal 16.50 s, forced GPU (`FORCE_DMABUF_RENDERER` +
+    `FORCE_SHM`) 15.10 s, about 8% less.
+  - Aero Blue: normal 18.14 s, forced GPU 16.33 s, about 10% less.
+  - picom was not running during these runs. Visible smoothness was not
+    measured, only CPU. Not verified that the forced run painted on the GPU
+    rather than only compositing there.
+- 13 November 2026, 11:19, **step 4 done (Kim's decision)** with
+  `src-tauri/benchmark/modeset_test/make_permanent.sh`: `nomodeset` removed
+  from `/etc/default/grub`, `nvidia-nomodeset.conf` renamed to
+  `.disabled`, startup image for 6.8.0-149 rebuilt without it, `update-grub`
+  run. Verified: the 6.8.0-149 boot line has no `nomodeset`, the loader now
+  applies only `modeset=1`. Backups of the old `grub` file, the "off" file
+  and the old 6.8.0-149 startup image are in
+  `/var/backups/modeset-permanent-2026-11-13/`. Older kernels keep their old
+  startup images (mode setting off) as a fallback. Not yet rebooted.
+
+## Recovery after step 4 (photograph this)
+
+If the desktop does not appear after a normal boot:
+
+1. Hold the power button 5 seconds, start again.
+2. At the GRUB menu choose **Advanced options for Ubuntu**, then
+   **Ubuntu, with Linux 6.8.0-138-generic**. Its startup image still
+   switches mode setting off. Or use B above and type `nomodeset` back
+   after `quiet splash` (proven safe).
+3. Once on the desktop, open QTerminal and type:
+
+        sudo cp /var/backups/modeset-permanent-2026-11-13/grub /etc/default/grub
+        sudo update-grub
+        sudo reboot
+
+   That puts `nomodeset` back for every boot, which on its own switches
+   mode setting off.
+- 13 November 2026, 11:22: first normal reboot with the permanent setting. Desktop fine, no `nomodeset` on the boot line, loader applies only `modeset=1`, GBM buffer OK, no undo job present. **Step 4 confirmed.**

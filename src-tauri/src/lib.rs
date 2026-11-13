@@ -1,6 +1,7 @@
 mod commands;
 mod config;
 mod files;
+mod gpu;
 mod options;
 mod search;
 mod tray;
@@ -52,6 +53,8 @@ pub fn debug_log(message: &str) {
 pub fn run() {
     debug_log("app starting");
     let state = config::load(config::config_path());
+    // Must run before WebKit starts: it may set environment variables.
+    gpu::apply(state.config.hardware_acceleration);
     let (width, height) = (state.config.width, state.config.height);
     let tray_items = state.config.tray_items.clone();
     tauri::Builder::default()

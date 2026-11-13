@@ -103,3 +103,32 @@ right after `set_size` (add `mod gpu;`):
 A "Hardware acceleration" switch in `config.json` (on by default, applied at
 startup, needs a restart) would replace `RS_GPU_POLICY` with a config value.
 It was not added: on this machine it would do nothing and could not be tested.
+
+## Update, 13 November 2026: GPU rendering now works
+
+- NVIDIA mode setting was switched on permanently (see
+  `docs/grub_recovery.md`). GBM buffers then allocate fine.
+- WebKitGTK still chooses policy "never" on the NVIDIA proprietary driver
+  by default. `WEBKIT_FORCE_DMABUF_RENDERER=1` turns it on (policy
+  "always", GL renderer RTX 3060), but the window is black ("AcceleratedSurface
+  was unable to construct a complete framebuffer"). Adding
+  `WEBKIT_DMABUF_RENDERER_FORCE_SHM=1` makes it render correctly, and the
+  `WebKitWebProcess` then appears in `nvidia-smi` as a GPU client (29 to
+  34 MiB).
+- `cpu.py` (vertical, maximised, 2 rounds): web process CPU Slate 16.50 s
+  normal versus 15.10 s GPU, Aero Blue 18.14 s versus 16.33 s (8 to 10 %
+  less). Kim watched the runs and saw much less tearing while scrolling in
+  Aero Blue in GPU mode. picom was not running during those runs.
+- The app now does this itself (`src-tauri/src/gpu.rs`, called first in
+  `run()`): with `hardware_acceleration` true in `config.json` (the
+  default), the NVIDIA driver present and a test GBM buffer allocating, it
+  sets both variables before WebKit starts. Otherwise it leaves WebKit's
+  default (CPU here), so the window is never black, for example when an
+  older kernel without mode setting is booted. Variables already set in the
+  environment are respected. The Help page "Rendering" line shows the
+  decision. The switch is on the Options tab (Window group) and applies at
+  the next start. `run_gpu.sh` was removed; `run.sh` is the only launcher.
+- Verified on the release build: with the switch on, `WebKitWebProcess`
+  is a GPU client in `nvidia-smi` and the window renders; with it off, it is
+  not. 25 Rust tests pass. Not tested: the fallback on a boot without mode
+  setting (needs the old kernel), Windows, other GPUs.

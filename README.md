@@ -151,6 +151,7 @@ can also edit it by hand while the app is closed.
       "underline_links": false,
       "strong_focus": false,
       "reduce_motion": false,
+      "hardware_acceleration": true,
       "extras": {}
     }
 

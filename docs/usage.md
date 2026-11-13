@@ -71,6 +71,7 @@ setting in the app. You can also edit it by hand while the app is closed.
 | `underline_links` | `false` | Underline every link |
 | `strong_focus` | `false` | Thicker keyboard focus ring |
 | `reduce_motion` | `false` | No transitions or animations, whatever the system setting |
+| `hardware_acceleration` | `true` | Draw the page on the graphics card where supported (NVIDIA on Linux needs kernel mode setting, see `docs/gpu_rendering.md`). Applies at the next start |
 | `extras` | `{}` | Settings defined only in `options.json` (see Options tab) |
 
 Rules enforced by `src-tauri/src/config.rs`:
@@ -164,7 +165,7 @@ these are allowed, with these controls:
 |-----|----------|
 | `theme` | `select`, `radio`, `list` (use `"choices": "themes"`) |
 | `width`, `height` | `number`, `range` |
-| `show_titlebar`, `rounded_corners`, `start_minimised`, `menu_collapsed`, `high_contrast`, `large_targets`, `underline_links`, `strong_focus`, `reduce_motion` | `switch`, `check` |
+| `show_titlebar`, `rounded_corners`, `start_minimised`, `menu_collapsed`, `high_contrast`, `large_targets`, `underline_links`, `strong_focus`, `reduce_motion`, `hardware_acceleration` | `switch`, `check` |
 | `menu_layout`, `titlebar_scale`, `text_size` | `select`, `radio`, `list` (choices must use the allowed values; numbers for the two sizes) |
 
 `order`, `collapsed`, `tray_items` and `extras` are managed by the app and

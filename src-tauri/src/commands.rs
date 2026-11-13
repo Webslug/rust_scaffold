@@ -23,6 +23,7 @@ pub struct AppInfo {
     name: &'static str,
     version: &'static str,
     config_path: String,
+    rendering: &'static str,
 }
 
 /// Example command: the UI calls this and shows the result.
@@ -33,6 +34,7 @@ pub fn app_info(state: State<Mutex<ConfigState>>) -> AppInfo {
         name: env!("CARGO_PKG_NAME"),
         version: env!("CARGO_PKG_VERSION"),
         config_path: state.path.display().to_string(),
+        rendering: crate::gpu::mode(),
     }
 }
 

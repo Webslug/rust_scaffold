@@ -10,6 +10,7 @@
     { "group": "Window", "control": "number", "key": "width", "label": "Width", "readonly": true, "size": "sm", "help": "Set by resizing the window." },
     { "group": "Window", "control": "number", "key": "height", "label": "Height", "readonly": true, "size": "sm" },
     { "group": "Window", "control": "check", "key": "start_minimised", "label": "Start hidden in the tray", "help": "Takes effect the next time the app starts." },
+    { "group": "Window", "control": "switch", "key": "hardware_acceleration", "label": "Hardware acceleration", "help": "Draws the page on the graphics card where supported. Takes effect the next time the app starts." },
 
     { "group": "Accessibility", "control": "select", "key": "text_size", "label": "Text size", "choices": [ { "value": 100, "label": "100% (normal)" }, { "value": 115, "label": "115%" }, { "value": 130, "label": "130%" } ], "size": "sm" },
     { "group": "Accessibility", "control": "switch", "key": "high_contrast", "label": "High contrast", "help": "Full-strength text and borders, and solid backgrounds behind text." },

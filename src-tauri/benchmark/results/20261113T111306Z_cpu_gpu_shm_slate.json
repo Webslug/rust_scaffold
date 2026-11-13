@@ -1,0 +1,31 @@
+{
+  "label": "gpu_shm",
+  "theme": "slate",
+  "layout": "vertical",
+  "binary": "/opt/templates/rust/dist/rust-scaffold",
+  "steps": 36,
+  "rounds": [
+    {
+      "web_cpu_s": 15.26,
+      "picom_cpu_s": null,
+      "elapsed_s": 35.57014688800001,
+      "window": {
+        "x": 0,
+        "y": 0,
+        "width": 1920,
+        "height": 1028
+      }
+    },
+    {
+      "web_cpu_s": 14.94,
+      "picom_cpu_s": null,
+      "elapsed_s": 35.652478288000054,
+      "window": {
+        "x": 0,
+        "y": 0,
+        "width": 1920,
+        "height": 1028
+      }
+    }
+  ]
+}
