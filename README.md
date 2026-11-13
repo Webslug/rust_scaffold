@@ -52,6 +52,14 @@ core. The release binary is about 4.3 MB, well under the 50 MB target.
 - Example of the interface calling a Rust command.
 - Bootstrap 5 and Bootstrap Icons, bundled locally. The app works offline.
 
+<p align="center">
+  <img src="ui/img/charts.jpg" alt="Graphs and Charts" width="720">
+</p>
+
+<p align="center">
+  <img src="ui/img/tables.jpg" alt="Searchable tabes" width="720">
+</p>
+
 ## Requirements
 
 Rust 1.77.2 or newer and the Tauri system libraries. You do not need Node.js,
