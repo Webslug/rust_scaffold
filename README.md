@@ -73,10 +73,16 @@ core. The release binary is about 4.5 MB, well under the 50 MB target.
   <img src="ui/img/tables.jpg" alt="Searchable tables" width="720">
 </p>
 
-## Elite Level UX
+## Elite Level UX - JSON Search Navigation
 
 <p align="center">
   <img src="ui/img/autocomplete.jpg" alt="Auto Complete - Find any section instantly" width="720">
+</p>
+
+## ASync Job Queues
+
+<p align="center">
+  <img src="ui/img/jobs.jpg" alt="ASync Job Queues" width="720">
 </p>
 
 ## GPU rendering
