@@ -63,6 +63,10 @@ core. The release binary is about 4.5 MB, well under the 50 MB target.
   <img src="ui/img/tables.jpg" alt="Searchable tables" width="720">
 </p>
 
+<p align="center">
+  <img src="ui/img/autocomplete.jpg" alt="Auto Complete - Find any section instantly" width="720">
+</p>
+
 ## GPU rendering
 
 On Linux with the NVIDIA proprietary driver the page is drawn by the GPU. At
