@@ -24,6 +24,34 @@ pub struct AppInfo {
     version: &'static str,
     config_path: String,
     rendering: &'static str,
+    build: BuildInfo,
+}
+
+/// Recorded by build.rs at compile time.
+#[derive(Serialize)]
+pub struct BuildInfo {
+    /// Unix seconds when build.rs last ran; the UI formats it.
+    unix_time: u64,
+    rustc: &'static str,
+    cargo: &'static str,
+    profile: &'static str,
+    /// Direct dependencies as "name version", with the locked version.
+    crates: Vec<&'static str>,
+    /// Every crate in Cargo.lock except this app.
+    crate_count: usize,
+}
+
+impl BuildInfo {
+    fn current() -> Self {
+        BuildInfo {
+            unix_time: env!("BUILD_UNIX_TIME").parse().unwrap_or(0),
+            rustc: env!("BUILD_RUSTC"),
+            cargo: env!("BUILD_CARGO"),
+            profile: env!("BUILD_PROFILE"),
+            crates: env!("BUILD_CRATES").split(';').filter(|s| !s.is_empty()).collect(),
+            crate_count: env!("BUILD_CRATE_COUNT").parse().unwrap_or(0),
+        }
+    }
 }
 
 /// Example command: the UI calls this and shows the result.
@@ -35,6 +63,7 @@ pub fn app_info(state: State<Mutex<ConfigState>>) -> AppInfo {
         version: env!("CARGO_PKG_VERSION"),
         config_path: state.path.display().to_string(),
         rendering: crate::gpu::mode(),
+        build: BuildInfo::current(),
     }
 }
 

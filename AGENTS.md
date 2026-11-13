@@ -1,8 +1,8 @@
 ## Rust Boiler plate Scaffold
 
 User: Kim.
-Version: 0.2.0
-Date: 12 November 2026
+Version: 0.2.1
+Date: 13 November 2026
 Project folder: /opt/templates/rust
 
 Create a lean, reusable Rust and Tauri desktop application scaffold for Linux.
@@ -372,3 +372,23 @@ Leads, in order of cheapness (none confirmed):
 - `run_gpu.sh` removed; the desktop launcher now runs `run.sh` and is named "Rust Scaffold". Built with `build.sh` into `dist/` (4.46 MB). Verified: on, the web process is an NVIDIA GPU client and the window renders; off, it is not. 25 tests pass (round trip and missing-key default extended). Backup: `backup/rust_template_pre_gpu_default.zip`.
 - Not tested: the no-mode-setting fallback on a real boot, Windows, non-NVIDIA GPUs, drag and resize in GPU mode, theme-by-theme visuals in GPU mode.
 - Build cache cleared on 13 November 2026 (4.8 GB: 2.5 GB `debug/` from `cargo test` runs, plus stale release objects including the old `webkit2gtk` variant experiment). A clean `build.sh` took 2 min 10 s and leaves 1.1 GB. There is one source tree; it includes the GPU code, so `build.sh` needs no change.
+
+### 13 November 2026: Rust updated to 1.100.0 (Claude)
+- Before: rustc and cargo 1.98.0 (2026-08-18), rustup 1.29.0. After `rustup update stable`: rustc 1.100.0 (0ef1bc386 2026-11-09), cargo 1.100.0, rustup 1.29.3. The old versions, `Cargo.lock` and the previous `dist/rust-scaffold` (sha256 564d3009...) are in `backup/pre_rust_update/`. To go back: `rustup toolchain install 1.98.0` and `rustup default 1.98.0`.
+- No source or `Cargo.lock` change. Rebuilt with `build.sh` in 55 s; `dist/rust-scaffold` is 4,601,352 bytes (was 4,464,680), and its `.comment` section says rustc 1.100.0. 25 tests pass (`cargo test --release`).
+- Cargo 1.100 puts intermediate build files in `target/release/build/<crate>/` instead of `target/release/deps/`, and prints far fewer "Compiling" lines. The old `deps/` files (from 1.98) are now unused; `target/` is about 2.2 GB. Deleting `src-tauri/target` is safe; the next build then takes about 2 minutes.
+- Launch check (copy of the binary in a temporary folder, no mouse or keyboard input): window appeared at 640x480 within about 1 s, the web process is an NVIDIA GPU client, the tray icon registered with the StatusNotifierWatcher, and there was no output on stderr. Not checked: themes, drag, resize, tabs, Options, search (no input driven), Windows.
+- Tauri: still 2.11.5. Latest stable is 2.12.5 (`cargo update` would bring it in, along with wry 0.57, tao 0.37, tray-icon 0.25 and muda 0.20; 186 lock changes). crates.io also lists 3.0.0-alpha.6, which is a pre-release; `Cargo.toml` asks for "2", so Cargo will never pick it up. The Tauri update is a separate step, not yet done.
+
+### 13 November 2026: Tauri updated to 2.12.5, build details on the Help page (Claude)
+- Backup before changes: `backup/rust_template_pre_tauri_update.zip` (verified). The previous `Cargo.lock` is also in `backup/pre_rust_update/`.
+- Updated with `cargo update -p tauri -p tauri-build` (82 lock changes, only what Tauri needs), not a full `cargo update` (186 changes). Now: tauri 2.12.5, tauri-build 2.7.4, tauri-runtime-wry 2.12.3, wry 0.57.2, tao 0.37.2, tray-icon 0.25.1, muda 0.20.0. No source change was needed; no compiler warnings. `Cargo.toml` still asks for "2", so the 3.0 alphas on crates.io are never picked up.
+- Tauri 2.12 needs Rust 1.90 or newer (was 1.77.2). README and `requirements.txt` corrected.
+- Verified on the Tauri update alone: 25 tests pass; a copy of the binary in a temporary folder opened its window at 640x480 within about 1 s, the web process was an NVIDIA GPU client, the tray icon registered, nothing on stderr. No mouse or keyboard input was driven.
+- Help page: new "Build" card under About (`#help-build`) showing compile time (local time), rustc and cargo versions, build profile, the direct crates with their locked versions and the total crate count (434). `src-tauri/build.rs` records these with `cargo:rustc-env` (no new crates; Cargo.lock is parsed line by line), `commands.rs` returns them in `app_info` as `build`, `ui/js/help.js` fills them in. The build time refreshes whenever `src/`, `../ui`, `Cargo.toml`, `Cargo.lock` or `build.rs` change, or the toolchain changes; a rebuild with nothing changed keeps the old time, which matches the unchanged binary.
+- Verified: the strings are in the binary (rustc 1.100.0, cargo 1.100.0, release, serde 1.0.229, serde_json 1.0.151, tauri 2.12.5, tauri-build 2.7.4, 434); JS syntax check passes; 25 tests pass. NOT verified: the Build card on screen (needs clicking the Help tab), its look on the 14 themes, and the search library has no entry for it (the Help page itself is searchable by name).
+- README: new "Versions used to build this release" section under Requirements. `dist/rust-scaffold` is now 4,731,376 bytes (4.73 MB, was 4.60 MB on Rust 1.100 with Tauri 2.11.5).
+
+### 13 November 2026: version 0.2.1 (Claude)
+- Version 0.2.1 in `src-tauri/Cargo.toml` and `src-tauri/tauri.conf.json`; `Cargo.lock` refreshed with `cargo update --workspace --offline` (only `rust-scaffold` changed, needed because `build.sh` builds with `--locked`). Help page change log has a 0.2.1 entry (Rust 1.100, Tauri 2.12.5, Build section). Rebuilt into `dist/`, 25 tests pass, "0.2.1" is in the binary.
+- Crates requested by Kim (tokio, dirs, regex, chrono or time, tracing): checked with `cargo tree -i` on Linux before adding anything. tokio 1.53.1, dirs 7.0.0, regex 1.13.1 and time 0.3.55 are already compiled into the app through Tauri; chrono and tracing are not (both appear in `Cargo.lock` only for other platforms). Pending Kim's decision; nothing added yet.

@@ -386,6 +386,7 @@
               <div class="card-header"><h2 class="h6 card-header-title mb-0" id="help-changelog-title"><i class="bi bi-journal-text me-2" aria-hidden="true"></i>Change log</h2></div>
               <div class="card-body">
                 <ul class="help-changelog">
+                  <li><strong>0.2.1, 13 November 2026.</strong> Built with Rust 1.100 and Tauri 2.12.5. New Build section on this page shows when the app was compiled, the Rust and Cargo versions and the crates it uses.</li>
                   <li><strong>0.2.0, 13 November 2026.</strong> Vertical menu (now the default) with contract and expand, menu search with a configurable library (search.json), this Help page, title bar size, text size and accessibility options. Options tab driven by options.json, icon-only tabs when space is short, settings kept beside the program.</li>
                   <li><strong>0.1.0, 12 November 2026.</strong> First version: frameless rounded window, 14 themes, saved settings, tray icon, reorderable cards and panels, tables, charts and table search. Shadows and blur removed so the window stays fast when maximised.</li>
                 </ul>
@@ -404,6 +405,18 @@
                   <dt>Search library</dt><dd id="help-search-status">-</dd>
                 </dl>
                 <div id="help-search-problems" class="alert alert-warning mt-3 mb-0 d-none" role="alert"></div>
+              </div>
+            </section>
+            <section class="card card-custom" id="help-build" aria-labelledby="help-build-title">
+              <div class="card-header"><h2 class="h6 card-header-title mb-0" id="help-build-title"><i class="bi bi-hammer me-2" aria-hidden="true"></i>Build</h2></div>
+              <div class="card-body">
+                <dl class="settings-list mb-0">
+                  <dt>Compiled</dt><dd id="help-build-time">-</dd>
+                  <dt>Rust</dt><dd id="help-build-rustc">-</dd>
+                  <dt>Cargo</dt><dd id="help-build-cargo">-</dd>
+                  <dt>Profile</dt><dd id="help-build-profile">-</dd>
+                  <dt>Crates</dt><dd id="help-build-crates">-</dd>
+                </dl>
               </div>
             </section>
           </div>

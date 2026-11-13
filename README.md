@@ -55,13 +55,19 @@ core. The release binary is about 4.5 MB, well under the 50 MB target.
 - Example of the interface calling a Rust command.
 - Bootstrap 5 and Bootstrap Icons, bundled locally. The app works offline.
 
+## Offline graphs and charts
+
 <p align="center">
   <img src="ui/img/charts.jpg" alt="Graphs and Charts" width="720">
 </p>
 
+## Searchable Tables
+
 <p align="center">
   <img src="ui/img/tables.jpg" alt="Searchable tables" width="720">
 </p>
+
+## Elite Level UX
 
 <p align="center">
   <img src="ui/img/autocomplete.jpg" alt="Auto Complete - Find any section instantly" width="720">
@@ -91,8 +97,25 @@ Details and the mode-setting steps: [docs/gpu_rendering.md](docs/gpu_rendering.m
 
 ## Requirements
 
-Rust 1.77.2 or newer and the Tauri system libraries. You do not need Node.js,
-npm or the Tauri CLI. The full list is in [requirements.txt](requirements.txt).
+Rust 1.90 or newer (the minimum for Tauri 2.12) and the Tauri system
+libraries. You do not need Node.js, npm or the Tauri CLI. The full list is in
+[requirements.txt](requirements.txt).
+
+### Versions used to build this release
+
+Built and tested on 13 November 2026 with:
+
+- Rust (rustc) 1.100.0, Cargo 1.100.0, rustup 1.29.3, stable channel
+- Tauri 2.12.5, tauri-build 2.7.4 (wry 0.57.2, tao 0.37.2, tray-icon 0.25.1)
+- serde 1.0.229, serde_json 1.0.151
+- 434 crates in total, pinned in `src-tauri/Cargo.lock`
+- WebKitGTK 2.50.4, GTK 3.24.33, Ubuntu 22.04 (Lubuntu, LXQt, X11)
+
+The app shows the versions it was actually compiled with on the Help page,
+under Build: the build time, Rust and Cargo versions, build profile, the
+crates the app depends on directly and the total crate count. These are
+recorded by `src-tauri/build.rs` at compile time, so they always match the
+binary.
 
 ## Install Rust and Tauri
 

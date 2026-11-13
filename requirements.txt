@@ -6,7 +6,7 @@
 # No Node.js, npm or Tauri CLI is needed.
 
 # ---- All platforms ----
-rust >= 1.77.2            # Tauri 2 minimum. Tested with 1.98.0 (rustup, stable)
+rust >= 1.90              # Tauri 2.12 minimum. Tested with 1.100.0 (rustup, stable)
 cargo                     # installed together with rust
 
 # ---- Linux (Debian and Ubuntu package names) ----
