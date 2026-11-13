@@ -1,8 +1,12 @@
+Phase one is complete... ignore 1.  we will move onto Problem 2. 
+
 Well we aspire to add some new tabs in our boilerplate rust app. However when we learned our historic usage of shadows in the application causes a lot of repaint/redraw issues and UI responsiveness suffers as a consequence.
 
 /opt/templates/rust/config.json
 
-1. We aspire to add an Options tab in our application, this loads all of the configuration options from the config.json file allowing us to change them in the app itself. We aspire to add a prefix to all of the items in config.json which indicates what type of control it is, for example
+## Problem 1.
+
+We aspire to add an Options tab in our application, this loads all of the configuration options from the config.json file allowing us to change them in the app itself. We aspire to add a prefix to all of the items in config.json which indicates what type of control it is, for example
 
 btn_ = button
 input_ = text box/inputbox
@@ -21,7 +25,8 @@ text_my_text_box:"Random nonsensical text"
 
 Here we basically use a colon : as a suffix which denotes the value.  This gets problematic though when we want radio buttons or select boxes which have multiple values. Furthermore, some controls will be bigger vertically or horizontally so we will need a way to define width and height for some controls such as input/textboxes, further more some controls maybe read only and cannot be changed.
 
-2. Modals and offcanvas panels
+
+## Problem 2. Modals and offcanvas panels
 
 Modals and offcanvas panels present a new problem, because we will most likely want to reintroduce shadows and effects so they look presentable. However historically when we had shadows and other effects in the application it made UI responsiveness slow when the window was maximized.  We would aspire to see if we can add some very resource friendly shadow effects.
 

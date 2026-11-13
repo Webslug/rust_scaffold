@@ -192,6 +192,52 @@ html.square-corners {
   font-size: 0.85rem;
 }
 
+.app-tabs .nav-link .bi + .tab-label {
+  margin-left: var(--space-1);
+}
+
+/* Icons-only mode, set by js/tabs_fit.js when the labels would wrap. Labels
+   are clipped, not removed, so screen readers still announce them. If the
+   icons alone do not fit, the row scrolls sideways instead of wrapping. */
+.app-tabs.tabs-icons {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* Slim, themed scrollbar for the rare row that still overflows. */
+.app-tabs.tabs-icons::-webkit-scrollbar {
+  height: 6px;
+}
+
+.app-tabs.tabs-icons::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.app-tabs.tabs-icons::-webkit-scrollbar-thumb {
+  background-color: var(--border-strong);
+  border-radius: var(--radius-pill);
+}
+
+.app-tabs.tabs-icons .nav-item {
+  flex: 0 0 auto;
+}
+
+.app-tabs.tabs-icons .nav-link {
+  position: relative;
+  padding-left: var(--space-2);
+  padding-right: var(--space-2);
+}
+
+.app-tabs.tabs-icons .tab-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 .app-tabs {
   /* Room for the reveal button when the title bar is hidden. */
   padding-right: 2.5rem;

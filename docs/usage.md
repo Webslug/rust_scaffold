@@ -219,7 +219,18 @@ window.
 
 Add a tab button and a matching pane in `ui/index.html`, copying the Dashboard
 pair: the button needs `data-bs-target="#page-name"`, the pane needs
-`id="page-name"`.
+`id="page-name"`. Give every tab an icon and put its text in
+`<span class="tab-label">`:
+
+    <i class="bi bi-sliders"></i><span class="tab-label">Options</span>
+
+When the labels no longer fit on one row (about 700 px wide with the six
+tabs here; the point moves with the number of tabs and the theme's font),
+`ui/js/tabs_fit.js` hides the labels and shows icons only, each with a Bootstrap
+tooltip giving its name on hover or keyboard focus. Hidden labels are still read
+by screen readers. If even the icons do not fit, the row scrolls sideways with a
+slim scrollbar, and the selected tab is scrolled into view. Any tab row with the
+`data-tabs-fit` attribute gets this behaviour; it needs no other setup.
 
 ### Add a sortable list
 

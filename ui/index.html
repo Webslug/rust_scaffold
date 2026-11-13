@@ -30,24 +30,24 @@
 
     <main class="app-content" data-tauri-drag-region>
       <div id="config-warning" class="alert alert-warning d-none" role="alert"></div>
-      <ul class="nav nav-tabs nav-tabs-custom app-tabs" id="app-tabs" role="tablist">
+      <ul class="nav nav-tabs nav-tabs-custom app-tabs" id="app-tabs" role="tablist" data-tabs-fit>
         <li class="nav-item" role="presentation">
-          <button type="button" class="nav-link active" id="tab-dashboard" data-bs-toggle="tab" data-bs-target="#page-dashboard" role="tab" aria-controls="page-dashboard" aria-selected="true"><i class="bi bi-speedometer2 me-1"></i>Dashboard</button>
+          <button type="button" class="nav-link active" id="tab-dashboard" data-bs-toggle="tab" data-bs-target="#page-dashboard" role="tab" aria-controls="page-dashboard" aria-selected="true"><i class="bi bi-speedometer2"></i><span class="tab-label">Dashboard</span></button>
         </li>
         <li class="nav-item" role="presentation">
-          <button type="button" class="nav-link" id="tab-panels" data-bs-toggle="tab" data-bs-target="#page-panels" role="tab" aria-controls="page-panels" aria-selected="false"><i class="bi bi-layout-text-sidebar-reverse me-1"></i>Panels</button>
+          <button type="button" class="nav-link" id="tab-panels" data-bs-toggle="tab" data-bs-target="#page-panels" role="tab" aria-controls="page-panels" aria-selected="false"><i class="bi bi-layout-text-sidebar-reverse"></i><span class="tab-label">Panels</span></button>
         </li>
         <li class="nav-item" role="presentation">
-          <button type="button" class="nav-link" id="tab-tables" data-bs-toggle="tab" data-bs-target="#page-tables" role="tab" aria-controls="page-tables" aria-selected="false"><i class="bi bi-table me-1"></i>Tables</button>
+          <button type="button" class="nav-link" id="tab-tables" data-bs-toggle="tab" data-bs-target="#page-tables" role="tab" aria-controls="page-tables" aria-selected="false"><i class="bi bi-table"></i><span class="tab-label">Tables</span></button>
         </li>
         <li class="nav-item" role="presentation">
-          <button type="button" class="nav-link" id="tab-cards" data-bs-toggle="tab" data-bs-target="#page-cards" role="tab" aria-controls="page-cards" aria-selected="false"><i class="bi bi-grid-3x2-gap me-1"></i>Cards</button>
+          <button type="button" class="nav-link" id="tab-cards" data-bs-toggle="tab" data-bs-target="#page-cards" role="tab" aria-controls="page-cards" aria-selected="false"><i class="bi bi-grid-3x2-gap"></i><span class="tab-label">Cards</span></button>
         </li>
         <li class="nav-item" role="presentation">
-          <button type="button" class="nav-link" id="tab-charts" data-bs-toggle="tab" data-bs-target="#page-charts" role="tab" aria-controls="page-charts" aria-selected="false"><i class="bi bi-bar-chart-line me-1"></i>Charts</button>
+          <button type="button" class="nav-link" id="tab-charts" data-bs-toggle="tab" data-bs-target="#page-charts" role="tab" aria-controls="page-charts" aria-selected="false"><i class="bi bi-bar-chart-line"></i><span class="tab-label">Charts</span></button>
         </li>
         <li class="nav-item" role="presentation">
-          <button type="button" class="nav-link" id="tab-options" data-bs-toggle="tab" data-bs-target="#page-options" role="tab" aria-controls="page-options" aria-selected="false"><i class="bi bi-sliders me-1"></i>Options</button>
+          <button type="button" class="nav-link" id="tab-options" data-bs-toggle="tab" data-bs-target="#page-options" role="tab" aria-controls="page-options" aria-selected="false"><i class="bi bi-sliders"></i><span class="tab-label">Options</span></button>
         </li>
       </ul>
 
@@ -341,6 +341,7 @@
 
   <script src="js/bootstrap.bundle.min.js"></script>
   <script src="js/window.js"></script>
+  <script src="js/tabs_fit.js"></script>
   <script src="js/sortable.js"></script>
   <script src="js/table_search.js"></script>
   <script src="js/charts_page.js"></script>

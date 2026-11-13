@@ -1,0 +1,26 @@
+/* Bootstrap tooltips, themed. Copied from the template's containers.css,
+   which this scaffold does not load. */
+.tooltip-inner {
+  background-color: var(--surface-raised);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.85rem;
+  font-size: 0.8rem;
+}
+
+.tooltip.bs-tooltip-top .tooltip-arrow::before { border-top-color: var(--border); }
+.tooltip.bs-tooltip-bottom .tooltip-arrow::before { border-bottom-color: var(--border); }
+.tooltip.bs-tooltip-start .tooltip-arrow::before { border-left-color: var(--border); }
+.tooltip.bs-tooltip-end .tooltip-arrow::before { border-right-color: var(--border); }
+
+/* Informational only: a tooltip over a neighbouring control must not steal
+   its clicks. */
+.tooltip {
+  pointer-events: none;
+}
+
+/* Solid, not Bootstrap's 0.9: text behind a tooltip made it hard to read. */
+.tooltip.show {
+  opacity: 1;
+}
