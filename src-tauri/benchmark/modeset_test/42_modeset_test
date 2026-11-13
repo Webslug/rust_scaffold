@@ -1,0 +1,15 @@
+#!/bin/sh
+# One-boot NVIDIA modeset test entry (docs/grub_recovery.md). Removed by the undo job.
+cat <<'ENTRY'
+menuentry 'Modeset test (one boot)' --id modeset-test {
+	recordfail
+	load_video
+	gfxmode $linux_gfx_mode
+	insmod gzio
+	insmod part_gpt
+	insmod ext2
+	search --no-floppy --fs-uuid --set=root a89fc1b2-23fb-4699-8e1b-c86c38b9a68c
+	linux	/boot/vmlinuz-6.8.0-149-generic root=UUID=a89fc1b2-23fb-4699-8e1b-c86c38b9a68c ro  quiet splash module.sig_unenforce $vt_handoff
+	initrd	/boot/initrd-modeset-test.img
+}
+ENTRY

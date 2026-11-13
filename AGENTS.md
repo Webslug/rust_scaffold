@@ -1,7 +1,7 @@
 ## Rust Boiler plate Scaffold
 
 User: Kim.
-Version: 1.0
+Version: 0.2.0
 Date: 12 November 2026
 Project folder: /opt/templates/rust
 
@@ -331,3 +331,32 @@ Leads, in order of cheapness (none confirmed):
 - `run.bat` now launches `dist\rust-scaffold.exe`; `run.bat --build` checks for cargo, runs `cargo build --release --locked`, copies the `.exe` into `dist\` and launches it. A failed build or copy stops without launching and leaves `dist\` as it was. CRLF line endings. Written from standard cmd behaviour; NOT run on Windows.
 - Documentation: `docs/usage.md` has a "No shadows or blur" section (the measured history, `bootstrap-flat.css`, plain-background table striping, and how to test an effect safely); README known limitations updated; the benchmark README documents `cpu.py`. Stale references to `performance.css` removed.
 - Kim's decision after the light-theme test: no shadows at all for now.
+
+### 13 November 2026: vertical menu, menu search, Help page, title bar size, accessibility options (Claude)
+- Backup before changes: `backup/rust_template_pre_menu_layout.zip` (verified).
+- New `config.json` keys (Rust-validated in `config.rs`): `menu_layout` ("horizontal" default, or "vertical"), `menu_collapsed`, `titlebar_scale` (100/150/200), `text_size` (100/115/130), `high_contrast`, `large_targets`, `underline_links`, `strong_focus`, `reduce_motion`. Unknown values for the three choice keys fall back to the default instead of invalidating the file. All are allowed as built-in keys in `options.rs` and appear on the Options tab (`options.default.json`; the same entries were added to Kim's `dist/options.json`, nothing else in it changed).
+- One tab list serves both layouts: `#app-tabs` is wrapped in `<nav class="app-nav">` and restyled by `ui/css/navigation.css` under `html[data-menu="vertical"]`. Contracted menu = icon strip with right-hand tooltips (`tabs_fit.js` now knows about the vertical menu and skips its icon-only measuring there). No width transition (repaint cost).
+- Help and support tab (`#page-help`, last `<li class="nav-item-help">`): usage guide, change log, About with Kim Watts as developer and live name, version, config path and search library status (`ui/js/help.js`). In the horizontal row it reads "Help" (the full label made the row switch to icons about 90 px earlier: old binary showed labels at 760 px, new one needs between 760 and 860 px in Aero Blue). At Kim's 640 x 480 both were already icons only.
+- Menu search (`ui/js/search.js`, vertical menu only, Ctrl+K): starts at 3 characters, up to 8 results, every typed word must match label, keyword or page name. Jumps select the tab, open a closed accordion panel, scroll, focus and outline the target for 2 s. Library `search.json` beside the exe (`src-tauri/src/search.rs`, default `search.default.json`, 1 MiB, 500 entries, skipped entries listed on the Help page), re-read on each focus of the box. Every tab is searchable by name without an entry. Options-tab targets wait for a `page:rendered` event from `options.js` (2 s fallback).
+- Refactor: the read-or-create-from-default logic shared by `options.rs` and `search.rs` moved to `src-tauri/src/files.rs`; `OptionsStatus` is now an alias of `files::FileStatus` (same JSON values).
+- Title bar size: `--titlebar-scale` multiplies the bar's height, font, icon and button sizes in `window.css`; title and theme label shorten with an ellipsis instead of wrapping (found at 200 % + 130 % text). Accessibility rules in `ui/css/a11y-prefs.css`, tokens in `variables.css` (High contrast mirrors the `prefers-contrast` block; Strong focus ring beats High contrast's 4 px ring).
+- Tests: 25 Rust unit tests pass (6 new). Release variant built with `cargo build --release` and run from `/tmp/rs_variant` with its own config (dist/ untouched). Screenshots: vertical Aero Blue and Slate, contracted Racing Green, horizontal Aero Blue, Baby Pink at 200 % title bar + 130 % text + high contrast + large targets, Sketchy at 150 %. Real xdotool input (Kim confirmed the desktop was free): Ctrl+K, "das" lists Dashboard and its three cards, arrows and Enter jump and outline, "theme" jumps to the Options select after the async render, "window pan" opened a collapsed panel and saved it as open, "chang" jumps to the change log, contract button wrote `menu_collapsed: true` and survived a relaunch, the contracted search icon expands and focuses, Options Save of `high_contrast` and `menu_layout: horizontal` applied live and was written.
+- CPU (`benchmark/cpu.py`, new `--layout` option, Slate, maximised, 2 rounds each, same 6 pages as before): horizontal 19.36 s median (earlier flat build 19.17 to 19.24 s, different session, treat as no measurable change), vertical 18.02 s. Verified the vertical click focuses Dashboard and Right moves through pages. Not measured: search typing, menu contract/expand, larger text sizes, drag and resize.
+- Not tested: the other 9 themes with the vertical menu, keyboard-only use of the contract button, `underline_links` (the scaffold has almost no plain links), `reduce_motion` visually, touch, Windows, search with a broken `search.json` in the real app (covered by unit tests only), and the 400 px minimum width with the expanded menu (expected cramped; documented).
+- Not done: `build.sh` (dist/ still holds the 01:57 build) pending Kim's hands-on check.
+
+### 13 November 2026: release 0.2.0 (Claude)
+- Version 0.2.0 in `src-tauri/Cargo.toml` and `src-tauri/tauri.conf.json`; the Help page change log now lists 0.2.0 and 0.1.0.
+- Menu label "Help and support" is now "Help" everywhere (the horizontal-only shortening span and its CSS rule were removed).
+- Default `menu_layout` is now "vertical" (Kim's preference). Unknown values also fall back to vertical. `options.default.json` lists Vertical first. `benchmark/bench.py` pins its fixture to "horizontal" because its tab clicks assume the tab row; `cpu.py` already sets the layout explicitly.
+- `app.js` no longer requires the Dashboard example cards (`#rust-output`, `#info-theme`, `#info-size`, `#btn-app-info`). Before, deleting them made `app.js` throw during startup and the hidden window never appeared. Messages now fall back to the warning banner. Verified with a temporary build with both cards removed and no config.json: window appeared, layout vertical. `ui/index.html` was restored byte-identical afterwards.
+- README: new section "Building a new app from this template" (what to keep, how to remove demo pages and their scripts and styles, drag-and-drop lists and accordions, charts library, search ids and entries, example options that do nothing, speed and build rules).
+- 25 Rust tests pass. Built with `build.sh` into `dist/`. Archived as `backup/rust_template_v0.2.0.zip`.
+- Not re-tested after these changes: the horizontal layout, search and Options interactions (code unchanged apart from the above), Windows.
+
+### 13 November 2026: GPU rendering investigation (Claude)
+- Result: WebKitGTK 2.50.4 forces hardware acceleration policy "never" on this machine and ignores a request for "always" (variant build via the `webkit2gtk` crate, reported "before Never, after Never"). WebKit's own MiniBrowser shows the same on `webkit://gpu`, so it is system-wide, not Tauri.
+- Cause (evidence): a GBM buffer allocation on `/dev/dri/renderD128` fails with `DRM_IOCTL_NVIDIA_GEM_ALLOC_NVKMS_MEMORY failed`; the kernel command line has `nomodeset`, so NVIDIA kernel mode setting is off. Device permissions are fine. The modeset flag itself is root-only and was not read.
+- No GPU measurement exists because no GPU build could be produced. Kim declined driver updates; the only fix found is a boot-parameter change (`nvidia-drm.modeset=1`, remove `nomodeset`), which needs a backup first and was not done.
+- Source restored byte-identical to 0.2.0 (Cargo.toml, Cargo.lock, lib.rs); `dist/` untouched. Full write-up, the GBM test and the variant code: `docs/gpu_rendering.md`.
+- Hardware acceleration switch in config.json: not added (would do nothing here and cannot be tested).

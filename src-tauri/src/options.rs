@@ -4,7 +4,6 @@
 //! Bad entries are skipped one by one with a reason; the rest still load.
 
 use std::collections::HashSet;
-use std::fs;
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
@@ -12,6 +11,7 @@ use serde_json::Value;
 
 use crate::config::is_extra_key;
 use crate::debug_log;
+use crate::files::{self, FileStatus};
 
 const OPTIONS_FILE: &str = "options.json";
 /// The default file written when options.json is missing.
@@ -67,15 +67,7 @@ pub struct OptionSpec {
     pub action: Option<String>,
 }
 
-#[derive(Serialize, Clone, Copy, Debug, PartialEq)]
-#[serde(rename_all = "snake_case")]
-pub enum OptionsStatus {
-    Ok,
-    Created,
-    TooLarge,
-    Invalid,
-    Unreadable,
-}
+pub type OptionsStatus = FileStatus;
 
 #[derive(Serialize, Debug)]
 pub struct OptionsReply {
@@ -113,7 +105,9 @@ fn known_field(key: &str) -> Option<&'static [Kind]> {
     match key {
         "theme" => Some(&[Kind::Choice]),
         "width" | "height" => Some(&[Kind::Number]),
-        "show_titlebar" | "rounded_corners" | "start_minimised" => Some(&[Kind::Bool]),
+        "show_titlebar" | "rounded_corners" | "start_minimised" | "menu_collapsed" | "high_contrast"
+        | "large_targets" | "underline_links" | "strong_focus" | "reduce_motion" => Some(&[Kind::Bool]),
+        "menu_layout" | "titlebar_scale" | "text_size" => Some(&[Kind::Choice]),
         _ => None,
     }
 }
@@ -314,36 +308,9 @@ pub fn load(path: PathBuf) -> OptionsReply {
         options: Vec::new(),
         skipped: Vec::new(),
     };
-    let text = match fs::metadata(&path) {
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-            if let Err(e) = fs::write(&path, DEFAULT_OPTIONS) {
-                debug_log(&format!("options: could not create file: {e}"));
-                reply.status = OptionsStatus::Unreadable;
-                return reply;
-            }
-            debug_log("options: not found, created with defaults");
-            reply.status = OptionsStatus::Created;
-            DEFAULT_OPTIONS.to_string()
-        }
-        Err(e) => {
-            debug_log(&format!("options: cannot stat file: {e}"));
-            reply.status = OptionsStatus::Unreadable;
-            return reply;
-        }
-        Ok(meta) if meta.len() > MAX_OPTIONS_BYTES => {
-            debug_log(&format!("options: {} bytes exceeds the limit, not loaded", meta.len()));
-            reply.status = OptionsStatus::TooLarge;
-            return reply;
-        }
-        Ok(_) => match fs::read_to_string(&path) {
-            Ok(text) => text,
-            Err(e) => {
-                debug_log(&format!("options: read failed: {e}"));
-                reply.status = OptionsStatus::Unreadable;
-                return reply;
-            }
-        },
-    };
+    let (status, text) = files::read_or_create(&path, DEFAULT_OPTIONS, MAX_OPTIONS_BYTES, "options");
+    reply.status = status;
+    let Some(text) = text else { return reply };
     match parse(&text) {
         Ok((options, skipped)) => {
             debug_log(&format!("options: {} loaded, {} skipped", options.len(), skipped.len()));
@@ -362,6 +329,7 @@ pub fn load(path: PathBuf) -> OptionsReply {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
 
     fn temp_path(name: &str) -> PathBuf {
         let dir = std::env::temp_dir().join(format!("rust_scaffold_opt_{}_{name}", std::process::id()));

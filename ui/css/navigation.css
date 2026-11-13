@@ -1,0 +1,293 @@
+/* ==========================================================================
+   Navigation. One tab list (#app-tabs) serves both layouts:
+   - Horizontal (default): Bootstrap tabs above the page, see window.css.
+   - Vertical (<html data-menu="vertical">): a menu down the left side with
+     a contract/expand button and a search box. Contracted
+     (<html class="menu-collapsed">) it becomes a strip of icons.
+   No transitions on width: animating it repaints the whole page each frame.
+   ========================================================================== */
+
+/* ---- horizontal: the sidebar-only parts are hidden ---- */
+.app-nav-head,
+.app-nav-search {
+  display: none;
+}
+
+/* Help sits at the far end of the tab row. */
+.app-tabs .nav-item-help {
+  margin-left: auto;
+}
+
+/* ---- vertical layout ---- */
+html[data-menu="vertical"] .app-content {
+  display: grid;
+  grid-template-columns: var(--nav-width) minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  padding: 0;
+  overflow: hidden;
+}
+
+html[data-menu="vertical"].menu-collapsed .app-content {
+  grid-template-columns: var(--nav-width-rail) minmax(0, 1fr);
+}
+
+html[data-menu="vertical"] #config-warning {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  margin: var(--space-3) var(--space-3) 0;
+}
+
+html[data-menu="vertical"] .app-nav {
+  grid-column: 1;
+  grid-row: 2;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-height: 0;
+  padding: var(--space-2);
+  border-right: 1px solid var(--window-border);
+  /* Above the page, so the search results can overlap it. */
+  position: relative;
+  z-index: 2;
+}
+
+html[data-menu="vertical"] .app-content .tab-content-custom {
+  grid-column: 2;
+  grid-row: 2;
+  min-height: 0;
+  margin: var(--space-3);
+  overflow: auto;
+  border-radius: var(--radius);
+}
+
+html[data-menu="vertical"].titlebar-hidden .app-content .tab-content-custom {
+  margin-top: var(--reveal-clearance);
+}
+
+/* ---- head: contract/expand and the search button ---- */
+html[data-menu="vertical"] .app-nav-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.app-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: var(--nav-btn-size);
+  height: var(--nav-btn-size);
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface-alt);
+  color: var(--text);
+  font-size: var(--nav-icon-size);
+}
+
+.app-nav-btn:hover {
+  background-color: var(--accent-soft);
+  border-color: var(--accent-border);
+}
+
+/* The search button only shows in the contracted menu. */
+.app-nav-search-btn {
+  display: none;
+}
+
+/* ---- search box and results ---- */
+html[data-menu="vertical"] .app-nav-search {
+  display: block;
+  position: relative;
+}
+
+.nav-search-field {
+  position: relative;
+}
+
+.nav-search-field .bi {
+  position: absolute;
+  top: 50%;
+  left: var(--space-2);
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.nav-search-field .form-control {
+  padding-left: calc(var(--space-2) * 2 + 1em);
+  font-size: var(--nav-font-size);
+}
+
+.app-search-results {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  left: 0;
+  z-index: 1060;
+  width: max(100%, var(--search-results-width));
+  max-height: var(--search-results-max-height);
+  margin: 0;
+  padding: var(--space-1);
+  overflow-y: auto;
+  list-style: none;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  /* Solid, like the theme menu: the list overlaps page text. */
+  background-color: var(--window-bg-bottom);
+  background-image: linear-gradient(var(--accent-soft), var(--accent-soft));
+  color: var(--text);
+}
+
+.app-search-option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.app-search-option .bi {
+  flex: none;
+  width: 1.25rem;
+  text-align: center;
+  color: var(--accent-text);
+}
+
+.app-search-label {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.app-search-page {
+  flex: none;
+  color: var(--text-muted);
+}
+
+.app-search-option:hover {
+  background-color: var(--surface-alt);
+}
+
+.app-search-option[aria-selected="true"] {
+  background-color: var(--accent);
+  color: var(--text-on-accent);
+}
+
+.app-search-option[aria-selected="true"] .bi,
+.app-search-option[aria-selected="true"] .app-search-page {
+  color: inherit;
+}
+
+.app-search-empty {
+  padding: var(--space-2);
+  color: var(--text-muted);
+}
+
+/* The element the search jumped to, outlined for a moment (no animation). */
+.search-hit {
+  outline: var(--search-hit-width) solid var(--focus-ring);
+  outline-offset: 2px;
+  /* Room above it when scrolled to the top, so the outline is not clipped. */
+  scroll-margin-top: var(--space-3);
+}
+
+/* ---- menu links ---- */
+html[data-menu="vertical"] .app-tabs {
+  flex: 1 1 auto;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  gap: calc(var(--space-1) / 2);
+  min-height: 0;
+  padding: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  border-bottom: 0;
+}
+
+html[data-menu="vertical"] .app-tabs .nav-item {
+  width: 100%;
+}
+
+/* Help sits at the bottom of the menu. */
+html[data-menu="vertical"] .app-tabs .nav-item-help {
+  margin-left: 0;
+  margin-top: auto;
+  padding-top: var(--space-2);
+}
+
+html[data-menu="vertical"] .app-tabs .nav-link {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: var(--nav-link-height);
+  margin: 0;
+  padding: 0 var(--space-3);
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text-muted);
+  font-size: var(--nav-font-size);
+  font-weight: 500;
+  text-align: left;
+}
+
+html[data-menu="vertical"] .app-tabs .nav-link .bi {
+  flex: none;
+  width: 1.5rem;
+  font-size: var(--nav-icon-size);
+  text-align: center;
+}
+
+html[data-menu="vertical"] .app-tabs .nav-link .bi + .tab-label {
+  margin-left: 0;
+}
+
+html[data-menu="vertical"] .app-tabs .tab-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+html[data-menu="vertical"] .app-tabs .nav-link:hover {
+  background-color: var(--accent-soft);
+  color: var(--text);
+}
+
+html[data-menu="vertical"] .app-tabs .nav-link.active {
+  background-color: var(--accent-soft);
+  border-color: var(--accent-border);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+/* ---- contracted: icons only. Labels are clipped, not removed, so screen
+   readers still announce them; tooltips name each page (tabs_fit.js). ---- */
+html[data-menu="vertical"].menu-collapsed .app-nav-head {
+  flex-direction: column;
+}
+
+html[data-menu="vertical"].menu-collapsed .app-nav-search {
+  display: none;
+}
+
+html[data-menu="vertical"].menu-collapsed .app-nav-search-btn {
+  display: inline-flex;
+}
+
+html[data-menu="vertical"].menu-collapsed .app-tabs .nav-link {
+  justify-content: center;
+  padding: 0;
+}
+
+html[data-menu="vertical"].menu-collapsed .app-tabs .tab-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

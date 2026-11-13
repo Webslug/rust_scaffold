@@ -1,0 +1,38 @@
+{
+  "_readme": "Places the menu search can jump to. page = the tab id without 'tab-' (dashboard selects #tab-dashboard and #page-dashboard). target = optional element id on that page. keywords = extra words that find the entry. icon = Bootstrap Icons name without 'bi-'. Every tab is also searchable by its own name without an entry here. Edit and restart; no rebuild is needed. See docs/usage.md.",
+  "entries": [
+    { "label": "Rust command example", "page": "dashboard", "target": "card-rust-example", "keywords": ["rust", "command", "ask", "version", "invoke"], "icon": "cpu" },
+    { "label": "Saved settings", "page": "dashboard", "target": "card-saved-settings", "keywords": ["config", "window size", "current theme"], "icon": "card-list" },
+    { "label": "Reordering cards", "page": "dashboard", "target": "card-reorder-help", "keywords": ["drag", "drop", "order", "sort", "reset order"], "icon": "arrows-move" },
+
+    { "label": "Appearance panel", "page": "panels", "target": "panel-appearance", "keywords": ["accordion", "appearance"], "icon": "layout-text-sidebar-reverse" },
+    { "label": "Window panel", "page": "panels", "target": "panel-window", "keywords": ["accordion", "window"], "icon": "window" },
+    { "label": "Tray icon panel", "page": "panels", "target": "panel-tray", "keywords": ["accordion", "tray", "system tray"], "icon": "inboxes" },
+
+    { "label": "Team table", "page": "tables", "target": "search-team", "keywords": ["people", "staff", "members", "progress"], "icon": "people" },
+    { "label": "Invoices table", "page": "tables", "target": "search-invoices", "keywords": ["billing", "payments", "amounts", "overdue"], "icon": "receipt" },
+    { "label": "Services table", "page": "tables", "target": "search-services", "keywords": ["uptime", "latency", "status", "servers"], "icon": "hdd-network" },
+
+    { "label": "Sales and costs chart", "page": "charts", "target": "chart-sales", "keywords": ["line chart", "revenue", "sales", "costs"], "icon": "graph-up" },
+    { "label": "Sign-ups by source chart", "page": "charts", "target": "chart-signups", "keywords": ["bar chart", "stacked", "signups", "registrations"], "icon": "bar-chart" },
+    { "label": "Customer retention chart", "page": "charts", "target": "chart-retention", "keywords": ["doughnut", "donut", "retention"], "icon": "pie-chart" },
+    { "label": "Customer segments chart", "page": "charts", "target": "chart-segments", "keywords": ["pie chart", "segments", "customers"], "icon": "pie-chart-fill" },
+
+    { "label": "Theme", "page": "options", "target": "opt-theme", "keywords": ["colour", "color", "palette", "dark mode", "light"], "icon": "palette" },
+    { "label": "Menu layout", "page": "options", "target": "opt-menu_layout", "keywords": ["navigation", "sidebar", "vertical", "horizontal", "tabs"], "icon": "layout-sidebar" },
+    { "label": "Title bar size", "page": "options", "target": "opt-titlebar_scale", "keywords": ["title bar", "scale", "bigger buttons", "eyesight"], "icon": "arrows-expand" },
+    { "label": "Show the title bar", "page": "options", "target": "opt-show_titlebar", "keywords": ["title bar", "hide", "frameless"], "icon": "window-dash" },
+    { "label": "Rounded corners", "page": "options", "target": "opt-rounded_corners", "keywords": ["corners", "square", "window shape"], "icon": "app" },
+    { "label": "Start hidden in the tray", "page": "options", "target": "opt-start_minimised", "keywords": ["tray", "minimised", "minimized", "startup"], "icon": "box-arrow-in-down" },
+    { "label": "Text size", "page": "options", "target": "opt-text_size", "keywords": ["font", "bigger text", "zoom", "eyesight", "accessibility"], "icon": "fonts" },
+    { "label": "High contrast", "page": "options", "target": "opt-high_contrast", "keywords": ["contrast", "eyesight", "accessibility", "visibility"], "icon": "circle-half" },
+    { "label": "Larger click targets", "page": "options", "target": "opt-large_targets", "keywords": ["buttons", "touch", "accessibility", "motor"], "icon": "hand-index" },
+    { "label": "Underline links", "page": "options", "target": "opt-underline_links", "keywords": ["links", "accessibility", "colour blind"], "icon": "type-underline" },
+    { "label": "Strong focus ring", "page": "options", "target": "opt-strong_focus", "keywords": ["keyboard", "focus", "outline", "accessibility"], "icon": "bounding-box" },
+    { "label": "Reduce motion", "page": "options", "target": "opt-reduce_motion", "keywords": ["animation", "motion", "vestibular", "accessibility"], "icon": "pause-circle" },
+
+    { "label": "How to use the app", "page": "help", "target": "help-usage", "keywords": ["help", "guide", "manual", "instructions"], "icon": "book" },
+    { "label": "Change log", "page": "help", "target": "help-changelog", "keywords": ["changes", "version", "release notes", "history"], "icon": "journal-text" },
+    { "label": "About and developer", "page": "help", "target": "help-about", "keywords": ["about", "developer", "author", "credits", "kim"], "icon": "info-circle" }
+  ]
+}

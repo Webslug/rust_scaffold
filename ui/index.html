@@ -30,7 +30,21 @@
 
     <main class="app-content" data-tauri-drag-region>
       <div id="config-warning" class="alert alert-warning d-none" role="alert"></div>
-      <ul class="nav nav-tabs nav-tabs-custom app-tabs" id="app-tabs" role="tablist" data-tabs-fit>
+      <nav class="app-nav" id="app-nav" aria-label="Main menu" data-tauri-drag-region>
+        <div class="app-nav-head" data-tauri-drag-region>
+          <button type="button" id="btn-menu-toggle" class="app-nav-btn" aria-controls="app-tabs" aria-expanded="true" title="Contract the menu" aria-label="Contract the menu"><i class="bi bi-list"></i></button>
+          <button type="button" id="btn-search-open" class="app-nav-btn app-nav-search-btn" title="Search the app" aria-label="Search the app"><i class="bi bi-search"></i></button>
+        </div>
+        <div class="app-nav-search" role="search">
+          <div class="nav-search-field">
+            <i class="bi bi-search" aria-hidden="true"></i>
+            <input type="search" id="app-search" class="form-control" placeholder="Search" autocomplete="off" spellcheck="false" role="combobox" aria-label="Search the app" aria-autocomplete="list" aria-expanded="false" aria-controls="app-search-results" aria-describedby="app-search-hint">
+          </div>
+          <ul id="app-search-results" class="app-search-results" role="listbox" aria-label="Search results" hidden></ul>
+          <span id="app-search-hint" class="visually-hidden">Type at least three letters. Up and Down choose a result, Enter goes to it, Escape closes the list.</span>
+          <p id="app-search-status" class="visually-hidden" role="status" aria-live="polite"></p>
+        </div>
+      <ul class="nav nav-tabs nav-tabs-custom app-tabs" id="app-tabs" role="tablist" data-tabs-fit data-tauri-drag-region>
         <li class="nav-item" role="presentation">
           <button type="button" class="nav-link active" id="tab-dashboard" data-bs-toggle="tab" data-bs-target="#page-dashboard" role="tab" aria-controls="page-dashboard" aria-selected="true"><i class="bi bi-speedometer2"></i><span class="tab-label">Dashboard</span></button>
         </li>
@@ -49,12 +63,16 @@
         <li class="nav-item" role="presentation">
           <button type="button" class="nav-link" id="tab-options" data-bs-toggle="tab" data-bs-target="#page-options" role="tab" aria-controls="page-options" aria-selected="false"><i class="bi bi-sliders"></i><span class="tab-label">Options</span></button>
         </li>
+        <li class="nav-item nav-item-help" role="presentation">
+          <button type="button" class="nav-link" id="tab-help" data-bs-toggle="tab" data-bs-target="#page-help" role="tab" aria-controls="page-help" aria-selected="false"><i class="bi bi-question-circle"></i><span class="tab-label">Help</span></button>
+        </li>
       </ul>
+      </nav>
 
       <div class="tab-content tab-content-custom">
         <div class="tab-pane active" id="page-dashboard" role="tabpanel" aria-labelledby="tab-dashboard" tabindex="0">
           <div class="sortable-list sortable-list-cards" data-sortable="dashboard-cards">
-            <div class="card card-custom sortable-item" data-sortable-id="rust-example">
+            <div class="card card-custom sortable-item" id="card-rust-example" data-sortable-id="rust-example">
               <div class="card-header">
                 <span class="sort-handle" role="button" tabindex="0" aria-label="Reorder the Rust command example card" title="Drag to reorder, or press Up and Down"><i class="bi bi-grip-vertical"></i></span>
                 <h2 class="h6 card-header-title mb-0">Rust command example</h2>
@@ -65,7 +83,7 @@
                 <pre id="rust-output" class="rust-output mt-3 mb-0"></pre>
               </div>
             </div>
-            <div class="card card-custom sortable-item" data-sortable-id="saved-settings">
+            <div class="card card-custom sortable-item" id="card-saved-settings" data-sortable-id="saved-settings">
               <div class="card-header">
                 <span class="sort-handle" role="button" tabindex="0" aria-label="Reorder the Saved settings card" title="Drag to reorder, or press Up and Down"><i class="bi bi-grip-vertical"></i></span>
                 <h2 class="h6 card-header-title mb-0">Saved settings</h2>
@@ -77,7 +95,7 @@
                 </dl>
               </div>
             </div>
-            <div class="card card-custom sortable-item" data-sortable-id="reorder-help">
+            <div class="card card-custom sortable-item" id="card-reorder-help" data-sortable-id="reorder-help">
               <div class="card-header">
                 <span class="sort-handle" role="button" tabindex="0" aria-label="Reorder the Reordering card" title="Drag to reorder, or press Up and Down"><i class="bi bi-grip-vertical"></i></span>
                 <h2 class="h6 card-header-title mb-0">Reordering</h2>
@@ -264,7 +282,7 @@
             <p class="mb-0">Offline SVG examples with fictional data. Search and filter each chart independently.</p>
           </div>
           <div class="charts-grid">
-            <section class="card card-custom chart-card" data-chart-example="sales" aria-labelledby="chart-title-sales">
+            <section class="card card-custom chart-card" id="chart-sales" data-chart-example="sales" aria-labelledby="chart-title-sales">
               <div class="card-body">
                 <div class="chart-card-head">
                   <div><h3 id="chart-title-sales" class="h6 mb-1">Sales and costs</h3><p class="mb-0">Monthly, thousands of dollars</p></div>
@@ -279,7 +297,7 @@
                 <div class="chart-table-wrap" hidden></div>
               </div>
             </section>
-            <section class="card card-custom chart-card" data-chart-example="signups" aria-labelledby="chart-title-signups">
+            <section class="card card-custom chart-card" id="chart-signups" data-chart-example="signups" aria-labelledby="chart-title-signups">
               <div class="card-body">
                 <div class="chart-card-head">
                   <div><h3 id="chart-title-signups" class="h6 mb-1">Sign-ups by source</h3><p class="mb-0">New accounts each month</p></div>
@@ -294,7 +312,7 @@
                 <div class="chart-table-wrap" hidden></div>
               </div>
             </section>
-            <section class="card card-custom chart-card" data-chart-example="retention" aria-labelledby="chart-title-retention">
+            <section class="card card-custom chart-card" id="chart-retention" data-chart-example="retention" aria-labelledby="chart-title-retention">
               <div class="card-body">
                 <div class="chart-card-head">
                   <div><h3 id="chart-title-retention" class="h6 mb-1">Customer retention</h3><p class="mb-0">Customer groups this quarter</p></div>
@@ -309,7 +327,7 @@
                 <div class="chart-table-wrap" hidden></div>
               </div>
             </section>
-            <section class="card card-custom chart-card" data-chart-example="segments" aria-labelledby="chart-title-segments">
+            <section class="card card-custom chart-card" id="chart-segments" data-chart-example="segments" aria-labelledby="chart-title-segments">
               <div class="card-body">
                 <div class="chart-card-head">
                   <div><h3 id="chart-title-segments" class="h6 mb-1">Customer segments</h3><p class="mb-0">Share of sample customers</p></div>
@@ -326,7 +344,7 @@
             </section>
           </div>
         </div>
-        <div class="tab-pane" id="page-options" role="tabpanel" aria-labelledby="tab-options" tabindex="0">
+        <div class="tab-pane" id="page-options" role="tabpanel" aria-labelledby="tab-options" tabindex="0" data-async-render>
           <div class="options-toolbar">
             <button type="button" id="btn-options-save" class="btn btn-primary btn-sm" disabled><i class="bi bi-check-lg me-1"></i>Save</button>
             <button type="button" id="btn-options-revert" class="btn btn-secondary btn-sm" disabled><i class="bi bi-arrow-counterclockwise me-1"></i>Revert</button>
@@ -334,6 +352,60 @@
           </div>
           <div id="options-problems" class="alert alert-warning d-none" role="alert"></div>
           <div id="options-groups" class="options-groups"></div>
+        </div>
+        <div class="tab-pane" id="page-help" role="tabpanel" aria-labelledby="tab-help" tabindex="0">
+          <div class="help-page">
+            <section class="card card-custom" id="help-usage" aria-labelledby="help-usage-title">
+              <div class="card-header"><h2 class="h6 card-header-title mb-0" id="help-usage-title"><i class="bi bi-book me-2" aria-hidden="true"></i>How to use the app</h2></div>
+              <div class="card-body">
+                <dl class="help-list">
+                  <dt>Moving between pages</dt>
+                  <dd>Choose a page from the menu. On the Options tab, Menu layout switches between tabs across the top (Horizontal) and a menu down the left side (Vertical). In the vertical menu, the button at the top left contracts the menu to icons and expands it again. The app remembers your choice.</dd>
+                  <dt>Searching</dt>
+                  <dd>In the vertical menu, type at least three letters into Search, for example "dash" or "theme". Use Up and Down to choose a result and Enter to go straight to it. Escape closes the list. Ctrl+K moves to the search box. When the menu is contracted, the magnifying glass expands it and opens the search.</dd>
+                  <dt>Themes</dt>
+                  <dd>Pick a theme from the palette button in the title bar, or from Theme on the Options tab.</dd>
+                  <dt>The title bar</dt>
+                  <dd>Drag the title bar to move the window. Drag any edge or corner to resize it. The T button hides the title bar; the small arrow in the top right corner brings it back. Title bar size on the Options tab makes the bar and its buttons larger.</dd>
+                  <dt>Rearranging</dt>
+                  <dd>Drag a card or panel by its grip, or focus the grip and press Up, Down, Home or End. Each page has a button to reset its order.</dd>
+                  <dt>Panels and tables</dt>
+                  <dd>Panels remember whether they are open or closed. Each table has its own search box that filters its rows as you type.</dd>
+                  <dt>Options</dt>
+                  <dd>Change settings, then press Save. Revert puts back the values from before your changes.</dd>
+                  <dt>Accessibility</dt>
+                  <dd>The Options tab has Text size, High contrast, Larger click targets, Underline links, Strong focus ring and Reduce motion. Each one takes effect as soon as you press Save.</dd>
+                  <dt>Tray icon</dt>
+                  <dd>Right-click the tray icon to show, hide or quit the app.</dd>
+                  <dt>Settings files</dt>
+                  <dd>Your settings are kept in config.json in the folder shown below. options.json lists the controls on the Options tab, and search.json lists the places the search can find.</dd>
+                </dl>
+              </div>
+            </section>
+            <section class="card card-custom" id="help-changelog" aria-labelledby="help-changelog-title">
+              <div class="card-header"><h2 class="h6 card-header-title mb-0" id="help-changelog-title"><i class="bi bi-journal-text me-2" aria-hidden="true"></i>Change log</h2></div>
+              <div class="card-body">
+                <ul class="help-changelog">
+                  <li><strong>0.2.0, 13 November 2026.</strong> Vertical menu (now the default) with contract and expand, menu search with a configurable library (search.json), this Help page, title bar size, text size and accessibility options. Options tab driven by options.json, icon-only tabs when space is short, settings kept beside the program.</li>
+                  <li><strong>0.1.0, 12 November 2026.</strong> First version: frameless rounded window, 14 themes, saved settings, tray icon, reorderable cards and panels, tables, charts and table search. Shadows and blur removed so the window stays fast when maximised.</li>
+                </ul>
+              </div>
+            </section>
+            <section class="card card-custom" id="help-about" aria-labelledby="help-about-title">
+              <div class="card-header"><h2 class="h6 card-header-title mb-0" id="help-about-title"><i class="bi bi-info-circle me-2" aria-hidden="true"></i>About</h2></div>
+              <div class="card-body">
+                <dl class="settings-list mb-0">
+                  <dt>Application</dt><dd id="help-app-name">-</dd>
+                  <dt>Version</dt><dd id="help-version">-</dd>
+                  <dt>Developer</dt><dd>Kim Watts</dd>
+                  <dt>Built with</dt><dd>Rust, Tauri 2, Bootstrap 5, Bootstrap Icons</dd>
+                  <dt>Settings</dt><dd id="help-config-path">-</dd>
+                  <dt>Search library</dt><dd id="help-search-status">-</dd>
+                </dl>
+                <div id="help-search-problems" class="alert alert-warning mt-3 mb-0 d-none" role="alert"></div>
+              </div>
+            </section>
+          </div>
         </div>
       </div>
     </main>
@@ -349,6 +421,8 @@
   <script src="js/theme.js"></script>
   <script src="js/app.js"></script>
   <script src="js/options.js"></script>
+  <script src="js/search.js"></script>
+  <script src="js/help.js"></script>
 </body>
 </html>
   

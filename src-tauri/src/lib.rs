@@ -1,6 +1,8 @@
 mod commands;
 mod config;
+mod files;
 mod options;
+mod search;
 mod tray;
 
 use std::fs::OpenOptions;
@@ -18,7 +20,7 @@ pub const DEBUG_MODE: bool = false;
 
 const DEBUG_LOG: &str = "debug.log";
 
-/// The folder holding the executable. config.json, options.json and
+/// The folder holding the executable. config.json, options.json, search.json and
 /// debug.log live here, so the app finds its settings however it is started
 /// (run.sh, a file manager, a shortcut). Symlinks are followed to the real
 /// file. Falls back to the working directory if the path cannot be found.
@@ -85,7 +87,8 @@ pub fn run() {
             commands::app_info,
             commands::get_config,
             commands::save_config,
-            commands::get_options
+            commands::get_options,
+            commands::get_search
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

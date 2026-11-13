@@ -23,6 +23,15 @@ core. The release binary is about 4.3 MB, well under the 50 MB target.
 - Frameless window with rounded corners and real transparency, resizable, with
   a custom title bar (drag to move, minimise, maximise and close buttons).
 - Hide or show the title bar. Optional square corners.
+- Two menu layouts: tabs across the top, or a vertical menu down the left
+  with larger text, a contract and expand button (remembered) and a search
+  box. The search jumps straight to a page, card, panel, table or setting
+  after three letters; its places are listed in `search.json`, which you can
+  edit without rebuilding.
+- A Help page with instructions, a change log and the version.
+- Accessibility settings: title bar size (100, 150 or 200 percent), text size,
+  high contrast, larger click targets, underlined links, a stronger focus
+  ring and reduced motion.
 - 14 themes, switched at runtime, each with its own subtle background gradient
   and bevelled buttons and containers. The theme and window size are saved.
 - Tabs, searchable mock tables, sortable cards and expandable accordion panels.
@@ -114,7 +123,7 @@ Or by hand:
     cargo build --release
     ./target/release/rust-scaffold      (Linux)
 
-The app keeps `config.json` and `options.json` in the folder that holds the
+The app keeps `config.json`, `options.json` and `search.json` in the folder that holds the
 executable (`dist/` when started with `run.sh`), wherever it is started from.
 
 ## Settings
@@ -133,19 +142,29 @@ can also edit it by hand while the app is closed.
       "collapsed": [],
       "start_minimised": false,
       "tray_items": [],
+      "menu_layout": "vertical",
+      "menu_collapsed": false,
+      "titlebar_scale": 100,
+      "text_size": 100,
+      "high_contrast": false,
+      "large_targets": false,
+      "underline_links": false,
+      "strong_focus": false,
+      "reduce_motion": false,
       "extras": {}
     }
 
 `options.json`, also created on first run, decides which settings appear on
-the Options tab and how. Every key is documented in [docs/usage.md](docs/usage.md).
+the Options tab and how. `search.json` lists the places the menu search can
+find. Every key is documented in [docs/usage.md](docs/usage.md).
 
 ## Project layout
 
     build.sh              build release executable only
     run.sh, run.bat       launch from dist/ (--build builds first)
     requirements.txt      system requirements
-    dist/                 built executable, with config.json and options.json
-                          (both created beside it at first run)
+    dist/                 built executable, with config.json, options.json and
+                          search.json (created beside it at first run)
     docs/usage.md         how to use, change and reuse the scaffold
     ui/                   the interface (embedded in the binary at build time)
       index.html
@@ -153,16 +172,129 @@ the Options tab and how. Every key is documented in [docs/usage.md](docs/usage.m
       js/                 window controls, themes, sortable lists, app logic
       fonts/, img/
     src-tauri/            the Rust side
-      src/                main.rs, lib.rs, config.rs, options.rs, commands.rs, tray.rs
+      src/                main.rs, lib.rs, config.rs, options.rs, search.rs,
+                          files.rs, commands.rs, tray.rs
       benchmark/          repeatable X11 desktop tests and saved results
       options.default.json  written as options.json when that file is missing
+      search.default.json   written as search.json when that file is missing
       tauri.conf.json, capabilities/, icons/, Cargo.toml
 
-## Using it as a template
+## Building a new app from this template
 
-Copy the folder (without `src-tauri/target`), then rename the package, the
-library, the product name, the identifier and the window title. The exact files
-and fields are listed in [docs/usage.md](docs/usage.md).
+This section is for the developer or AI assistant starting a new project from
+the scaffold. Most pages are demonstrations. Keep what the new app needs and
+delete the rest.
+
+### 1. Copy and rename
+
+Copy the folder without `src-tauri/target`, `dist/` and `backup/`. Rename the
+package, library, product name, identifier and window title; the exact files
+and fields are listed in [docs/usage.md](docs/usage.md) ("Use as a template
+for a new project"). Bump `version` in `src-tauri/Cargo.toml` and
+`src-tauri/tauri.conf.json` together.
+
+### 2. Decide what stays
+
+| Part | Status | What it is for |
+|------|--------|----------------|
+| Window, title bar, themes, tray, `config.json` | Keep | The app shell. Everything else depends on it |
+| Menu (vertical or horizontal) and search | Keep | Navigation for every page |
+| Options tab | Keep | Settings screen driven by `options.json`. Holds the menu, title bar and accessibility settings |
+| Help tab | Keep, rewrite the text | Usage guide, change log, version, developer |
+| Dashboard | Demo | Example of calling a Rust command, and three drag-and-drop cards |
+| Panels | Demo | Drag-and-drop accordion whose open and closed state is saved |
+| Tables | Demo | Bootstrap tables with a live search box per table |
+| Cards | Demo | A second drag-and-drop card list with its own saved order |
+| Charts | Demo | Offline line, stacked bar, doughnut and pie charts with search, filter and table view |
+
+### 3. Remove a demo page
+
+Each page is one tab button in `#app-tabs` and one pane in `.tab-content`,
+both in `ui/index.html`. Delete both, then:
+
+- Delete the page's entries from `src-tauri/search.default.json` (and from
+  `dist/search.json`, or delete that file so it is recreated). Entries for a
+  page that no longer exists are skipped and listed on the Help page.
+- The first remaining tab button needs `class="nav-link active"` and
+  `aria-selected="true"`, and its pane needs `class="tab-pane active"`.
+- Tables: also remove `<script src="js/table_search.js">`. Keep
+  `css/tables.css`; the chart table view uses it.
+- Charts: also remove the `charts_page.js` and `charts.js` script tags and the
+  `charts.css` and `charts-page.css` imports in `ui/css/index.css`, unless
+  another page draws charts.
+- Dashboard: the Rust example and settings cards can go; `app.js` checks for
+  them and reports messages in the warning banner instead.
+- Keep `js/sortable.js` and `css/sortable.css` while any drag-and-drop list
+  remains.
+
+Leftover order and collapsed ids in `config.json` for deleted lists are
+harmless.
+
+### 4. Reusable controls
+
+**Drag-and-drop cards and accordions.** Any container with
+`data-sortable="list-id"` becomes reorderable: give each child
+`class="sortable-item"`, a `data-sortable-id`, and a grip
+(`<span class="sort-handle" role="button" tabindex="0">`). Mouse, pen, touch
+and keyboard (Up, Down, Home, End on the grip) all work, and the order is
+saved in `config.json` under `order`. It works for cards (Dashboard, Cards
+tab) and for accordion items (Panels tab), where the open or closed state of
+each panel (`data-panel-id`) is saved too. A button with
+`data-reset-sortable="list-id"` restores the original order. Copy an existing
+list from `ui/index.html` as the starting point.
+
+**Charts.** `ui/js/charts.js` is a small offline SVG chart library: column,
+stacked, horizontal bar, line, area, pie, doughnut, ring, heatmap and spark
+charts, coloured by the current theme, with tooltips, keyboard reading and a
+table view. A chart is an element with `data-chart="line"` (or another type)
+and its data as JSON in `data-config`, set before the page finishes loading
+(charts are drawn on `DOMContentLoaded`); for a chart added later, call
+`Charts.init(element)`. Call `Charts.update(element, config)` to redraw with
+new data.
+`ui/js/charts_page.js` shows the data format for each example; copy a card
+from the Charts tab to start.
+
+**Search.** The search box in the vertical menu (Ctrl+K) jumps to any place
+listed in `search.json`. Every tab is found by its name automatically, but
+**to make a section findable, give its element an `id` and add an entry**:
+
+    { "label": "Invoices table", "page": "tables", "target": "search-invoices",
+      "keywords": ["billing", "payments"], "icon": "receipt" }
+
+`page` is the tab id without `tab-`, and `target` is the element's id. Without
+a `target` the search can only open the page. Target the most useful element:
+a search box or form field gets keyboard focus; a card, panel or section is
+scrolled to and outlined. Targets inside a collapsed accordion panel open the
+panel. Ship new entries in `src-tauri/search.default.json`; it is written as
+`search.json` only when that file is missing.
+
+**Options controls.** The Options tab can show switches, checkboxes, radio
+buttons, text boxes, number boxes, sliders, list groups, selects and buttons,
+all defined in `options.json` with no code. New settings are stored under
+`extras` in `config.json`, and your code reads them from `config.extras`.
+
+### 5. The example options do nothing
+
+The **Examples** group on the Options tab (Nickname, Notes, Units, Start
+page, Layout, Volume, Read-only text and its Restore defaults button) only
+demonstrates each Bootstrap control. Their values are saved, but nothing in
+the app reads them; the Volume slider controls no sound. Delete those entries
+from `src-tauri/options.default.json`, or reuse one as the model for a real
+setting. Every other option on the tab works.
+
+### 6. Rules that keep it fast and consistent
+
+- **No shadows or blur.** `box-shadow`, `text-shadow` and `backdrop-filter`
+  made the maximised window lag; use borders and background tints for depth.
+- The interface is embedded at build time: any HTML, CSS or JavaScript change
+  needs a rebuild (`./build.sh` or `./run.sh --build`).
+- `./build.sh` copies the result into `dist/`. Build experiments with
+  `cargo build --release` instead and run them from a separate folder.
+- No inline `style=""` (the content security policy blocks it). Put styles in
+  the matching file under `ui/css/`, using the tokens in `variables.css`.
+- Validate every new `config.json` key in `src-tauri/src/config.rs`.
+- `DEBUG_MODE` in `src-tauri/src/lib.rs` (false by default) writes
+  `debug.log` beside the executable when true.
 
 ## Known limitations
 

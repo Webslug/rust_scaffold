@@ -2,12 +2,21 @@
   "_readme": "Controls shown on the Options tab. Edit this file and reopen the tab; no rebuild is needed. See docs/usage.md for every field.",
   "options": [
     { "group": "Appearance", "control": "select", "key": "theme", "label": "Theme", "choices": "themes", "size": "md" },
+    { "group": "Appearance", "control": "select", "key": "menu_layout", "label": "Menu layout", "choices": [ { "value": "vertical", "label": "Vertical (menu down the left)" }, { "value": "horizontal", "label": "Horizontal (tabs across the top)" } ], "size": "md" },
+    { "group": "Appearance", "control": "select", "key": "titlebar_scale", "label": "Title bar size", "choices": [ { "value": 100, "label": "100%" }, { "value": 150, "label": "150%" }, { "value": 200, "label": "200%" } ], "size": "sm", "help": "Makes the title bar, its text and its buttons larger." },
     { "group": "Appearance", "control": "switch", "key": "show_titlebar", "label": "Show the title bar" },
     { "group": "Appearance", "control": "switch", "key": "rounded_corners", "label": "Rounded window corners" },
 
     { "group": "Window", "control": "number", "key": "width", "label": "Width", "readonly": true, "size": "sm", "help": "Set by resizing the window." },
     { "group": "Window", "control": "number", "key": "height", "label": "Height", "readonly": true, "size": "sm" },
     { "group": "Window", "control": "check", "key": "start_minimised", "label": "Start hidden in the tray", "help": "Takes effect the next time the app starts." },
+
+    { "group": "Accessibility", "control": "select", "key": "text_size", "label": "Text size", "choices": [ { "value": 100, "label": "100% (normal)" }, { "value": 115, "label": "115%" }, { "value": 130, "label": "130%" } ], "size": "sm" },
+    { "group": "Accessibility", "control": "switch", "key": "high_contrast", "label": "High contrast", "help": "Full-strength text and borders, and solid backgrounds behind text." },
+    { "group": "Accessibility", "control": "switch", "key": "large_targets", "label": "Larger click targets", "help": "Taller buttons, menu items and fields, and bigger checkboxes." },
+    { "group": "Accessibility", "control": "switch", "key": "underline_links", "label": "Underline links" },
+    { "group": "Accessibility", "control": "switch", "key": "strong_focus", "label": "Strong focus ring", "help": "A thicker outline around the control the keyboard is on." },
+    { "group": "Accessibility", "control": "switch", "key": "reduce_motion", "label": "Reduce motion", "help": "Turns off animations and transitions, whatever the system setting." },
 
     { "group": "Examples", "control": "input", "key": "nickname", "label": "Nickname", "default": "", "placeholder": "Your name", "size": "md" },
     { "group": "Examples", "control": "text", "key": "notes", "label": "Notes", "default": "", "rows": 3, "size": "full" },

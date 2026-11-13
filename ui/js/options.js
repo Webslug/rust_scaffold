@@ -374,6 +374,8 @@
     });
     statusLine.textContent = window.AppConfig.canSave() ? "" : "Saving is disabled; see the warning above.";
     refreshButtons();
+    // search.js waits for this before jumping to a control on this page.
+    document.dispatchEvent(new CustomEvent("page:rendered", { detail: { page: "options" } }));
   }
 
   function load() {

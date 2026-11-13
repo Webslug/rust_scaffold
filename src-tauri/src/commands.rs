@@ -5,6 +5,7 @@ use tauri::State;
 
 use crate::config::{self, Config, ConfigState, LoadStatus};
 use crate::options::{self, OptionsReply};
+use crate::search::{self, SearchReply};
 use crate::tray::TrayStatus;
 
 #[derive(Serialize)]
@@ -56,4 +57,10 @@ pub fn save_config(state: State<Mutex<ConfigState>>, config: Config) -> Result<(
 #[tauri::command]
 pub fn get_options() -> OptionsReply {
     options::load(options::options_path())
+}
+
+/// Reads search.json fresh on every call, so edits appear without a rebuild.
+#[tauri::command]
+pub fn get_search() -> SearchReply {
+    search::load(search::search_path())
 }

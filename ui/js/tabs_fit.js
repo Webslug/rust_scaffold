@@ -3,11 +3,19 @@
    Bootstrap tooltip naming each tab. If even the icons do not fit, the row
    scrolls sideways (see .tabs-icons in window.css). Works for any number of
    tabs. Labels must be in <span class="tab-label">; they stay readable to
-   screen readers when hidden. */
+   screen readers when hidden.
+   In the vertical menu (<html data-menu="vertical">) the labels always show,
+   so no measuring happens; the tooltips appear only while the menu is
+   contracted to icons (<html class="menu-collapsed">), on the right. */
 (function () {
   "use strict";
 
   var COMPACT = "tabs-icons";
+  var root = document.documentElement;
+
+  function vertical() {
+    return root.getAttribute("data-menu") === "vertical";
+  }
 
   function wraps(list) {
     var items = list.children;
@@ -25,7 +33,7 @@
       if (!label) { return; }
       var tip = new bootstrap.Tooltip(link, {
         title: label.textContent.trim(),
-        placement: "bottom",
+        placement: function () { return vertical() ? "right" : "bottom"; },
         trigger: "hover focus"
       });
       tip.disable();
@@ -34,20 +42,28 @@
       tips.push(tip);
     });
 
-    function setCompact(on) {
-      if (on === compact) { return; }
-      compact = on;
-      list.classList.toggle(COMPACT, on);
+    var tipsOn = false;
+
+    function setTips(on) {
+      if (on === tipsOn) { return; }
+      tipsOn = on;
       tips.forEach(function (tip) {
         if (on) { tip.enable(); }
         else { tip.hide(); tip.disable(); }
       });
     }
 
+    function setCompact(on) {
+      compact = on;
+      list.classList.toggle(COMPACT, on);
+      setTips(vertical() ? root.classList.contains("menu-collapsed") : on);
+    }
+
     /* Measures with full labels; both class changes happen in one frame
        before any paint, so nothing flickers. */
     function check() {
       pending = false;
+      if (vertical()) { setCompact(false); return; }
       list.classList.remove(COMPACT);
       var tooWide = wraps(list);
       list.classList.toggle(COMPACT, compact);
@@ -61,9 +77,10 @@
     }
 
     new ResizeObserver(schedule).observe(list);
-    // Theme fonts differ in width (Sketchy is much wider).
-    new MutationObserver(schedule).observe(document.documentElement, {
-      attributes: true, attributeFilter: ["data-theme"]
+    // Theme fonts differ in width (Sketchy is much wider); text size, menu
+    // layout and the contracted menu change what fits or which tips show.
+    new MutationObserver(schedule).observe(root, {
+      attributes: true, attributeFilter: ["data-theme", "data-text-size", "data-menu", "class"]
     });
     if (document.fonts) { document.fonts.ready.then(schedule); }
 

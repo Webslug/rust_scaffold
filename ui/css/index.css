@@ -17,6 +17,9 @@
 @import "dividers.css";
 @import "sortable.css";
 @import "options.css";
+@import "help.css";
 @import "bootswatch.css";
 @import "accessibility.css";
 @import "window.css";
+@import "navigation.css";
+@import "a11y-prefs.css";

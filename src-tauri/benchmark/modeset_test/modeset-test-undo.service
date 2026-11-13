@@ -1,0 +1,11 @@
+[Unit]
+Description=One-time undo of the NVIDIA modeset test
+After=multi-user.target display-manager.service
+
+[Service]
+Type=oneshot
+ExecStartPre=/bin/sleep 60
+ExecStart=/usr/local/sbin/modeset-test-undo.sh
+
+[Install]
+WantedBy=multi-user.target

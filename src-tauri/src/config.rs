@@ -23,6 +23,12 @@ const MAX_TRAY_LABEL_LEN: usize = 40;
 const MAX_EXTRAS: usize = 100;
 const MAX_EXTRA_KEY_LEN: usize = 40;
 const MAX_EXTRA_TEXT_LEN: usize = 4000;
+/// Navigation layouts: a row of tabs, or a sidebar menu.
+pub const MENU_LAYOUTS: [&str; 2] = ["horizontal", "vertical"];
+/// Title bar scale in percent.
+pub const TITLEBAR_SCALES: [u32; 3] = [100, 150, 200];
+/// Text size in percent.
+pub const TEXT_SIZES: [u32; 3] = [100, 115, 130];
 /// What a custom tray menu item may do. A fixed set on purpose: config.json
 /// must never be able to run arbitrary commands.
 pub const TRAY_ACTIONS: [&str; 4] = ["show", "hide", "toggle", "quit"];
@@ -55,6 +61,24 @@ pub struct Config {
     pub start_minimised: bool,
     /// Custom tray menu entries, shown between Show/Hide and Quit.
     pub tray_items: Vec<TrayItem>,
+    /// "vertical" (sidebar menu, the default) or "horizontal" (tabs above the page).
+    pub menu_layout: String,
+    /// The vertical menu is contracted to an icon strip.
+    pub menu_collapsed: bool,
+    /// Title bar size in percent: 100, 150 or 200.
+    pub titlebar_scale: u32,
+    /// Text size in percent: 100, 115 or 130.
+    pub text_size: u32,
+    /// Accessibility: full-strength text and borders, opaque surfaces.
+    pub high_contrast: bool,
+    /// Accessibility: bigger buttons, tabs and checkboxes.
+    pub large_targets: bool,
+    /// Accessibility: underline every link.
+    pub underline_links: bool,
+    /// Accessibility: a thicker keyboard focus ring.
+    pub strong_focus: bool,
+    /// Accessibility: no transitions or movement, whatever the system says.
+    pub reduce_motion: bool,
     /// Settings defined only in options.json, unknown to this struct. Kept
     /// here so saving never drops them. Values are booleans, numbers or text.
     pub extras: BTreeMap<String, Value>,
@@ -72,6 +96,15 @@ impl Default for Config {
             collapsed: Vec::new(),
             start_minimised: false,
             tray_items: Vec::new(),
+            menu_layout: "vertical".into(),
+            menu_collapsed: false,
+            titlebar_scale: 100,
+            text_size: 100,
+            high_contrast: false,
+            large_targets: false,
+            underline_links: false,
+            strong_focus: false,
+            reduce_motion: false,
             extras: BTreeMap::new(),
         }
     }
@@ -147,6 +180,18 @@ impl Config {
             if !is_extra_key(key) || !is_extra_value(value) {
                 return Err(format!("invalid extra setting {key:?}"));
             }
+        }
+        // Choice settings fall back to their default instead of failing the
+        // whole file, so one mistyped value does not block saving.
+        let defaults = Config::default();
+        if !MENU_LAYOUTS.contains(&self.menu_layout.as_str()) {
+            self.menu_layout = defaults.menu_layout;
+        }
+        if !TITLEBAR_SCALES.contains(&self.titlebar_scale) {
+            self.titlebar_scale = defaults.titlebar_scale;
+        }
+        if !TEXT_SIZES.contains(&self.text_size) {
+            self.text_size = defaults.text_size;
         }
         self.width = self.width.clamp(MIN_SIZE, MAX_SIZE);
         self.height = self.height.clamp(MIN_SIZE, MAX_SIZE);
@@ -387,6 +432,36 @@ mod tests {
         cfg.tray_items = vec![TrayItem { label: "Hide window".into(), action: "hide".into() }];
         save(&mut state, cfg.clone()).unwrap();
         assert_eq!(load(path).config, cfg);
+    }
+
+    #[test]
+    fn layout_and_accessibility_round_trip() {
+        let path = temp_path("layout");
+        let mut state = load(path.clone());
+        let mut cfg = Config::default();
+        cfg.menu_layout = "horizontal".into();
+        cfg.menu_collapsed = true;
+        cfg.titlebar_scale = 200;
+        cfg.text_size = 130;
+        cfg.high_contrast = true;
+        cfg.large_targets = true;
+        cfg.underline_links = true;
+        cfg.strong_focus = true;
+        cfg.reduce_motion = true;
+        save(&mut state, cfg.clone()).unwrap();
+        assert_eq!(load(path).config, cfg);
+    }
+
+    #[test]
+    fn unknown_choices_fall_back_to_defaults() {
+        let path = temp_path("choices");
+        fs::write(&path, r#"{"theme":"rose","menu_layout":"diagonal","titlebar_scale":175,"text_size":5}"#).unwrap();
+        let state = load(path);
+        assert_eq!(state.status, LoadStatus::Ok);
+        assert_eq!(state.config.theme, "rose");
+        assert_eq!(state.config.menu_layout, "vertical");
+        assert_eq!(state.config.titlebar_scale, 100);
+        assert_eq!(state.config.text_size, 100);
     }
 
     #[test]

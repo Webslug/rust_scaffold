@@ -10,7 +10,8 @@ bench.py's screenshot timing for small styling costs, because it sums all the
 work instead of timing one visible change.
 
 Usage:
-  cpu.py run --label NAME [--theme slate] [--binary PATH] [--rounds 3] [--steps 36]
+  cpu.py run --label NAME [--theme slate] [--layout horizontal|vertical]
+             [--binary PATH] [--rounds 3] [--steps 36]
 """
 import argparse
 import json
@@ -27,6 +28,9 @@ import bench
 TICKS = os.sysconf("SC_CLK_TCK")
 STEP_PAUSE = 0.15
 SCROLL_CLICKS = 3
+# Where to click to focus the first tab (Dashboard), per menu layout, in
+# window coordinates at the default title bar and text size.
+FIRST_TAB = {"horizontal": ("80", "75"), "vertical": ("80", "169")}
 
 
 def cpu_ticks(pid):
@@ -73,7 +77,7 @@ def sample(pids):
     return total
 
 
-def one_round(binary, fixture, steps):
+def one_round(binary, fixture, steps, layout):
     with tempfile.TemporaryDirectory(prefix="rust-scaffold-cpu-") as directory:
         workdir = Path(directory)
         (workdir / "config.json").write_text(json.dumps(fixture, indent=2) + "\n", encoding="utf-8")
@@ -88,7 +92,8 @@ def one_round(binary, fixture, steps):
             size = bench.prepare_window(window_id, "maximized")
             time.sleep(1.0)
             # Focus the first tab (Dashboard), then let everything settle.
-            bench.command("xdotool", "mousemove", "--window", str(window_id), "80", "75", "click", "1")
+            x, y = FIRST_TAB[layout]
+            bench.command("xdotool", "mousemove", "--window", str(window_id), x, y, "click", "1")
             bench.command("xdotool", "mousemove", "--window", str(window_id),
                           str(size["width"] // 2), str(size["height"] // 2))
             time.sleep(1.0)
@@ -132,17 +137,20 @@ def main():
     run = sub.add_parser("run")
     run.add_argument("--label", required=True)
     run.add_argument("--theme", default="slate")
+    run.add_argument("--layout", choices=sorted(FIRST_TAB), default="horizontal")
     run.add_argument("--binary", type=Path, default=bench.BIN)
     run.add_argument("--rounds", type=int, default=3)
     run.add_argument("--steps", type=int, default=36)
     args = parser.parse_args()
 
     fixture = bench.config_fixture(args.theme)
+    fixture["menu_layout"] = args.layout
+    fixture["menu_collapsed"] = False
     active, pointer = bench.previous_desktop_state()
     rounds = []
     try:
         for index in range(args.rounds):
-            result = one_round(args.binary.resolve(), fixture, args.steps)
+            result = one_round(args.binary.resolve(), fixture, args.steps, args.layout)
             rounds.append(result)
             picom = f"{result['picom_cpu_s']:.2f} s" if result["picom_cpu_s"] is not None else "n/a"
             print(f"  round {index + 1}: web {result['web_cpu_s']:.2f} s, picom {picom}, "
@@ -150,13 +158,13 @@ def main():
     finally:
         bench.restore_desktop_state(active, pointer)
     web = [r["web_cpu_s"] for r in rounds]
-    print(f"{args.label} ({args.theme}): web median {statistics.median(web):.2f} s, "
+    print(f"{args.label} ({args.theme}, {args.layout}): web median {statistics.median(web):.2f} s, "
           f"range {min(web):.2f} to {max(web):.2f} s")
     bench.RESULTS_DIR.mkdir(exist_ok=True)
     stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
     out = bench.RESULTS_DIR / f"{stamp}_cpu_{args.label}_{args.theme}.json"
     out.write_text(json.dumps({
-        "label": args.label, "theme": args.theme, "binary": str(args.binary),
+        "label": args.label, "theme": args.theme, "layout": args.layout, "binary": str(args.binary),
         "steps": args.steps, "rounds": rounds,
     }, indent=2) + "\n", encoding="utf-8")
     print(f"Saved: {out}")

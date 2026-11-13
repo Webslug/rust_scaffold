@@ -822,3 +822,59 @@
   --option-width-md: 18rem;
   --option-width-lg: 28rem;
 }
+
+/* Vertical menu (css/navigation.css) and menu search */
+:root {
+  --nav-width: 14.5rem;
+  --nav-width-rail: 3.75rem;
+  --nav-link-height: 2.75rem;
+  --nav-font-size: 1rem;
+  --nav-icon-size: 1.2rem;
+  --nav-btn-size: 2.25rem;
+  --search-results-width: 20rem;
+  --search-results-max-height: 60vh;
+  /* Space above the page when the title bar is hidden, so the reveal button
+     does not cover it. */
+  --reveal-clearance: 2.25rem;
+}
+
+/* Title bar size and accessibility settings (css/a11y-prefs.css) */
+:root {
+  --titlebar-scale: 1;
+  --titlebar-scale-150: 1.5;
+  --titlebar-scale-200: 2;
+  --text-scale-115: 115%;
+  --text-scale-130: 130%;
+  --target-min-size: 2.75rem;
+  --focus-ring-width-strong: 5px;
+  --search-hit-width: 3px;
+}
+
+/* config.json "high_contrast": the same tokens as the prefers-contrast block
+   above, switched on by the app instead of the system. */
+html.a11y-contrast[data-theme] {
+  --text-muted: var(--text);
+  --text-faint: var(--text);
+  --border: var(--text);
+  --border-strong: var(--text);
+  --window-border: var(--text);
+  --focus-ring-width: 4px;
+}
+
+html.a11y-contrast[data-theme="aero-blue"] {
+  --surface: #f1f8fe;
+  --surface-alt: #dff1fd;
+  --surface-raised: #f8fcfe;
+}
+
+html.a11y-contrast[data-theme="baby-pink"] {
+  --surface: #ffe7f1;
+  --surface-alt: #ffeff6;
+  --surface-raised: #fff9fc;
+}
+
+html.a11y-contrast[data-theme="quartz"] {
+  --surface: #32306f;
+  --surface-alt: #2c2966;
+  --surface-raised: #2d2361;
+}

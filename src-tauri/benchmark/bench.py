@@ -116,6 +116,8 @@ def config_fixture(theme):
         "width": 640,
         "height": 480,
         "show_titlebar": True,
+        # The tab-switch clicks assume the horizontal tab row.
+        "menu_layout": "horizontal",
         "rounded_corners": True,
         "start_minimised": False,
         "order": {},

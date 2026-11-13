@@ -1,0 +1,113 @@
+/* ==========================================================================
+   Title bar size and accessibility settings from config.json, set on <html>
+   by js/app.js. The tokens live in variables.css (High contrast too, next to
+   the prefers-contrast block it mirrors).
+   ========================================================================== */
+
+/* ---- title bar size: "titlebar_scale" 100, 150 or 200. window.css
+   multiplies the bar's height, text, icons and buttons by this. ---- */
+html[data-titlebar-scale="150"] {
+  --titlebar-scale: var(--titlebar-scale-150);
+}
+
+html[data-titlebar-scale="200"] {
+  --titlebar-scale: var(--titlebar-scale-200);
+}
+
+/* ---- text size: "text_size" 100, 115 or 130. Everything sized in rem
+   follows the root font size, the title bar and menu included. ---- */
+html[data-text-size="115"] {
+  font-size: var(--text-scale-115);
+}
+
+html[data-text-size="130"] {
+  font-size: var(--text-scale-130);
+}
+
+/* ---- "large_targets": finger-sized controls, the same rules the template
+   applies on touch screens (accessibility.css, pointer: coarse). ---- */
+html.a11y-large-targets .btn,
+html.a11y-large-targets .nav-link,
+html.a11y-large-targets .dropdown-item,
+html.a11y-large-targets .list-group-item-action,
+html.a11y-large-targets .accordion-button,
+html.a11y-large-targets .app-search-option {
+  min-height: var(--target-min-size);
+}
+
+html.a11y-large-targets .btn,
+html.a11y-large-targets .nav-link,
+html.a11y-large-targets .dropdown-item {
+  display: inline-flex;
+  align-items: center;
+}
+
+html.a11y-large-targets .dropdown-item {
+  display: flex;
+}
+
+html.a11y-large-targets .sort-handle {
+  min-width: var(--target-min-size);
+}
+
+html.a11y-large-targets .form-check-input {
+  width: 1.5em;
+  height: 1.5em;
+  margin-top: 0;
+}
+
+html.a11y-large-targets .form-check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--target-min-size);
+}
+
+html.a11y-large-targets .form-check .form-check-input {
+  float: none;
+  flex: none;
+  margin-left: 0;
+}
+
+html.a11y-large-targets .form-switch .form-check-input {
+  width: 2.75em;
+}
+
+html.a11y-large-targets .form-control,
+html.a11y-large-targets .form-select {
+  min-height: var(--target-min-size);
+}
+
+/* ---- "underline_links": links are not told apart by colour alone. ---- */
+html.a11y-underline-links a:not(.btn):not(.nav-link):not(.dropdown-item) {
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+/* ---- "strong_focus": a thicker keyboard focus ring. accessibility.css
+   draws the ring from --focus-ring-width. ---- */
+html.a11y-strong-focus[data-theme] {
+  --focus-ring-width: var(--focus-ring-width-strong);
+  --search-hit-width: var(--focus-ring-width-strong);
+}
+
+/* ---- "reduce_motion": the template's prefers-reduced-motion rules, on
+   whatever the system says, plus every transition and animation off. ---- */
+html.a11y-reduce-motion,
+html.a11y-reduce-motion[data-theme] {
+  --transition-fast: 0ms linear;
+  --transition: 0ms linear;
+  scroll-behavior: auto;
+}
+
+html.a11y-reduce-motion *,
+html.a11y-reduce-motion *::before,
+html.a11y-reduce-motion *::after {
+  transition: none !important;
+  animation: none !important;
+}
+
+html.a11y-reduce-motion .btn:active,
+html.a11y-reduce-motion .card-custom:hover {
+  transform: none;
+}

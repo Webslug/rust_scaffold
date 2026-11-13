@@ -1,6 +1,6 @@
 [package]
 name = "rust-scaffold"
-version = "0.1.0"
+version = "0.2.0"
 description = "Lean Rust + Tauri desktop application scaffold"
 authors = ["Kim"]
 edition = "2021"

@@ -37,11 +37,67 @@
     save();
   }
 
+  /* Menu layout, title bar size and accessibility settings become attributes
+     and classes on <html>; css/navigation.css and css/a11y-prefs.css do the
+     rest. Applied before the window is shown, so nothing flashes. */
+  var A11Y_CLASSES = {
+    high_contrast: "a11y-contrast",
+    large_targets: "a11y-large-targets",
+    underline_links: "a11y-underline-links",
+    strong_focus: "a11y-strong-focus",
+    reduce_motion: "a11y-reduce-motion"
+  };
+  var menuButton = document.getElementById("btn-menu-toggle");
+
+  function applyMenu() {
+    var collapsed = config.menu_collapsed;
+    root.setAttribute("data-menu", config.menu_layout === "vertical" ? "vertical" : "horizontal");
+    root.classList.toggle("menu-collapsed", collapsed);
+    var text = collapsed ? "Expand the menu" : "Contract the menu";
+    menuButton.setAttribute("aria-expanded", collapsed ? "false" : "true");
+    menuButton.setAttribute("aria-label", text);
+    menuButton.title = text;
+  }
+
+  function applyPrefs() {
+    root.setAttribute("data-titlebar-scale", String(config.titlebar_scale));
+    root.setAttribute("data-text-size", String(config.text_size));
+    Object.keys(A11Y_CLASSES).forEach(function (key) {
+      root.classList.toggle(A11Y_CLASSES[key], !!config[key]);
+    });
+    applyMenu();
+  }
+
+  function setMenuCollapsed(collapsed) {
+    if (config.menu_collapsed === collapsed) { return; }
+    config.menu_collapsed = collapsed;
+    applyMenu();
+    save();
+  }
+
+  menuButton.addEventListener("click", function () {
+    setMenuCollapsed(!config.menu_collapsed);
+  });
+
+  // Used by search.js: the search button in the contracted menu expands it.
+  window.AppMenu = { setCollapsed: setMenuCollapsed };
+
   var sorters = {};
 
+  /* The Dashboard example cards (#rust-output, #info-theme, #info-size,
+     #btn-app-info) are optional: a project may delete them. Messages then go
+     to the warning banner instead. */
+  function report(message) {
+    if (output) { output.textContent = message; return; }
+    warning.textContent = message;
+    warning.classList.remove("d-none");
+  }
+
   function renderInfo() {
-    document.getElementById("info-theme").textContent = config.theme;
-    document.getElementById("info-size").textContent = config.width + " x " + config.height;
+    var theme = document.getElementById("info-theme");
+    var size = document.getElementById("info-size");
+    if (theme) { theme.textContent = config.theme; }
+    if (size) { size.textContent = config.width + " x " + config.height; }
   }
 
   function setupSortables() {
@@ -103,7 +159,7 @@
   function save() {
     if (!canSave) { return Promise.resolve(); }
     return invoke("save_config", { config: config }).catch(function (err) {
-      output.textContent = "Save failed: " + err;
+      report("Save failed: " + err);
     });
   }
 
@@ -120,13 +176,16 @@
     });
   }
 
-  document.getElementById("btn-app-info").addEventListener("click", function () {
-    invoke("app_info").then(function (info) {
-      output.textContent = info.name + " " + info.version + "\nconfig: " + info.config_path;
-    }).catch(function (err) {
-      output.textContent = "Error: " + err;
+  var infoButton = document.getElementById("btn-app-info");
+  if (infoButton) {
+    infoButton.addEventListener("click", function () {
+      invoke("app_info").then(function (info) {
+        report(info.name + " " + info.version + "\nconfig: " + info.config_path);
+      }).catch(function (err) {
+        report("Error: " + err);
+      });
     });
-  });
+  }
 
   /* Used by options.js. commit() applies the given changes to the live config
      and saves it. Applying first means a save from elsewhere (a resize, say)
@@ -155,6 +214,7 @@
         config.theme = window.AppTheme.apply(config.theme);
         root.classList.toggle("square-corners", !config.rounded_corners);
         applyTitlebar();
+        applyPrefs();
         renderInfo();
       }
       return invoke("save_config", { config: config }).then(applyLive, function (err) {
@@ -189,6 +249,7 @@
     config.theme = window.AppTheme.apply(config.theme);
     root.classList.toggle("square-corners", !config.rounded_corners);
     applyTitlebar();
+    applyPrefs();
     renderInfo();
     setupSortables();
     setupAccordions();
@@ -197,7 +258,7 @@
       warning.classList.remove("d-none");
     }
   }).catch(function (err) {
-    output.textContent = "Could not load config: " + err;
+    report("Could not load config: " + err);
   }).then(function () {
     // The window starts hidden so there is no flash of the default theme.
     // With start_minimised (and a working tray) it simply stays hidden.

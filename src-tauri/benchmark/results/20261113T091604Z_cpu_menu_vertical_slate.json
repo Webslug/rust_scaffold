@@ -1,0 +1,31 @@
+{
+  "label": "menu_vertical",
+  "theme": "slate",
+  "layout": "vertical",
+  "binary": "/tmp/rs_variant/rust-scaffold",
+  "steps": 36,
+  "rounds": [
+    {
+      "web_cpu_s": 18.29,
+      "picom_cpu_s": null,
+      "elapsed_s": 34.737596717001,
+      "window": {
+        "x": 0,
+        "y": 0,
+        "width": 1920,
+        "height": 1028
+      }
+    },
+    {
+      "web_cpu_s": 17.75,
+      "picom_cpu_s": null,
+      "elapsed_s": 34.75301763199968,
+      "window": {
+        "x": 0,
+        "y": 0,
+        "width": 1920,
+        "height": 1028
+      }
+    }
+  ]
+}

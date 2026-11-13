@@ -62,6 +62,15 @@ setting in the app. You can also edit it by hand while the app is closed.
 | `collapsed` | `[]` | Ids of collapsed accordion panels |
 | `start_minimised` | `false` | Start hidden in the tray |
 | `tray_items` | `[]` | Extra tray menu entries |
+| `menu_layout` | `"vertical"` | `"vertical"` (menu down the left) or `"horizontal"` (tabs across the top) |
+| `menu_collapsed` | `false` | Vertical menu contracted to icons |
+| `titlebar_scale` | `100` | Title bar size in percent: `100`, `150` or `200` |
+| `text_size` | `100` | Text size in percent: `100`, `115` or `130` |
+| `high_contrast` | `false` | Full-strength text and borders, solid surfaces |
+| `large_targets` | `false` | Taller buttons, menu items and fields, bigger checkboxes |
+| `underline_links` | `false` | Underline every link |
+| `strong_focus` | `false` | Thicker keyboard focus ring |
+| `reduce_motion` | `false` | No transitions or animations, whatever the system setting |
 | `extras` | `{}` | Settings defined only in `options.json` (see Options tab) |
 
 Rules enforced by `src-tauri/src/config.rs`:
@@ -78,6 +87,9 @@ Rules enforced by `src-tauri/src/config.rs`:
   underscores, at most 40 characters. A value is `true`/`false`, a number, or
   text of at most 4000 characters (line breaks and tabs allowed, no other
   control characters). Lists, objects and `null` are rejected.
+- `menu_layout`, `titlebar_scale` and `text_size` accept only the values
+  listed above. Any other value falls back to the default instead of
+  rejecting the whole file.
 - Saves are atomic (a temporary file is written, then renamed).
 
 ## Options tab
@@ -152,7 +164,8 @@ these are allowed, with these controls:
 |-----|----------|
 | `theme` | `select`, `radio`, `list` (use `"choices": "themes"`) |
 | `width`, `height` | `number`, `range` |
-| `show_titlebar`, `rounded_corners`, `start_minimised` | `switch`, `check` |
+| `show_titlebar`, `rounded_corners`, `start_minimised`, `menu_collapsed`, `high_contrast`, `large_targets`, `underline_links`, `strong_focus`, `reduce_motion` | `switch`, `check` |
+| `menu_layout`, `titlebar_scale`, `text_size` | `select`, `radio`, `list` (choices must use the allowed values; numbers for the two sizes) |
 
 `order`, `collapsed`, `tray_items` and `extras` are managed by the app and
 cannot be options. Built-in settings take their defaults from Rust, so a
@@ -186,6 +199,86 @@ value stays in `config.json` until you save that control.
   maximise or restore, close.
 - With the title bar hidden, a small button in the top right corner brings it
   back.
+
+## Menu layout and search
+
+`menu_layout` (Options tab, Appearance) chooses the navigation:
+
+- **Horizontal**: Bootstrap tabs above the page. When the labels do
+  not fit, the tabs show icons only (see "Add a tab page"). Help sits at the
+  far right.
+- **Vertical** (default): a menu down the left side with larger text that is never
+  hidden by resizing. The button at the top left contracts the menu to a strip
+  of icons with tooltips and expands it again; the state is saved in
+  `menu_collapsed`. Help sits at the bottom.
+
+Both layouts use the same tab list (`#app-tabs`), restyled by
+`ui/css/navigation.css` when `<html data-menu="vertical">` is set. A new tab
+appears in both without extra work.
+
+### Search
+
+The vertical menu has a search box (Ctrl+K moves to it; in the contracted menu
+the magnifying glass expands the menu first). After three characters it lists
+up to eight matching places. Up and Down choose, Enter goes, Escape closes the
+list and a second Escape clears the box. Every word typed must match the
+label, a keyword or the page name; labels that start with the text rank first.
+
+Going to a result selects its tab, opens a closed accordion panel that holds
+the target, scrolls the target into view, focuses it (or the card or row
+around it) and outlines it for two seconds. Pages that draw their content
+after being shown (the Options tab, marked `data-async-render`) send a
+`page:rendered` event; the search waits for it, at most two seconds.
+
+The places come from `search.json`, beside `config.json`. It is created from
+`src-tauri/search.default.json` when missing and re-read each time the search
+box gets focus, so edits need no rebuild or restart. Every tab is also found
+by its own name without an entry.
+
+    { "label": "Theme", "page": "options", "target": "opt-theme",
+      "keywords": ["colour", "color", "palette"], "icon": "palette" }
+
+| Field | Required | Meaning |
+|-------|----------|---------|
+| `label` | yes | Text in the list, 1 to 80 characters |
+| `page` | yes | Tab id without `tab-`: `dashboard` means `#tab-dashboard` and `#page-dashboard` |
+| `target` | no | Id of an element on that page. Options tab controls are `opt-` plus the key, for example `opt-text_size` |
+| `keywords` | no | Up to 20 extra words or phrases, each up to 40 characters |
+| `icon` | no | Bootstrap Icons name without `bi-` |
+
+Rust (`src-tauri/src/search.rs`) skips a bad entry with a reason and keeps the
+rest: limits are 1 MiB, 500 entries, and ids made of letters, digits, hyphens
+and underscores. The page also skips entries whose page or target does not
+exist. Skipped entries are listed on the Help page, which also
+shows how many places were loaded.
+
+## Title bar size and accessibility
+
+All of these are on the Options tab and take effect when you press Save. They
+are applied before the window first appears, so nothing flashes.
+
+| Setting | Effect |
+|---------|--------|
+| Title bar size | Multiplies the bar's height, text, icons and buttons by 1, 1.5 or 2 (`--titlebar-scale`). Long titles shorten with an ellipsis |
+| Text size | Sets the root font size to 100, 115 or 130 percent; everything sized in rem follows, the menu and title bar included |
+| High contrast | Muted text, borders and the window edge use the full text colour; the glass themes (Aero Blue, Baby Pink, Quartz) get solid surfaces |
+| Larger click targets | Buttons, tabs, menu items, fields and search results at least 2.75rem tall; bigger checkboxes and switches |
+| Underline links | Underlines `<a>` links that are not buttons, tabs or menu items. The scaffold itself has almost no such links; this is for apps built on it |
+| Strong focus ring | Keyboard focus outline 5 px instead of 3 px |
+| Reduce motion | Every transition and animation off, whatever the system setting |
+
+The rules are in `ui/css/a11y-prefs.css` (classes and attributes on `<html>`,
+set by `ui/js/app.js`) and the tokens in `ui/css/variables.css`. The system
+settings `prefers-contrast` and `prefers-reduced-motion` still work on their
+own, through `accessibility.css`.
+
+## Help
+
+The last tab. It explains how to use the app, holds a short change log, names
+the developer (Kim Watts) and shows the version, the settings file and the
+search library status from Rust. Edit the text in `ui/index.html`
+(`#page-help`); styles are in `ui/css/help.css`, live values in
+`ui/js/help.js`.
 
 ## Tray icon
 
@@ -233,8 +326,13 @@ pair: the button needs `data-bs-target="#page-name"`, the pane needs
 
     <i class="bi bi-sliders"></i><span class="tab-label">Options</span>
 
-When the labels no longer fit on one row (about 700 px wide with the six
-tabs here; the point moves with the number of tabs and the theme's font),
+Help stays last, in `<li class="nav-item nav-item-help">`. Add new
+tabs before it. To make a page findable by its parts, add entries to
+`search.json` (the tab itself is found by name automatically).
+
+When the labels no longer fit on one row (between 760 and 860 px wide in Aero
+Blue with the seven tabs here; the point moves with the number of tabs, the
+text size and the theme's font),
 `ui/js/tabs_fit.js` hides the labels and shows icons only, each with a Bootstrap
 tooltip giving its name on hover or keyboard focus. Hidden labels are still read
 by screen readers. If even the icons do not fit, the row scrolls sideways with a
@@ -372,3 +470,6 @@ executable. With `false` no log file is written.
 - Linux tray icons have no click or double-click events (see above).
 - Transparent windows need a compositor on X11.
 - Windows support is written but has not been tested.
+- The expanded vertical menu is 14.5rem wide (more at larger text sizes) and
+  does not contract by itself in a narrow window; at the 400 px minimum width
+  the page is cramped until you contract it.
