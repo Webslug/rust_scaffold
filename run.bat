@@ -1,6 +1,6 @@
 @echo off
-rem Builds the app if anything changed, then launches it from the project
-rem folder (config.json and debug.log live here).
+rem Builds the app if anything changed, then launches it. The app keeps
+rem config.json, options.json and debug.log beside its executable.
 cd /d "%~dp0"
 
 pushd src-tauri

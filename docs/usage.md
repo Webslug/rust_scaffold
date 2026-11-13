@@ -8,11 +8,17 @@ README.md in the project root.
     ./run.sh          Linux
     run.bat           Windows
 
-Both scripts change into the project folder, build the app if anything changed,
-and launch it. `run.sh` starts the app detached from the terminal with its
+`run.sh` launches `dist/rust-scaffold` (run `./build.sh` first, or use
+`./run.sh --build`). It starts the app detached from the terminal with its
 output discarded and returns the prompt at once (set `DEBUG_MODE` to get a log
-file instead, see below). The project folder is the working directory, so `config.json`
-and `debug.log` live next to `run.sh`.
+file instead, see below). `run.bat` builds and launches the Windows binary.
+
+Settings live beside the executable, not in the working directory:
+`config.json`, `options.json` and `debug.log` are read from and written to the
+folder that holds the binary (normally `dist/`). Starting the app from a
+terminal, a file manager or a shortcut makes no difference, and a symlink to
+the binary uses the real file's folder. To move the app, move the binary
+together with its two JSON files.
 
 The UI in `ui/` is embedded in the binary at compile time. After editing any
 HTML, CSS or JavaScript, run the script again (an incremental rebuild takes
@@ -74,7 +80,7 @@ Rules enforced by `src-tauri/src/config.rs`:
 ## Options tab
 
 The Options tab edits settings inside the app. Which controls it shows, and
-how, comes from `options.json` in the project folder, not from the code:
+how, comes from `options.json` beside the executable, not from the code:
 
 - `config.json` holds the values.
 - `options.json` describes the controls: a label on each shelf, not the
@@ -308,8 +314,8 @@ Then run `./run.sh`. Do not copy `target/`.
 
 `DEBUG_MODE` is a constant at the top of `src-tauri/src/lib.rs`, `false` by
 default. Set it to `true` and rebuild to write program events (startup,
-config load, save and refusal, size restore, tray actions) to `debug.log` in the
-working directory. With `false` no log file is written.
+config load, save and refusal, size restore, tray actions) to `debug.log` beside the
+executable. With `false` no log file is written.
 
 ## Troubleshooting
 

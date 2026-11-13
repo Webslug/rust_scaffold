@@ -92,8 +92,16 @@ def environment():
     }
 
 
+def project_config():
+    """The user's live config: beside the dist/ binary, else the old root copy."""
+    for path in (PROJECT_DIR / "dist" / "config.json", PROJECT_DIR / "config.json"):
+        if path.exists():
+            return path
+    return PROJECT_DIR / "dist" / "config.json"
+
+
 def config_fixture(theme):
-    source = PROJECT_DIR / "config.json"
+    source = project_config()
     if source.exists():
         if source.stat().st_size > 5 * 1024 * 1024:
             raise RuntimeError("Project config exceeds 5 MB; refusing to copy it")
@@ -206,8 +214,12 @@ def run_one(state, fixture, iterations):
     with tempfile.TemporaryDirectory(prefix="rust-scaffold-benchmark-") as directory:
         workdir = Path(directory)
         (workdir / "config.json").write_text(json.dumps(fixture, indent=2) + "\n", encoding="utf-8")
+        # The app reads config.json beside its executable, so run a copy of
+        # the binary from the temporary folder.
+        binary = workdir / BIN.name
+        shutil.copy2(BIN, binary)
         process = subprocess.Popen(
-            [str(BIN)], cwd=workdir, stdin=subprocess.DEVNULL,
+            [str(binary)], cwd=workdir, stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             start_new_session=True,
         )
@@ -245,7 +257,7 @@ def run_benchmark(label, theme, iterations):
         raise RuntimeError(f"Theme {theme!r} is not listed in ui/js/theme.js")
     fixture = config_fixture(theme)
     active, pointer = previous_desktop_state()
-    source_config = PROJECT_DIR / "config.json"
+    source_config = project_config()
     original_config_hash = hashlib.sha256(source_config.read_bytes()).hexdigest() if source_config.exists() else None
     digest, binary_size = build_and_hash()
     started = dt.datetime.now(dt.timezone.utc)

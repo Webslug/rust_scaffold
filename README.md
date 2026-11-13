@@ -33,7 +33,7 @@ core. The release binary is about 4.3 MB, well under the 50 MB target.
   has its own search, filter and data-table view; colors follow the selected theme.
 - A tray icon with a context menu you can extend from the settings file, and an
   optional start-minimised mode.
-- A settings file (`config.json`) in the project folder. It is created on first
+- A settings file (`config.json`) beside the executable. It is created on first
   run, is never read if it is larger than 5 MiB, and is never overwritten when
   it cannot be read.
 - An Options tab that edits settings in the app. Its controls (switches,
@@ -102,9 +102,9 @@ Not tested on this project. These are the standard Tauri 2 steps.
     ./run.sh          Linux
     run.bat           Windows
 
-`build.sh` reports build failures and never launches an older executable.
-`run.sh` builds the app if anything changed, then starts it from the project
-folder. The first build downloads and compiles the dependencies and takes
+`build.sh` builds the release executable and copies it to `dist/`; it reports
+build failures and never launches anything. `run.sh` starts `dist/rust-scaffold`
+(`./run.sh --build` builds first). The first build downloads and compiles the dependencies and takes
 a few minutes (about two on the test machine). Later builds are incremental
 and take about a minute.
 
@@ -112,13 +112,14 @@ Or by hand:
 
     cd src-tauri
     cargo build --release
-    ./target/release/rust-scaffold      (Linux, run from the project folder)
+    ./target/release/rust-scaffold      (Linux)
 
-Run it from the project folder so `config.json` is created there.
+The app keeps `config.json` and `options.json` in the folder that holds the
+executable (`dist/` when started with `run.sh`), wherever it is started from.
 
 ## Settings
 
-`config.json` is created next to `run.sh` on first run. The app writes your
+`config.json` is created beside the executable (in `dist/`) on first run. The app writes your
 theme, window size, title bar state, panel order and collapsed panels to it. You
 can also edit it by hand while the app is closed.
 
@@ -141,10 +142,10 @@ the Options tab and how. Every key is documented in [docs/usage.md](docs/usage.m
 ## Project layout
 
     build.sh              build release executable only
-    run.sh, run.bat       build and launch
+    run.sh, run.bat       launch (run.sh --build builds first)
     requirements.txt      system requirements
-    config.json           created at first run
-    options.json          Options tab controls, created at first run
+    dist/                 built executable, with config.json and options.json
+                          (both created beside it at first run)
     docs/usage.md         how to use, change and reuse the scaffold
     ui/                   the interface (embedded in the binary at build time)
       index.html

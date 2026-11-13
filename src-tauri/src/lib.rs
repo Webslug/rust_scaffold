@@ -5,17 +5,31 @@ mod tray;
 
 use std::fs::OpenOptions;
 use std::io::Write;
+use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 use std::sync::Mutex;
 
 use tauri::{LogicalSize, Manager, PhysicalPosition};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-/// When true, program events are appended to `debug.log` in the working
-/// directory (the project folder when launched via run.sh / run.bat).
+/// When true, program events are appended to `debug.log` beside the
+/// executable.
 pub const DEBUG_MODE: bool = false;
 
 const DEBUG_LOG: &str = "debug.log";
+
+/// The folder holding the executable. config.json, options.json and
+/// debug.log live here, so the app finds its settings however it is started
+/// (run.sh, a file manager, a shortcut). Symlinks are followed to the real
+/// file. Falls back to the working directory if the path cannot be found.
+pub fn app_dir() -> PathBuf {
+    std::env::current_exe()
+        .and_then(|exe| exe.canonicalize())
+        .ok()
+        .and_then(|exe| exe.parent().map(PathBuf::from))
+        .or_else(|| std::env::current_dir().ok())
+        .unwrap_or_else(|| PathBuf::from("."))
+}
 
 /// Appends one timestamped line to the debug log. Does nothing unless
 /// DEBUG_MODE is true; logging failures are ignored so they never stop the app.
@@ -27,7 +41,7 @@ pub fn debug_log(message: &str) {
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_secs())
         .unwrap_or(0);
-    if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(DEBUG_LOG) {
+    if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(app_dir().join(DEBUG_LOG)) {
         let _ = writeln!(file, "[{secs}] {message}");
     }
 }

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Launches the app from dist/ without building. Run ./build.sh first, or
-# pass --build to build and then launch. Starts from the project folder
-# because config.json and debug.log live here.
+# pass --build to build and then launch. The app keeps config.json,
+# options.json and debug.log beside its executable, in dist/.
 set -uo pipefail
 
 cd "$(dirname "$(readlink -f "$0")")"

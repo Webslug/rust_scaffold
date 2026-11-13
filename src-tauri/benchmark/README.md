@@ -15,10 +15,11 @@ does not start or reconfigure the compositor.
 
 The benchmark opens the app, takes focus and moves the pointer for about a
 minute. Leave the mouse and keyboard alone during a run. It restores the
-previous active window and pointer position afterward. It uses a temporary
-working directory containing a copy of your config with a fixed theme,
-640 x 480 starting size, visible title bar, and default card order. The
-project config is checked for changes after the run.
+previous active window and pointer position afterward. The app reads its
+settings from the folder that holds the executable, so the benchmark copies the
+release binary into a temporary folder together with a copy of your config
+(`dist/config.json`) with a fixed theme, 640 x 480 starting size, visible title
+bar, and default card order. Your config is checked for changes after the run.
 
 ## Commands
 

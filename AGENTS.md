@@ -310,3 +310,11 @@ Leads, in order of cheapness (none confirmed):
 - Minimum window size was not changed: `tauri.conf.json` already sets `minWidth` 400 and `minHeight` 300.
 - Observed, not caused by this work: at about 00:23 the project-root `config.json` disappeared and `dist/` now holds `config.json` and `options.json` (last written 00:37). The app keeps its settings in its working folder, so starting `dist/rust-scaffold` directly (for example by double-clicking it) uses `dist/`, while `run.sh` starts it from the project root. Left as found for Kim to decide.
 - Backup before changes: `backup/rust_template_pre_tab_icons.zip` (verified).
+
+### 13 November 2026: settings live beside the executable (Claude, Kim's decision)
+- `config.json`, `options.json` and `debug.log` are now found through `app_dir()` in `lib.rs`: the folder of `current_exe()`, with symlinks resolved, falling back to the working directory only if that fails. The working directory no longer matters. With `run.sh` that folder is `dist/`.
+- Benchmark updated to match: `bench.py` copies the release binary into its temporary folder with the fixture config and runs that copy (otherwise it would have written into `src-tauri/target/release/`). It reads and guards `dist/config.json`, falling back to the old root copy. Not yet run after this change.
+- Tested: 19 unit tests pass; the binary started from `/` wrote its config beside itself and nothing in `/`; started through a symlink in another folder it used the real binary's folder; `./run.sh` opened at 725 x 560 from `dist/config.json` (Kim's settings) and left that file unchanged.
+- Stale files: the project root again holds `config.json` and `options.json` dated 00:55 (Aero Blue, 939 x 599), created before this change by a run of the old binary from the project root. The new build ignores them. Left for Kim to delete.
+- Windows: `run.bat` still builds and starts `src-tauri\target\release\rust-scaffold.exe`, so on Windows the settings would sit in that build folder. Untested; align it with `dist\` when Windows is tested.
+- Backup before changes: `backup/rust_template_pre_exe_dir.zip` (verified).

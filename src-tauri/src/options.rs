@@ -302,11 +302,9 @@ fn parse(text: &str) -> Result<(Vec<OptionSpec>, Vec<String>), String> {
     Ok((options, skipped))
 }
 
-/// options.json sits next to config.json in the working directory.
+/// options.json sits next to config.json, beside the executable.
 pub fn options_path() -> PathBuf {
-    std::env::current_dir()
-        .unwrap_or_else(|_| PathBuf::from("."))
-        .join(OPTIONS_FILE)
+    crate::app_dir().join(OPTIONS_FILE)
 }
 
 pub fn load(path: PathBuf) -> OptionsReply {

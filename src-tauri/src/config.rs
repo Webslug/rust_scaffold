@@ -178,12 +178,9 @@ pub struct ConfigState {
     pub status: LoadStatus,
 }
 
-/// config.json lives in the working directory, which run.sh and run.bat set
-/// to the project folder.
+/// config.json lives beside the executable.
 pub fn config_path() -> PathBuf {
-    std::env::current_dir()
-        .unwrap_or_else(|_| PathBuf::from("."))
-        .join(CONFIG_FILE)
+    crate::app_dir().join(CONFIG_FILE)
 }
 
 pub fn load(path: PathBuf) -> ConfigState {
