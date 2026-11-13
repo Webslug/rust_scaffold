@@ -1,0 +1,132 @@
+/* ==========================================================================
+   Jobs tab: new-job form, job table, progress bars and the details card
+   ========================================================================== */
+
+.jobs-form,
+.jobs-inspect {
+  margin-bottom: var(--space-3);
+}
+
+.jobs-inspect {
+  margin-top: var(--space-3);
+}
+
+/* Four short fields side by side, wrapping on narrow windows. */
+.jobs-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(var(--jobs-field-min), 1fr));
+  gap: var(--space-3);
+}
+
+.jobs-fields .form-label {
+  display: block;
+}
+
+.jobs-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.jobs-status {
+  margin: var(--space-2) 0 0;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.jobs-table th,
+.jobs-table td {
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.jobs-table .jobs-empty {
+  color: var(--text-muted);
+  text-align: center;
+  white-space: normal;
+}
+
+.jobs-table .jobs-buttons {
+  text-align: right;
+}
+
+.jobs-table .jobs-buttons .btn + .btn {
+  margin-left: var(--space-1);
+}
+
+/* Selected row while its details are open. */
+.jobs-table tr.jobs-selected > td {
+  background-color: var(--surface-alt);
+}
+
+/* Native <progress>: no width set from script, so the page's
+   Content-Security-Policy (no inline styles) is respected. */
+.jobs-progress {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.jobs-progress progress {
+  width: var(--jobs-bar-width);
+  height: var(--jobs-bar-height);
+  appearance: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background-color: var(--surface-alt);
+  overflow: hidden;
+}
+
+.jobs-progress progress::-webkit-progress-bar {
+  background-color: var(--surface-alt);
+}
+
+.jobs-progress progress::-webkit-progress-value {
+  background-color: var(--accent);
+}
+
+.jobs-progress progress::-moz-progress-bar {
+  background-color: var(--accent);
+}
+
+.jobs-progress .jobs-count {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.jobs-table .jobs-number {
+  font-variant-numeric: tabular-nums;
+}
+
+.jobs-inspect .card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.jobs-inspect-list {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-1) var(--space-3);
+}
+
+.jobs-inspect-list dt {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.jobs-inspect-list dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.jobs-note {
+  margin: var(--space-2) 0 0;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}

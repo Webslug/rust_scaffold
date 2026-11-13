@@ -11,6 +11,8 @@
     { "group": "Window", "control": "number", "key": "height", "label": "Height", "readonly": true, "size": "sm" },
     { "group": "Window", "control": "check", "key": "start_minimised", "label": "Start hidden in the tray", "help": "Takes effect the next time the app starts." },
     { "group": "Window", "control": "switch", "key": "hardware_acceleration", "label": "Hardware acceleration", "help": "Draws the page on the graphics card where supported. Takes effect the next time the app starts." },
+    { "group": "Diagnostics", "control": "number", "key": "error_log_max", "label": "Errors kept", "min": 10, "max": 1000, "step": 10, "size": "sm", "help": "The Errors tab keeps this many of the newest errors and warnings. Older ones are removed." },
+    { "group": "Jobs", "control": "select", "key": "job_concurrency", "label": "Jobs at once", "choices": [ { "value": 1, "label": "1" }, { "value": 2, "label": "2" }, { "value": 3, "label": "3" } ], "size": "sm", "help": "How many jobs the job queue runs at the same time. More wait their turn. Also set on the Jobs tab." },
 
     { "group": "Accessibility", "control": "select", "key": "text_size", "label": "Text size", "choices": [ { "value": 100, "label": "100% (normal)" }, { "value": 115, "label": "115%" }, { "value": 130, "label": "130%" } ], "size": "sm" },
     { "group": "Accessibility", "control": "switch", "key": "high_contrast", "label": "High contrast", "help": "Full-strength text and borders, and solid backgrounds behind text." },

@@ -73,6 +73,9 @@
 /* Select chevron: themed data URI (variables.css), light on dark themes */
 .form-select {
   --bs-form-select-bg-img: var(--select-chevron);
+  /* The shared padding above would leave the chevron (Bootstrap draws it
+     0.75rem from the right edge, 16px wide) on top of the text. */
+  padding-right: var(--select-chevron-space);
 }
 
 /* Disabled and read-only fields */

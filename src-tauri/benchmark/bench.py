@@ -93,8 +93,10 @@ def environment():
 
 
 def project_config():
-    """The user's live config: beside the dist/ binary, else the old root copy."""
-    for path in (PROJECT_DIR / "dist" / "config.json", PROJECT_DIR / "config.json"):
+    """The user's live config: the per-user settings folder (0.2.2 and later),
+    else the copy beside the dist/ binary, else the old root copy."""
+    user_dir = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config") / "rust_scaffold"
+    for path in (user_dir / "config.json", PROJECT_DIR / "dist" / "config.json", PROJECT_DIR / "config.json"):
         if path.exists():
             return path
     return PROJECT_DIR / "dist" / "config.json"
@@ -216,12 +218,14 @@ def run_one(state, fixture, iterations):
     with tempfile.TemporaryDirectory(prefix="rust-scaffold-benchmark-") as directory:
         workdir = Path(directory)
         (workdir / "config.json").write_text(json.dumps(fixture, indent=2) + "\n", encoding="utf-8")
-        # The app reads config.json beside its executable, so run a copy of
-        # the binary from the temporary folder.
+        # RUST_SCAFFOLD_DIR points the app at the temporary folder, so the
+        # user's own settings are never read or written. The binary is copied
+        # there too, as before.
         binary = workdir / BIN.name
         shutil.copy2(BIN, binary)
         process = subprocess.Popen(
             [str(binary)], cwd=workdir, stdin=subprocess.DEVNULL,
+            env={**os.environ, "RUST_SCAFFOLD_DIR": str(workdir)},
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             start_new_session=True,
         )

@@ -1,0 +1,98 @@
+/* ==========================================================================
+   Errors tab: toolbar, table and the count badge on its menu entry
+   ========================================================================== */
+
+/* Three columns, the outer two equal, so the buttons sit in the true centre
+   of the page whatever the filter's width. The status line goes underneath. */
+.errors-toolbar {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  grid-template-areas:
+    "filter actions ."
+    "status status status";
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.errors-filter {
+  grid-area: filter;
+  justify-self: start;
+  width: auto;
+}
+
+.errors-actions {
+  grid-area: actions;
+  display: flex;
+  gap: var(--space-2);
+}
+
+.errors-status {
+  grid-area: status;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+/* Too narrow for filter and buttons side by side: stack them, centred. */
+@media (max-width: 560px) {
+  .errors-toolbar {
+    grid-template-columns: 1fr;
+    grid-template-areas: "filter" "actions" "status";
+    justify-items: center;
+  }
+
+  .errors-filter {
+    justify-self: center;
+  }
+}
+
+.errors-table th,
+.errors-table td {
+  vertical-align: top;
+}
+
+.errors-table .errors-time,
+.errors-table .errors-source {
+  white-space: nowrap;
+}
+
+.errors-table .errors-message {
+  min-width: 16rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.errors-table .errors-empty {
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.errors-note {
+  margin: var(--space-2) 0 0;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
+/* Count of new entries, on the menu entry while another page is open. It
+   sits in the corner so it stays visible when the menu shows icons only. */
+#tab-errors {
+  position: relative;
+}
+
+.tab-count {
+  position: absolute;
+  top: var(--space-1);
+  right: var(--space-1);
+  min-width: 1.1rem;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-pill);
+  background-color: var(--danger);
+  color: var(--on-danger);
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1.1rem;
+  text-align: center;
+}

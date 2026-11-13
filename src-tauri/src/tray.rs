@@ -5,7 +5,7 @@ use tauri::tray::{TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Manager};
 
 use crate::config::TrayItem;
-use crate::debug_log;
+use tracing::{debug, info};
 
 const ID_TOGGLE: &str = "tray-toggle";
 const ID_QUIT: &str = "tray-quit";
@@ -50,7 +50,7 @@ fn toggle_window(app: &AppHandle) {
 }
 
 fn run_action(app: &AppHandle, action: &str) {
-    debug_log(&format!("tray: action {action}"));
+    debug!("tray: action {action}");
     match action {
         "show" => show_window(app),
         "hide" => hide_window(app),
@@ -116,6 +116,6 @@ pub fn setup(app: &AppHandle, items: &[TrayItem]) -> tauri::Result<()> {
         builder = builder.icon(icon.clone());
     }
     builder.build(app)?;
-    debug_log("tray: created");
+    info!("tray: created");
     Ok(())
 }

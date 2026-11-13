@@ -1,6 +1,6 @@
 [package]
 name = "rust-scaffold"
-version = "0.2.1"
+version = "0.2.2"
 description = "Lean Rust + Tauri desktop application scaffold"
 authors = ["Kim"]
 edition = "2021"
@@ -9,6 +9,12 @@ edition = "2021"
 name = "rust_scaffold_lib"
 crate-type = ["rlib"]
 
+[dev-dependencies]
+# Tests only: proves messages from libraries that use `log` reach the Errors tab.
+log = "0.4"
+# Tests only: #[tokio::test] with a paused clock, so job tests run instantly.
+tokio = { version = "1", features = ["rt", "macros", "test-util"] }
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
@@ -16,6 +22,24 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2", features = ["tray-icon"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+
+# General-purpose crates for apps built from this template. Tauri already
+# compiles tokio, regex, time and dirs, so listing them here costs almost
+# nothing; it lets our own code use them. Unused code is removed at link time.
+# Async runtime (Tauri uses it too): files, timers, channels, runtime handle
+# and metrics (the job queue in src/jobs.rs), #[tokio::main].
+tokio = { version = "1", features = ["rt", "fs", "time", "sync", "macros"] }
+# Regular expressions.
+regex = "1"
+# Dates and times: formatting, parsing, local time zone offset.
+time = { version = "0.3", features = ["formatting", "parsing", "macros", "local-offset"] }
+# Standard per-user folders (Linux ~/.config, Windows %APPDATA%, and so on).
+dirs = "7"
+# Program events with levels (error, warn, info, debug). See src/logging.rs.
+tracing = "0.1"
+# Only the parts we use: the layer registry, and "tracing-log", which forwards
+# messages from Tauri's libraries (they use the older `log` crate).
+tracing-subscriber = { version = "0.3", default-features = false, features = ["std", "registry", "tracing-log"] }
 
 # Builds with plain cargo (no Tauri CLI, no Node). With no devUrl the
 # frontend in ../ui is always embedded, so custom-protocol stays on.

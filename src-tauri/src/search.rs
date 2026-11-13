@@ -9,7 +9,7 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::debug_log;
+use tracing::{info, warn};
 use crate::files::{self, short_text, FileStatus};
 
 const SEARCH_FILE: &str = "search.json";
@@ -119,9 +119,9 @@ fn parse(text: &str) -> Result<(Vec<SearchEntry>, Vec<String>), String> {
     Ok((entries, skipped))
 }
 
-/// search.json sits next to config.json, beside the executable.
+/// search.json sits next to config.json in the settings folder.
 pub fn search_path() -> PathBuf {
-    crate::app_dir().join(SEARCH_FILE)
+    crate::settings_dir().join(SEARCH_FILE)
 }
 
 pub fn load(path: PathBuf) -> SearchReply {
@@ -136,12 +136,16 @@ pub fn load(path: PathBuf) -> SearchReply {
     let Some(text) = text else { return reply };
     match parse(&text) {
         Ok((entries, skipped)) => {
-            debug_log(&format!("search: {} loaded, {} skipped", entries.len(), skipped.len()));
+            if skipped.is_empty() {
+                info!("search: {} loaded", entries.len());
+            } else {
+                warn!("search: {} loaded, {} skipped", entries.len(), skipped.len());
+            }
             reply.entries = entries;
             reply.skipped = skipped;
         }
         Err(e) => {
-            debug_log(&format!("search: invalid file: {e}"));
+            warn!("search: invalid file: {e}");
             reply.status = FileStatus::Invalid;
             reply.skipped = vec![e];
         }

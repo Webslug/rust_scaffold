@@ -58,6 +58,12 @@
   --space-4: 1.5rem;
   --space-5: 2.5rem;
   --space-6: 4rem;
+  /* Right padding of a select: room for the chevron plus a gap. */
+  --select-chevron-space: 2.5rem;
+  /* Jobs tab: narrowest form field, and the size of a progress bar. */
+  --jobs-field-min: 8rem;
+  --jobs-bar-width: 6rem;
+  --jobs-bar-height: 0.6rem;
 
   /* Shadow */
 

@@ -8,7 +8,7 @@ use std::path::Path;
 
 use serde::Serialize;
 
-use crate::debug_log;
+use tracing::{error, info, warn};
 
 #[derive(Serialize, Clone, Copy, Debug, PartialEq)]
 #[serde(rename_all = "snake_case")]
@@ -26,26 +26,26 @@ pub fn read_or_create(path: &Path, default: &str, max_bytes: u64, name: &str) ->
     match fs::metadata(path) {
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => match fs::write(path, default) {
             Ok(()) => {
-                debug_log(&format!("{name}: not found, created with defaults"));
+                info!("{name}: not found, created with defaults");
                 (FileStatus::Created, Some(default.to_string()))
             }
             Err(e) => {
-                debug_log(&format!("{name}: could not create file: {e}"));
+                error!("{name}: could not create file: {e}");
                 (FileStatus::Unreadable, None)
             }
         },
         Err(e) => {
-            debug_log(&format!("{name}: cannot stat file: {e}"));
+            error!("{name}: cannot stat file: {e}");
             (FileStatus::Unreadable, None)
         }
         Ok(meta) if meta.len() > max_bytes => {
-            debug_log(&format!("{name}: {} bytes exceeds the limit, not loaded", meta.len()));
+            warn!("{name}: {} bytes exceeds the limit, not loaded", meta.len());
             (FileStatus::TooLarge, None)
         }
         Ok(_) => match fs::read_to_string(path) {
             Ok(text) => (FileStatus::Ok, Some(text)),
             Err(e) => {
-                debug_log(&format!("{name}: read failed: {e}"));
+                error!("{name}: read failed: {e}");
                 (FileStatus::Unreadable, None)
             }
         },

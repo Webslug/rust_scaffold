@@ -42,7 +42,8 @@ core. The release binary is about 4.5 MB, well under the 50 MB target.
   has its own search, filter and data-table view; colours follow the selected theme.
 - A tray icon with a context menu you can extend from the settings file, and an
   optional start-minimised mode.
-- A settings file (`config.json`) beside the executable. It is created on first
+- A settings file (`config.json`) in the per-user settings folder
+  (`~/.config/rust_scaffold` on Linux, `%APPDATA%\rust_scaffold` on Windows). It is created on first
   run, is never read if it is larger than 5 MiB, and is never overwritten when
   it cannot be read.
 - An Options tab that edits settings in the app. Its controls (switches,
@@ -52,6 +53,11 @@ core. The release binary is about 4.5 MB, well under the 50 MB target.
 - GPU rendering by default on Linux with the NVIDIA driver (see
   [GPU rendering](#gpu-rendering)), with an automatic fall back to the CPU and
   a switch on the Options tab.
+- An Errors page: warnings and errors (including JavaScript errors) appear the
+  moment they happen, pushed from Rust through the `tracing` crate.
+- A Jobs page backed by a Tokio job queue in Rust: 1 to 3 jobs run at once,
+  the rest wait in order; inspect or kill any job. A ready base for apps that
+  need background work.
 - Example of the interface calling a Rust command.
 - Bootstrap 5 and Bootstrap Icons, bundled locally. The app works offline.
 
@@ -108,7 +114,10 @@ Built and tested on 13 November 2026 with:
 - Rust (rustc) 1.100.0, Cargo 1.100.0, rustup 1.29.3, stable channel
 - Tauri 2.12.5, tauri-build 2.7.4 (wry 0.57.2, tao 0.37.2, tray-icon 0.25.1)
 - serde 1.0.229, serde_json 1.0.151
-- 434 crates in total, pinned in `src-tauri/Cargo.lock`
+- tokio 1.53.1 (async, job queue), regex 1.13.1, time 0.3.55 (dates and
+  times), dirs 7.0.0 (settings folder), tracing 0.1.44 and
+  tracing-subscriber 0.3.23 (Errors page)
+- 436 crates in total, pinned in `src-tauri/Cargo.lock`
 - WebKitGTK 2.50.4, GTK 3.24.33, Ubuntu 22.04 (Lubuntu, LXQt, X11)
 
 The app shows the versions it was actually compiled with on the Help page,
@@ -188,7 +197,17 @@ executable (`dist/` when started with `run.sh`), wherever it is started from.
 
 ## Settings
 
-`config.json` is created beside the executable (in `dist/`) on first run. The app writes your
+`config.json`, `options.json` and `search.json` live in the per-user settings
+folder, found with the `dirs` crate: `~/.config/rust_scaffold` on Linux and
+`%APPDATA%\rust_scaffold` on Windows. This works even when the program is
+installed somewhere it cannot write, such as `C:\Program Files`. The folder is
+created on first run. If it has no `config.json` yet, the files from the
+program's own folder (where versions before 0.2.2 kept them) are copied in
+once; the originals are left alone. The environment variable
+`RUST_SCAFFOLD_DIR` points the app at another folder (the benchmark uses it).
+The Help page shows the folder in use.
+
+`config.json` is created on first run. The app writes your
 theme, window size, title bar state, panel order and collapsed panels to it. You
 can also edit it by hand while the app is closed.
 
@@ -355,7 +374,7 @@ setting. Every other option on the tab works.
   the matching file under `ui/css/`, using the tokens in `variables.css`.
 - Validate every new `config.json` key in `src-tauri/src/config.rs`.
 - `DEBUG_MODE` in `src-tauri/src/lib.rs` (false by default) writes
-  `debug.log` beside the executable when true.
+  `debug.log` in the settings folder when true.
 
 ## Known limitations
 

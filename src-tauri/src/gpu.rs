@@ -10,7 +10,7 @@
 
 use std::sync::OnceLock;
 
-use crate::debug_log;
+use tracing::{info};
 
 const FORCE_RENDERER: &str = "WEBKIT_FORCE_DMABUF_RENDERER";
 const FORCE_SHM: &str = "WEBKIT_DMABUF_RENDERER_FORCE_SHM";
@@ -43,7 +43,7 @@ fn decide(enabled: bool) -> &'static str {
 /// Chooses the rendering path. Call before the Tauri builder starts.
 pub fn apply(enabled: bool) {
     let mode = if cfg!(target_os = "linux") { decide(enabled) } else { "WebKit default" };
-    debug_log(&format!("rendering: {mode}"));
+    info!("rendering: {mode}");
     let _ = MODE.set(mode);
 }
 

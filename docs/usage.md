@@ -16,12 +16,22 @@ file instead, see below). `run.bat` does the same on Windows: it launches
 copies it to `dist\` (stopping without launching if the build fails). Not yet
 tested on Windows.
 
-Settings live beside the executable, not in the working directory:
-`config.json`, `options.json` and `debug.log` are read from and written to the
-folder that holds the binary (normally `dist/`). Starting the app from a
-terminal, a file manager or a shortcut makes no difference, and a symlink to
-the binary uses the real file's folder. To move the app, move the binary
-together with its two JSON files.
+Settings live in the per-user settings folder, found with the `dirs` crate:
+`config.json`, `options.json`, `search.json` and `debug.log` are read from and
+written to `~/.config/rust_scaffold` on Linux (or `$XDG_CONFIG_HOME/rust_scaffold`)
+and `%APPDATA%\rust_scaffold` on Windows. The program itself can sit anywhere,
+including a read-only folder such as `C:\Program Files`, and starting it from a
+terminal, a file manager or a shortcut makes no difference. The folder is
+worked out once per run (`settings_dir()` in `src-tauri/src/lib.rs`):
+
+1. `RUST_SCAFFOLD_DIR`, if set. The folder is created if missing and nothing is
+   copied into it. Use it for tests and benchmarks, for example
+   `RUST_SCAFFOLD_DIR=/tmp/try dist/rust-scaffold`.
+2. The per-user folder. When it has no `config.json`, the three JSON files are
+   copied in once from the program's own folder (where versions before 0.2.2
+   kept them). The originals are not changed or deleted.
+3. The program's own folder, only if the per-user folder cannot be found or
+   created.
 
 The UI in `ui/` is embedded in the binary at compile time. After editing any
 HTML, CSS or JavaScript, run the script again (an incremental rebuild takes
@@ -72,6 +82,8 @@ setting in the app. You can also edit it by hand while the app is closed.
 | `strong_focus` | `false` | Thicker keyboard focus ring |
 | `reduce_motion` | `false` | No transitions or animations, whatever the system setting |
 | `hardware_acceleration` | `true` | Draw the page on the graphics card where supported (NVIDIA on Linux needs kernel mode setting, see `docs/gpu_rendering.md`). Applies at the next start |
+| `error_log_max` | `100` | Errors and warnings kept on the Errors page, clamped to 10..1000 |
+| `job_concurrency` | `2` | Jobs the job queue runs at once, clamped to 1..3 |
 | `extras` | `{}` | Settings defined only in `options.json` (see Options tab) |
 
 Rules enforced by `src-tauri/src/config.rs`:
@@ -96,7 +108,7 @@ Rules enforced by `src-tauri/src/config.rs`:
 ## Options tab
 
 The Options tab edits settings inside the app. Which controls it shows, and
-how, comes from `options.json` beside the executable, not from the code:
+how, comes from `options.json` in the settings folder, not from the code:
 
 - `config.json` holds the values.
 - `options.json` describes the controls: a label on each shelf, not the
@@ -273,6 +285,45 @@ set by `ui/js/app.js`) and the tokens in `ui/css/variables.css`. The system
 settings `prefers-contrast` and `prefers-reduced-motion` still work on their
 own, through `accessibility.css`.
 
+## Errors
+
+Lists warnings and errors since the app started, newest first, including
+JavaScript errors from the page (`ui/js/errors.js` loads first to catch them).
+Rust code logs with the `tracing` macros (`error!`, `warn!`, `info!`,
+`debug!`); the layer in `src-tauri/src/logging.rs` keeps the newest
+`error_log_max` warnings and errors and pushes each one to the window as a
+`log:entry` event, so the page updates instantly without polling. A red count
+on the menu entry shows new entries while another page is open. Filter, Copy,
+Clear and Test (records a test error) are in the toolbar.
+
+## Jobs and the Tokio job queue
+
+`src-tauri/src/jobs.rs` runs jobs as Tokio tasks on Tauri's own runtime, at
+most `job_concurrency` (1 to 3) at once; the rest wait in order. Every change
+is pushed to the window as a `jobs:changed` event with a rising `seq` number,
+so the page keeps the newest copy of each job.
+
+The only job kind is a mock count job: count from 1 to N (at most 100) with a
+pause of 100 to 10000 ms between counts, and an optional step at which it
+fails on purpose. The Jobs page adds jobs (one or five at a time), sets
+"At once" (saved as `job_concurrency`, also on the Options tab), kills one job
+or all of them, clears finished jobs, and inspects a job (times, progress,
+Tokio task id, whether Tokio has dropped the task, place in the queue). The
+summary shows Tokio's worker threads, live tasks and run queue depth. "Late by"
+is how much later than asked each pause ended.
+
+To add a job kind: write an `async fn` like `run_count` that reports progress
+through the queue, add a `start_...` method that validates its input, and a
+command in `commands.rs`. The interface can only start kinds defined in Rust.
+
+Limits to know:
+- Kill uses Tokio's `AbortHandle`, which stops a task only at an `.await`.
+  Long work without awaits cannot be killed this way: split it into steps, or
+  run it with `spawn_blocking` and check a cancel flag.
+- The release build uses `panic = "abort"`, so a panic in a job ends the app.
+  Return an error instead; the job shows as Failed.
+- Up to 200 jobs may wait; the newest 50 finished jobs are kept.
+
 ## Help
 
 The last tab. It explains how to use the app, holds a short change log, names
@@ -428,7 +479,7 @@ hand with the window maximised before keeping it.
 ## Use as a template for a new project
 
 Copy the folder, delete `src-tauri/target` and `dist/` (which holds the built
-binary, `config.json`, `options.json` and `debug.log`), then
+binary, and before 0.2.2 also the settings files), then
 rename:
 
 | File | What to change |
@@ -439,6 +490,7 @@ rename:
 | `build.sh`, `run.sh`, `run.bat` | the binary name in `BIN` and the `.exe` path |
 | `ui/index.html` | `<title>` and the title bar text |
 | `src-tauri/icons/` | replace the icons; the tray uses the default window icon |
+| `src-tauri/src/lib.rs` | `APP_FOLDER` (settings folder name) and `DIR_OVERRIDE` (its environment variable); otherwise a copied app shares the template's settings |
 
 Then run `./run.sh`. Do not copy `target/`.
 
@@ -446,8 +498,10 @@ Then run `./run.sh`. Do not copy `target/`.
 
 `DEBUG_MODE` is a constant at the top of `src-tauri/src/lib.rs`, `false` by
 default. Set it to `true` and rebuild to write program events (startup,
-config load, save and refusal, size restore, tray actions) to `debug.log` beside the
-executable. With `false` no log file is written.
+config load, save and refusal, size restore, tray actions) to `debug.log` in the
+settings folder. With `false` no log file is written. When the file passes
+1 MiB it is cut to its newest half at a line boundary. Warnings and errors
+reach the Errors page either way.
 
 ## Troubleshooting
 

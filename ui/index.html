@@ -63,6 +63,12 @@
         <li class="nav-item" role="presentation">
           <button type="button" class="nav-link" id="tab-options" data-bs-toggle="tab" data-bs-target="#page-options" role="tab" aria-controls="page-options" aria-selected="false"><i class="bi bi-sliders"></i><span class="tab-label">Options</span></button>
         </li>
+        <li class="nav-item" role="presentation">
+          <button type="button" class="nav-link" id="tab-jobs" data-bs-toggle="tab" data-bs-target="#page-jobs" role="tab" aria-controls="page-jobs" aria-selected="false"><i class="bi bi-list-task"></i><span class="tab-label">Jobs</span></button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button type="button" class="nav-link" id="tab-errors" data-bs-toggle="tab" data-bs-target="#page-errors" role="tab" aria-controls="page-errors" aria-selected="false"><i class="bi bi-bug"></i><span class="tab-label">Errors</span><span id="errors-badge" class="tab-count d-none" aria-label="new errors and warnings"></span></button>
+        </li>
         <li class="nav-item nav-item-help" role="presentation">
           <button type="button" class="nav-link" id="tab-help" data-bs-toggle="tab" data-bs-target="#page-help" role="tab" aria-controls="page-help" aria-selected="false"><i class="bi bi-question-circle"></i><span class="tab-label">Help</span></button>
         </li>
@@ -353,6 +359,90 @@
           <div id="options-problems" class="alert alert-warning d-none" role="alert"></div>
           <div id="options-groups" class="options-groups"></div>
         </div>
+        <div class="tab-pane" id="page-jobs" role="tabpanel" aria-labelledby="tab-jobs" tabindex="0">
+          <form id="jobs-form" class="card card-custom jobs-form" novalidate>
+            <div class="card-body">
+              <div class="jobs-fields">
+                <div>
+                  <label class="form-label" for="jobs-count">Count to</label>
+                  <input type="number" id="jobs-count" class="form-control" min="1" max="100" step="1" value="20" required>
+                </div>
+                <div>
+                  <label class="form-label" for="jobs-delay">Pause (ms)</label>
+                  <input type="number" id="jobs-delay" class="form-control" min="100" max="10000" step="100" value="1000" required>
+                </div>
+                <div>
+                  <label class="form-label" for="jobs-fail">Fail at step</label>
+                  <input type="number" id="jobs-fail" class="form-control" min="1" max="100" step="1" placeholder="Never">
+                </div>
+                <div>
+                  <label class="form-label" for="jobs-limit">At once</label>
+                  <select id="jobs-limit" class="form-select">
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                  </select>
+                </div>
+              </div>
+              <div class="jobs-actions">
+                <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>Add job</button>
+                <button type="button" id="btn-jobs-add5" class="btn btn-secondary btn-sm"><i class="bi bi-plus-square me-1"></i>Add 5</button>
+                <button type="button" id="btn-jobs-cancel-all" class="btn btn-secondary btn-sm"><i class="bi bi-x-octagon me-1"></i>Kill all</button>
+                <button type="button" id="btn-jobs-clear" class="btn btn-secondary btn-sm"><i class="bi bi-eraser me-1"></i>Clear finished</button>
+              </div>
+              <p id="jobs-status" class="jobs-status" role="status" aria-live="polite"></p>
+            </div>
+          </form>
+          <div class="card card-custom">
+            <div class="table-responsive">
+              <table class="table table-custom table-hover mb-0 jobs-table">
+                <caption class="visually-hidden">Jobs in the queue, running and finished</caption>
+                <thead>
+                  <tr><th scope="col">Job</th><th scope="col">State</th><th scope="col">Progress</th><th scope="col">Waited</th><th scope="col">Ran</th><th scope="col" title="How much later than asked each pause ended: average and worst">Late by</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr>
+                </thead>
+                <tbody id="jobs-rows"></tbody>
+              </table>
+            </div>
+          </div>
+          <div id="jobs-inspect" class="card card-custom jobs-inspect d-none" aria-live="polite">
+            <div class="card-header">
+              <h2 class="h6 card-header-title mb-0" id="jobs-inspect-title">Job</h2>
+              <button type="button" id="btn-jobs-inspect-close" class="btn btn-secondary btn-sm jobs-inspect-close" aria-label="Close the details" title="Close"><i class="bi bi-x-lg"></i></button>
+            </div>
+            <div class="card-body">
+              <dl id="jobs-inspect-list" class="jobs-inspect-list mb-0"></dl>
+            </div>
+          </div>
+          <p class="jobs-note">Each job runs in Rust as a Tokio task and counts from 1 to the number given, pausing between counts. Jobs beyond the "At once" limit wait in the queue. Kill stops a queued job before it starts, or a running job at its next pause. "Late by" shows how much later than asked the pauses ended, which rises when the machine is busy.</p>
+        </div>
+        <div class="tab-pane" id="page-errors" role="tabpanel" aria-labelledby="tab-errors" tabindex="0">
+          <div class="errors-toolbar">
+            <label class="visually-hidden" for="errors-filter">Show</label>
+            <select id="errors-filter" class="form-select form-select-sm errors-filter">
+              <option value="all">Errors and warnings</option>
+              <option value="error">Errors only</option>
+              <option value="warn">Warnings only</option>
+            </select>
+            <div class="errors-actions">
+              <button type="button" id="btn-errors-copy" class="btn btn-secondary btn-sm"><i class="bi bi-clipboard me-1"></i>Copy</button>
+              <button type="button" id="btn-errors-clear" class="btn btn-secondary btn-sm"><i class="bi bi-trash me-1"></i>Clear</button>
+              <button type="button" id="btn-errors-test" class="btn btn-secondary btn-sm" title="Records a test error, to check the list updates"><i class="bi bi-lightning me-1"></i>Test</button>
+            </div>
+            <p id="errors-status" class="errors-status" role="status" aria-live="polite"></p>
+          </div>
+          <div class="card card-custom">
+            <div class="table-responsive">
+              <table class="table table-custom table-hover mb-0 errors-table">
+                <caption class="visually-hidden">Errors and warnings since the app started, newest first</caption>
+                <thead>
+                  <tr><th scope="col">Time</th><th scope="col">Level</th><th scope="col">Source</th><th scope="col">Message</th></tr>
+                </thead>
+                <tbody id="errors-rows"></tbody>
+              </table>
+            </div>
+          </div>
+          <p id="errors-note" class="errors-note"></p>
+        </div>
         <div class="tab-pane" id="page-help" role="tabpanel" aria-labelledby="tab-help" tabindex="0">
           <div class="help-page">
             <section class="card card-custom" id="help-usage" aria-labelledby="help-usage-title">
@@ -361,6 +451,10 @@
                 <dl class="help-list">
                   <dt>Moving between pages</dt>
                   <dd>Choose a page from the menu. On the Options tab, Menu layout switches between tabs across the top (Horizontal) and a menu down the left side (Vertical). In the vertical menu, the button at the top left contracts the menu to icons and expands it again. The app remembers your choice.</dd>
+                  <dt>Jobs</dt>
+                  <dd>The Jobs page starts mock jobs that run in Rust as Tokio tasks and count up to a number, pausing between counts. "At once" sets how many run at the same time (1 to 3, also on the Options tab); the rest wait in the queue. Each row shows progress, time spent waiting and running, and how late the pauses ended. Inspect shows a job's details, including its Tokio task, and Kill stops it: before it starts if it is still queued, or at its next pause if it is running. "Fail at step" makes a job fail on purpose, to test error handling.</dd>
+                  <dt>Errors</dt>
+                  <dd>The Errors page lists errors and warnings since the app started, newest first, including errors in the page's own scripts. New ones appear at once; while another page is open, a red count on the Errors menu entry shows how many arrived. Copy puts the list on the clipboard, Clear empties it, and Test records a test error. Options, Errors kept, sets how many are kept (10 to 1000, default 100).</dd>
                   <dt>Searching</dt>
                   <dd>In the vertical menu, type at least three letters into Search, for example "dash" or "theme". Use Up and Down to choose a result and Enter to go straight to it. Escape closes the list. Ctrl+K moves to the search box. When the menu is contracted, the magnifying glass expands it and opens the search.</dd>
                   <dt>Themes</dt>
@@ -386,6 +480,7 @@
               <div class="card-header"><h2 class="h6 card-header-title mb-0" id="help-changelog-title"><i class="bi bi-journal-text me-2" aria-hidden="true"></i>Change log</h2></div>
               <div class="card-body">
                 <ul class="help-changelog">
+                  <li><strong>0.2.2, 13 November 2026.</strong> Settings move to the per-user settings folder (~/.config/rust_scaffold on Linux, %APPDATA%\rust_scaffold on Windows), so the app also works when installed in a read-only folder. Settings from earlier versions are copied across on first start. New Errors page: errors and warnings appear the moment they happen (tracing crate), with an optional size-capped debug.log. New Jobs page: a Tokio job queue running 1 to 3 jobs at once, with inspect and kill.</li>
                   <li><strong>0.2.1, 13 November 2026.</strong> Built with Rust 1.100 and Tauri 2.12.5. New Build section on this page shows when the app was compiled, the Rust and Cargo versions and the crates it uses.</li>
                   <li><strong>0.2.0, 13 November 2026.</strong> Vertical menu (now the default) with contract and expand, menu search with a configurable library (search.json), this Help page, title bar size, text size and accessibility options. Options tab driven by options.json, icon-only tabs when space is short, settings kept beside the program.</li>
                   <li><strong>0.1.0, 12 November 2026.</strong> First version: frameless rounded window, 14 themes, saved settings, tray icon, reorderable cards and panels, tables, charts and table search. Shadows and blur removed so the window stays fast when maximised.</li>
@@ -425,6 +520,7 @@
     </main>
   </div>
 
+  <script src="js/errors.js"></script>
   <script src="js/bootstrap.bundle.min.js"></script>
   <script src="js/window.js"></script>
   <script src="js/tabs_fit.js"></script>
@@ -437,6 +533,7 @@
   <script src="js/options.js"></script>
   <script src="js/search.js"></script>
   <script src="js/help.js"></script>
+  <script src="js/jobs.js"></script>
 </body>
 </html>
   

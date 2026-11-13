@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::config::is_extra_key;
-use crate::debug_log;
+use tracing::{info, warn};
 use crate::files::{self, FileStatus};
 
 const OPTIONS_FILE: &str = "options.json";
@@ -104,11 +104,12 @@ fn kind_of(control: &str) -> Kind {
 fn known_field(key: &str) -> Option<&'static [Kind]> {
     match key {
         "theme" => Some(&[Kind::Choice]),
-        "width" | "height" => Some(&[Kind::Number]),
+        "width" | "height" | "error_log_max" => Some(&[Kind::Number]),
         "show_titlebar" | "rounded_corners" | "start_minimised" | "menu_collapsed" | "high_contrast"
         | "large_targets" | "underline_links" | "strong_focus" | "reduce_motion"
         | "hardware_acceleration" => Some(&[Kind::Bool]),
         "menu_layout" | "titlebar_scale" | "text_size" => Some(&[Kind::Choice]),
+        "job_concurrency" => Some(&[Kind::Choice, Kind::Number]),
         _ => None,
     }
 }
@@ -297,9 +298,9 @@ fn parse(text: &str) -> Result<(Vec<OptionSpec>, Vec<String>), String> {
     Ok((options, skipped))
 }
 
-/// options.json sits next to config.json, beside the executable.
+/// options.json sits next to config.json in the settings folder.
 pub fn options_path() -> PathBuf {
-    crate::app_dir().join(OPTIONS_FILE)
+    crate::settings_dir().join(OPTIONS_FILE)
 }
 
 pub fn load(path: PathBuf) -> OptionsReply {
@@ -314,12 +315,16 @@ pub fn load(path: PathBuf) -> OptionsReply {
     let Some(text) = text else { return reply };
     match parse(&text) {
         Ok((options, skipped)) => {
-            debug_log(&format!("options: {} loaded, {} skipped", options.len(), skipped.len()));
+            if skipped.is_empty() {
+                info!("options: {} loaded", options.len());
+            } else {
+                warn!("options: {} loaded, {} skipped", options.len(), skipped.len());
+            }
             reply.options = options;
             reply.skipped = skipped;
         }
         Err(e) => {
-            debug_log(&format!("options: invalid file: {e}"));
+            warn!("options: invalid file: {e}");
             reply.status = OptionsStatus::Invalid;
             reply.skipped = vec![e];
         }

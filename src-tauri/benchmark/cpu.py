@@ -85,6 +85,7 @@ def one_round(binary, fixture, steps, layout):
         shutil.copy2(binary, copy)
         process = subprocess.Popen(
             [str(copy)], cwd=workdir, stdin=subprocess.DEVNULL,
+            env={**os.environ, "RUST_SCAFFOLD_DIR": str(workdir)},
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True,
         )
         try:

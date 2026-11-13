@@ -1,8 +1,8 @@
 @echo off
 rem Launches the app from dist\ without building. Run "run.bat --build" to
 rem build the release executable, copy it to dist\, and then launch it.
-rem The app keeps config.json, options.json and debug.log beside its
-rem executable, in dist\.
+rem The app keeps config.json, options.json and debug.log in
+rem %APPDATA%\rust_scaffold (see docs\usage.md).
 setlocal
 cd /d "%~dp0"
 

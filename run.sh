@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Launches the app from dist/ without building. Run ./build.sh first, or
 # pass --build to build and then launch. The app keeps config.json,
-# options.json and debug.log beside its executable, in dist/.
+# options.json and debug.log in ~/.config/rust_scaffold (see docs/usage.md).
 set -uo pipefail
 
 cd "$(dirname "$(readlink -f "$0")")"

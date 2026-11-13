@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::debug_log;
+use tracing::{error, info, warn};
 
 /// Files larger than this are never read.
 pub const MAX_CONFIG_BYTES: u64 = 5 * 1024 * 1024;
@@ -82,6 +82,12 @@ pub struct Config {
     /// Draw the page on the GPU where the system supports it. Read once at
     /// startup, so a change applies the next time the app starts.
     pub hardware_acceleration: bool,
+    /// How many of the newest errors and warnings the Errors tab keeps,
+    /// 10 to 1000. Older entries are removed.
+    pub error_log_max: u32,
+    /// How many jobs the job queue runs at once, 1 to 3 (see jobs.rs). More
+    /// wait in the queue.
+    pub job_concurrency: u32,
     /// Settings defined only in options.json, unknown to this struct. Kept
     /// here so saving never drops them. Values are booleans, numbers or text.
     pub extras: BTreeMap<String, Value>,
@@ -109,6 +115,8 @@ impl Default for Config {
             strong_focus: false,
             reduce_motion: false,
             hardware_acceleration: true,
+            error_log_max: crate::logging::DEFAULT_MAX_ENTRIES,
+            job_concurrency: crate::jobs::DEFAULT_CONCURRENCY,
             extras: BTreeMap::new(),
         }
     }
@@ -198,7 +206,11 @@ impl Config {
             self.text_size = defaults.text_size;
         }
         self.width = self.width.clamp(MIN_SIZE, MAX_SIZE);
+        self.error_log_max = self
+            .error_log_max
+            .clamp(crate::logging::MIN_ENTRIES, crate::logging::MAX_ENTRIES);
         self.height = self.height.clamp(MIN_SIZE, MAX_SIZE);
+        self.job_concurrency = crate::jobs::clamp_limit(self.job_concurrency);
         Ok(self)
     }
 }
@@ -227,9 +239,9 @@ pub struct ConfigState {
     pub status: LoadStatus,
 }
 
-/// config.json lives beside the executable.
+/// config.json lives in the settings folder (see `settings_dir`).
 pub fn config_path() -> PathBuf {
-    crate::app_dir().join(CONFIG_FILE)
+    crate::settings_dir().join(CONFIG_FILE)
 }
 
 pub fn load(path: PathBuf) -> ConfigState {
@@ -238,30 +250,30 @@ pub fn load(path: PathBuf) -> ConfigState {
             let defaults = Config::default();
             match write_atomic(&path, &defaults) {
                 Ok(()) => {
-                    debug_log("config: not found, created with defaults");
+                    info!("config: not found, created with defaults");
                     (defaults, LoadStatus::Created)
                 }
                 Err(e) => {
-                    debug_log(&format!("config: could not create file: {e}"));
+                    error!("config: could not create file: {e}");
                     (defaults, LoadStatus::Unreadable)
                 }
             }
         }
         Err(e) => {
-            debug_log(&format!("config: cannot stat file: {e}"));
+            error!("config: cannot stat file: {e}");
             (Config::default(), LoadStatus::Unreadable)
         }
         Ok(meta) if meta.len() > MAX_CONFIG_BYTES => {
-            debug_log(&format!(
+            warn!(
                 "config: {} bytes exceeds the {} byte limit, not loaded",
                 meta.len(),
                 MAX_CONFIG_BYTES
-            ));
+            );
             (Config::default(), LoadStatus::TooLarge)
         }
         Ok(_) => match fs::read_to_string(&path) {
             Err(e) => {
-                debug_log(&format!("config: read failed: {e}"));
+                error!("config: read failed: {e}");
                 (Config::default(), LoadStatus::Unreadable)
             }
             Ok(text) => match serde_json::from_str::<Config>(&text)
@@ -269,11 +281,11 @@ pub fn load(path: PathBuf) -> ConfigState {
                 .and_then(Config::validate)
             {
                 Ok(config) => {
-                    debug_log("config: loaded");
+                    info!("config: loaded");
                     (config, LoadStatus::Ok)
                 }
                 Err(e) => {
-                    debug_log(&format!("config: invalid, using defaults: {e}"));
+                    warn!("config: invalid, using defaults: {e}");
                     (Config::default(), LoadStatus::Invalid)
                 }
             },
@@ -284,15 +296,15 @@ pub fn load(path: PathBuf) -> ConfigState {
 
 pub fn save(state: &mut ConfigState, config: Config) -> Result<(), String> {
     if !state.status.saving_allowed() {
-        debug_log("config: save refused, file was not loaded cleanly");
+        warn!("config: save refused, file was not loaded cleanly");
         return Err("saving is disabled because config.json could not be loaded".into());
     }
     let config = config.validate()?;
     write_atomic(&state.path, &config).map_err(|e| {
-        debug_log(&format!("config: save failed: {e}"));
+        error!("config: save failed: {e}");
         format!("could not write config.json: {e}")
     })?;
-    debug_log("config: saved");
+    info!("config: saved");
     state.config = config;
     Ok(())
 }
@@ -453,6 +465,8 @@ mod tests {
         cfg.strong_focus = true;
         cfg.reduce_motion = true;
         cfg.hardware_acceleration = false;
+        cfg.error_log_max = 250;
+        cfg.job_concurrency = 3;
         save(&mut state, cfg.clone()).unwrap();
         assert_eq!(load(path).config, cfg);
     }
@@ -469,6 +483,25 @@ mod tests {
         assert!(state.config.hardware_acceleration);
         assert_eq!(state.config.titlebar_scale, 100);
         assert_eq!(state.config.text_size, 100);
+        // Older files without the key keep the default error list size.
+        assert_eq!(state.config.error_log_max, 100);
+        assert_eq!(state.config.job_concurrency, 2);
+    }
+
+    #[test]
+    fn job_concurrency_is_clamped() {
+        for (given, kept) in [(0, 1), (1, 1), (2, 2), (3, 3), (4, 3), (100, 3)] {
+            let cfg = Config { job_concurrency: given, ..Config::default() };
+            assert_eq!(cfg.validate().unwrap().job_concurrency, kept, "given {given}");
+        }
+    }
+
+    #[test]
+    fn error_log_max_is_clamped() {
+        for (given, kept) in [(0, 10), (9, 10), (10, 10), (500, 500), (1000, 1000), (5000, 1000)] {
+            let cfg = Config { error_log_max: given, ..Config::default() };
+            assert_eq!(cfg.validate().unwrap().error_log_max, kept, "given {given}");
+        }
     }
 
     #[test]
