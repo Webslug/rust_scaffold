@@ -2617,7 +2617,7 @@ dependencies = [
 
 [[package]]
 name = "rust-scaffold"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "dirs",
  "log",

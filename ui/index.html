@@ -394,11 +394,11 @@
             </div>
           </form>
           <div class="card card-custom">
-            <div class="table-responsive">
+            <div class="table-responsive jobs-table-wrap">
               <table class="table table-custom table-hover mb-0 jobs-table">
                 <caption class="visually-hidden">Jobs in the queue, running and finished</caption>
                 <thead>
-                  <tr><th scope="col">Job</th><th scope="col">State</th><th scope="col">Progress</th><th scope="col">Waited</th><th scope="col">Ran</th><th scope="col" title="How much later than asked each pause ended: average and worst">Late by</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr>
+                  <tr><th scope="col">Job</th><th scope="col">State</th><th scope="col">Progress</th><th scope="col" class="jobs-extra">Waited</th><th scope="col" class="jobs-narrow-hide">Ran</th><th scope="col" class="jobs-extra" title="How much later than asked each pause ended: average and worst">Late by</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr>
                 </thead>
                 <tbody id="jobs-rows"></tbody>
               </table>
@@ -456,7 +456,7 @@
                   <dt>Errors</dt>
                   <dd>The Errors page lists errors and warnings since the app started, newest first, including errors in the page's own scripts. New ones appear at once; while another page is open, a red count on the Errors menu entry shows how many arrived. Copy puts the list on the clipboard, Clear empties it, and Test records a test error. Options, Errors kept, sets how many are kept (10 to 1000, default 100).</dd>
                   <dt>Searching</dt>
-                  <dd>In the vertical menu, type at least three letters into Search, for example "dash" or "theme". Use Up and Down to choose a result and Enter to go straight to it. Escape closes the list. Ctrl+K moves to the search box. When the menu is contracted, the magnifying glass expands it and opens the search.</dd>
+                  <dd>In the vertical menu, type at least three letters into Search, for example "dash" or "theme". Use Up and Down to choose a result and Enter to go straight to it. Escape closes the list. / or Ctrl+K moves to the search box (see Shortcut keys below). When the menu is contracted, the magnifying glass expands it and opens the search.</dd>
                   <dt>Themes</dt>
                   <dd>Pick a theme from the palette button in the title bar, or from Theme on the Options tab.</dd>
                   <dt>The title bar</dt>
@@ -472,14 +472,29 @@
                   <dt>Tray icon</dt>
                   <dd>Right-click the tray icon to show, hide or quit the app.</dd>
                   <dt>Settings files</dt>
-                  <dd>Your settings are kept in config.json in the folder shown below. options.json lists the controls on the Options tab, and search.json lists the places the search can find.</dd>
+                  <dd>Your settings are kept in config.json in the folder shown below. options.json lists the controls on the Options tab, search.json lists the places the search can find, and keys.json holds the shortcut keys.</dd>
                 </dl>
+              </div>
+            </section>
+            <section class="card card-custom" id="help-keys" aria-labelledby="help-keys-title">
+              <div class="card-header"><h2 class="h6 card-header-title mb-0" id="help-keys-title"><i class="bi bi-keyboard me-2" aria-hidden="true"></i>Shortcut keys</h2></div>
+              <div class="card-body">
+                <div class="table-responsive">
+                  <table class="table table-custom mb-0 help-keys">
+                    <caption class="visually-hidden">Shortcut keys and what they do</caption>
+                    <thead><tr><th scope="col">Key</th><th scope="col">Does</th></tr></thead>
+                    <tbody id="help-keys-rows"></tbody>
+                  </table>
+                </div>
+                <p class="help-keys-note">While you type in a text box, keys without Ctrl or Alt type as normal. Change the keys in keys.json, in the settings folder shown under About; changes apply when the app starts or this page is opened. <span id="help-keys-status"></span></p>
+                <div id="help-keys-problems" class="alert alert-warning mt-3 mb-0 d-none" role="alert"></div>
               </div>
             </section>
             <section class="card card-custom" id="help-changelog" aria-labelledby="help-changelog-title">
               <div class="card-header"><h2 class="h6 card-header-title mb-0" id="help-changelog-title"><i class="bi bi-journal-text me-2" aria-hidden="true"></i>Change log</h2></div>
               <div class="card-body">
                 <ul class="help-changelog">
+                  <li><strong>0.2.3, 13 November 2026.</strong> The Jobs table fits narrow windows: it hides Waited and Late by, then Ran and the bar, as space runs out (Inspect still shows them). Select boxes no longer draw their arrow over the text. New shortcut keys, set in keys.json in the settings folder: / or Ctrl+K for search, Alt+1 to Alt+9 for the pages, Escape to leave a text box. They are listed on this page.</li>
                   <li><strong>0.2.2, 13 November 2026.</strong> Settings move to the per-user settings folder (~/.config/rust_scaffold on Linux, %APPDATA%\rust_scaffold on Windows), so the app also works when installed in a read-only folder. Settings from earlier versions are copied across on first start. New Errors page: errors and warnings appear the moment they happen (tracing crate), with an optional size-capped debug.log. New Jobs page: a Tokio job queue running 1 to 3 jobs at once, with inspect and kill.</li>
                   <li><strong>0.2.1, 13 November 2026.</strong> Built with Rust 1.100 and Tauri 2.12.5. New Build section on this page shows when the app was compiled, the Rust and Cargo versions and the crates it uses.</li>
                   <li><strong>0.2.0, 13 November 2026.</strong> Vertical menu (now the default) with contract and expand, menu search with a configurable library (search.json), this Help page, title bar size, text size and accessibility options. Options tab driven by options.json, icon-only tabs when space is short, settings kept beside the program.</li>
@@ -533,6 +548,7 @@
   <script src="js/options.js"></script>
   <script src="js/search.js"></script>
   <script src="js/help.js"></script>
+  <script src="js/keys.js"></script>
   <script src="js/jobs.js"></script>
 </body>
 </html>

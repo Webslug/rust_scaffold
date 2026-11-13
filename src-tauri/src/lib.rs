@@ -3,6 +3,7 @@ mod config;
 mod files;
 mod gpu;
 mod jobs;
+mod keys;
 mod logging;
 mod options;
 mod search;
@@ -47,7 +48,8 @@ pub fn exe_dir() -> PathBuf {
         .unwrap_or_else(|| PathBuf::from("."))
 }
 
-/// The folder holding config.json, options.json, search.json and debug.log.
+/// The folder holding config.json, options.json, search.json, keys.json and
+/// debug.log.
 /// Worked out once per run:
 /// 1. `RUST_SCAFFOLD_DIR`, if set (created if missing; no files copied in).
 /// 2. The per-user config folder from the `dirs` crate plus `APP_FOLDER`.
@@ -159,6 +161,7 @@ pub fn run() {
             commands::save_config,
             commands::get_options,
             commands::get_search,
+            commands::get_keys,
             commands::get_errors,
             commands::clear_errors,
             commands::report_ui_error,

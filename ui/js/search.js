@@ -291,23 +291,19 @@
     }
   });
 
+  // Returns false when there is no search box (horizontal menu).
   function openSearch() {
-    if (root.getAttribute("data-menu") !== "vertical") { return; }
+    if (root.getAttribute("data-menu") !== "vertical") { return false; }
     if (window.AppMenu) { window.AppMenu.setCollapsed(false); }
     input.focus();
     input.select();
+    return true;
   }
 
   openButton.addEventListener("click", openSearch);
 
-  // Ctrl+K moves to the search box (vertical menu only).
-  document.addEventListener("keydown", function (e) {
-    if (e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey && lower(e.key) === "k") {
-      if (root.getAttribute("data-menu") !== "vertical") { return; }
-      e.preventDefault();
-      openSearch();
-    }
-  });
+  // Shortcut keys (keys.js) open the search through this.
+  window.AppSearch = { open: openSearch };
 
   load();
 })();

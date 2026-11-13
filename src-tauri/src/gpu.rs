@@ -35,6 +35,8 @@ fn decide(enabled: bool) -> &'static str {
     if !gbm_buffer_works() {
         return "CPU (GPU buffers unavailable, NVIDIA mode setting off)";
     }
+    // Safe here: no other thread exists yet. In edition 2024 set_var becomes
+    // an unsafe function for that reason, so this needs an unsafe block then.
     std::env::set_var(FORCE_RENDERER, "1");
     std::env::set_var(FORCE_SHM, "1");
     "GPU (NVIDIA)"

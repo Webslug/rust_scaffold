@@ -43,6 +43,43 @@
   white-space: nowrap;
 }
 
+/* The table measures its own width, not the window's, so the rule works
+   whether the menu is wide, icons only or along the top. When narrow,
+   Waited and Late by are hidden; narrower still, Ran and the bar go too
+   (the count stays). Inspect shows all of them. */
+.jobs-table-wrap {
+  container-type: inline-size;
+}
+
+@container (max-width: 40rem) {
+  .jobs-table .jobs-extra {
+    display: none;
+  }
+}
+
+@container (max-width: 28rem) {
+  .jobs-table .jobs-narrow-hide,
+  .jobs-progress progress {
+    display: none;
+  }
+
+  /* .app-content raises these above the shared table rule in window.css. */
+  .app-content .jobs-table.table-custom thead th,
+  .app-content .jobs-table.table-custom tbody td {
+    padding-inline: var(--space-1);
+  }
+
+  .app-content .jobs-table.table-custom thead th:first-child,
+  .app-content .jobs-table.table-custom tbody td:first-child {
+    padding-left: var(--space-2);
+  }
+
+  .app-content .jobs-table.table-custom thead th:last-child,
+  .app-content .jobs-table.table-custom tbody td:last-child {
+    padding-right: var(--space-2);
+  }
+}
+
 .jobs-table .jobs-empty {
   color: var(--text-muted);
   text-align: center;

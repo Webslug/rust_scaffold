@@ -81,7 +81,8 @@
       tr.appendChild(td);
       cells[key] = td;
     });
-    cells.wait.className = cells.run.className = cells.late.className = "jobs-number";
+    cells.run.className = "jobs-number jobs-narrow-hide";
+    cells.wait.className = cells.late.className = "jobs-number jobs-extra";
     cells.buttons.className = "jobs-buttons";
 
     cells.badge = document.createElement("span");

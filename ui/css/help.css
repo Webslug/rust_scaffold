@@ -49,3 +49,22 @@
   font-size: 0.85rem;
   word-break: break-all;
 }
+
+/* Shortcut keys cheat sheet. The description may wrap on narrow windows;
+   .app-content raises this above the no-wrap table rule in window.css. */
+.help-keys th:first-child,
+.help-keys td:first-child {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.app-content .help-keys tbody td:last-child {
+  white-space: normal;
+}
+
+.help-keys-note {
+  margin: var(--space-3) 0 0;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}

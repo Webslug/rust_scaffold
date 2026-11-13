@@ -58,6 +58,8 @@ core. The release binary is about 4.5 MB, well under the 50 MB target.
 - A Jobs page backed by a Tokio job queue in Rust: 1 to 3 jobs run at once,
   the rest wait in order; inspect or kill any job. A ready base for apps that
   need background work.
+- Shortcut keys set in `keys.json` (/ or Ctrl+K for search, Alt+1 to Alt+9
+  for the pages), with a cheat sheet on the Help page.
 - Example of the interface calling a Rust command.
 - Bootstrap 5 and Bootstrap Icons, bundled locally. The app works offline.
 
@@ -242,7 +244,8 @@ can also edit it by hand while the app is closed.
 
 `options.json`, also created on first run, decides which settings appear on
 the Options tab and how. `search.json` lists the places the menu search can
-find. Every key is documented in [docs/usage.md](docs/usage.md).
+find, and `keys.json` holds the shortcut keys. Every key is documented in
+[docs/usage.md](docs/usage.md).
 
 ## Project layout
 
@@ -259,10 +262,12 @@ find. Every key is documented in [docs/usage.md](docs/usage.md).
       fonts/, img/
     src-tauri/            the Rust side
       src/                main.rs, lib.rs, config.rs, options.rs, search.rs,
-                          files.rs, commands.rs, tray.rs, gpu.rs
+                          keys.rs, files.rs, commands.rs, tray.rs, gpu.rs,
+                          logging.rs, jobs.rs
       benchmark/          repeatable X11 desktop tests and saved results
       options.default.json  written as options.json when that file is missing
       search.default.json   written as search.json when that file is missing
+      keys.default.json     written as keys.json when that file is missing
       tauri.conf.json, capabilities/, icons/, Cargo.toml
 
 ## Building a new app from this template

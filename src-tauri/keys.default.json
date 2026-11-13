@@ -1,0 +1,17 @@
+{
+  "_note": "Shortcut keys. Each binding joins a key to an action. A key is one character such as \"/\" or \"?\", or a named key (Escape, Enter, Space, Home, End, PageUp, PageDown, Insert, Delete, Backspace, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, F1 to F12), with optional Ctrl+, Alt+ and Shift+ in front, for example \"Ctrl+Shift+P\". Shift+ only goes with letters and named keys: write \"?\" rather than \"Shift+/\". Actions: \"focus-search\" (the search box in the vertical menu), \"leave-field\" (move out of a text box), \"page:NAME\" (open a page: dashboard, panels, tables, cards, charts, options, jobs, errors, help). Keys without Ctrl or Alt are ignored while you type in a text box, except leave-field. Ctrl+A, C, V, X, Y and Z are kept for editing. Changes apply when the app starts or when the Help page is opened.",
+  "bindings": [
+    { "key": "/", "action": "focus-search" },
+    { "key": "Ctrl+K", "action": "focus-search" },
+    { "key": "Escape", "action": "leave-field" },
+    { "key": "Alt+1", "action": "page:dashboard" },
+    { "key": "Alt+2", "action": "page:panels" },
+    { "key": "Alt+3", "action": "page:tables" },
+    { "key": "Alt+4", "action": "page:cards" },
+    { "key": "Alt+5", "action": "page:charts" },
+    { "key": "Alt+6", "action": "page:options" },
+    { "key": "Alt+7", "action": "page:jobs" },
+    { "key": "Alt+8", "action": "page:errors" },
+    { "key": "Alt+9", "action": "page:help" }
+  ]
+}

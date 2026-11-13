@@ -1,7 +1,7 @@
 ## Rust Scaffold: boilerplate for Kim's future Rust apps
 
 User: Kim.
-Version: 0.2.2
+Version: 0.2.3
 Date: 13 November 2026
 Project folder: /opt/templates/rust
 Full history before this file was rewritten: `docs/AGENTS_OLD.bak` (424 lines, every phase, test and failure in detail).
@@ -55,15 +55,15 @@ Rust (`src-tauri/`):
 - `src/lib.rs`: start-up order, `settings_dir()`, `DEBUG_MODE`, `APP_FOLDER`, `DIR_OVERRIDE`, command list.
 - `src/commands.rs`: every command the interface can call.
 - `src/config.rs`: `config.json` load, validate, atomic save, 5 MB limit.
-- `src/options.rs`, `src/search.rs`, `src/files.rs`: `options.json` and `search.json`, shared read-or-create code.
+- `src/options.rs`, `src/search.rs`, `src/keys.rs`, `src/files.rs`: `options.json`, `search.json` and `keys.json` (shortcut keys), shared read-or-create code.
 - `src/logging.rs`: tracing layer, Errors list, `debug.log`.
 - `src/jobs.rs`: the Tokio job queue.
 - `src/tray.rs`, `src/gpu.rs`: tray icon; GPU rendering switch for WebKitGTK on NVIDIA.
-- `options.default.json`, `search.default.json`: copied into the settings folder when missing.
+- `options.default.json`, `search.default.json`, `keys.default.json`: copied into the settings folder when missing.
 - `benchmark/`: benchmark scripts and raw results (see below).
 
 Interface (`ui/`):
-- `index.html`: all pages. `js/`: one script per feature (`app.js` loads config and shows the window, `options.js`, `jobs.js`, `errors.js` which loads first to catch script errors, `search.js`, `sortable.js`, `tabs_fit.js`, `theme.js`, `help.js`, chart and table scripts). `css/`: modules plus `variables.css` (theme tokens) and `bootstrap-flat.css` (switches off Bootstrap's shadows without editing the vendor file).
+- `index.html`: all pages. `js/`: one script per feature (`app.js` loads config and shows the window, `options.js`, `jobs.js`, `errors.js` which loads first to catch script errors, `search.js`, `keys.js` (shortcut keys), `sortable.js`, `tabs_fit.js`, `theme.js`, `help.js`, chart and table scripts). `css/`: modules plus `variables.css` (theme tokens) and `bootstrap-flat.css` (switches off Bootstrap's shadows without editing the vendor file).
 
 ---
 
@@ -74,7 +74,7 @@ The app uses the `dirs` crate to find the per-user configuration folder, so it n
 - Windows: `%APPDATA%\rust_scaffold` (Roaming, per user).
 - Linux: `~/.config/rust_scaffold`.
 
-`config.json`, `options.json`, `search.json` and `debug.log` live there. On first start the three JSON files are copied once from the executable's folder, if present. The environment variable `RUST_SCAFFOLD_DIR` overrides the folder; tests, benchmarks and experiments use it so Kim's real settings are never touched. If `dirs` finds nothing, the executable's folder is used. When making a new app, change `APP_FOLDER` and `DIR_OVERRIDE` in `lib.rs`.
+`config.json`, `options.json`, `search.json`, `keys.json` and `debug.log` live there. On first start the three JSON files are copied once from the executable's folder, if present. The environment variable `RUST_SCAFFOLD_DIR` overrides the folder; tests, benchmarks and experiments use it so Kim's real settings are never touched. If `dirs` finds nothing, the executable's folder is used. When making a new app, change `APP_FOLDER` and `DIR_OVERRIDE` in `lib.rs`.
 
 ---
 
@@ -99,7 +99,7 @@ Things to know:
 ## Build, run, test
 
 - Build for Kim: `./build.sh`, about 1 minute incremental, about 2 minutes clean. Run: `./run.sh`.
-- Tests: `cd src-tauri && nice -n 10 cargo test --release -j 4` (44 tests: config, options, search, logging, job queue). Job tests use Tokio's paused clock, so a 100-step job is tested in milliseconds.
+- Tests: `cd src-tauri && nice -n 10 cargo test --release -j 4` (49 tests: config, options, search, keys, logging, job queue). Job tests use Tokio's paused clock, so a 100-step job is tested in milliseconds.
 - Version numbers live in `src-tauri/Cargo.toml` and `src-tauri/tauri.conf.json`. After a version change run `cargo update --workspace --offline` (because `build.sh` uses `--locked`) and add a line to the change log on the Help page.
 
 ---
@@ -147,3 +147,29 @@ They drive the real desktop with xdotool, so ask Kim first. Both start the app w
 - Self-test build (temporary script clicking inside the page, separate folder, override settings, no desktop input, removed afterwards; `index.html` verified identical): 5 + 1 jobs at 2 at once ran in order, a running job was killed at 4 of 8, a job failed at step 3, "Late by" about 1 to 1.6 ms. It found a bug: a late `jobs_list` reply erased jobs added just before it. Fixed with the `seq` number and covered by a Rust test; the fix was NOT re-checked on screen (Kim was watching a video full screen).
 - Built with `build.sh` into `dist/`: 4,925,808 bytes.
 - Not tested: the fixed page on screen, Kill all and Clear finished clicks, "At once" saving from the Jobs page and from Options, themes other than Aero Blue, the 640x480 default size (the table will scroll sideways there), Windows.
+
+### 13 November 2026: Grok's set_var warning, Jobs table at 640x480 (Claude)
+- Grok said `std::env::set_var` in `gpu.rs` is deprecated in favour of `set_var_os`. Checked: no such function exists, and set_var is not deprecated. Recompiling `gpu.rs` with Rust 1.100 gave zero warnings. In edition 2024 set_var becomes an `unsafe` function, because changing the environment while other threads run is unsafe on Linux. We use edition 2021, and `gpu::apply` runs before any thread starts. Added a comment saying so.
+- Jobs table: Kim saw a sideways scroll bar at 640x480. The table now measures its own width (a CSS container query on `.jobs-table-wrap`). Under 40rem it hides Waited and Late by. Under 28rem it also hides Ran and the bar, keeping the count, and tightens the cell padding. Inspect still shows all of these.
+- Found with a temporary on-page probe: the narrow padding first had no effect, because `window.css` (`.app-content .table-custom td`) loads later with equal weight. Fixed by raising the selector.
+- FAILURE: tests ran on a hidden Xvfb screen (:99) so Kim's desktop was not touched. One chained command failed at `cp` ("Text file busy") before `export DISPLAY=:99`. The xdotool steps that followed used her real desktop: a click, a click plus Return, and 14 scroll steps on her browser. A screenshot of her screen was also taken. Lesson: set DISPLAY on each xdotool and import call itself, in a script with `set -euo pipefail`, and stop the old copy by its exact PID before copying.
+- Re-test with such a script: at 640x480 the table is 317 px in 317 px of room, no scroll bar; at Kim's 854x638 it is 552 px in 552 px with the bar and Ran shown. Probe removed, `index.html` verified identical.
+
+### 13 November 2026: version 0.2.3, backup, target cleared (Claude)
+- Version 0.2.3 in `Cargo.toml`, `tauri.conf.json`, `Cargo.lock` (`cargo update --workspace --offline`) and the Help change log.
+- Built with `build.sh`: `dist/rust-scaffold` 4,975,744 bytes. Tests not re-run (only CSS, JS, a comment and the version changed since the last 44 passes).
+- Backup: `backup/rust_template_0.2.3.zip`, 5.9 MB, 811 files, verified with `unzip -t` (excludes `target/` and `backup/`). Note: the AGENTS.md inside it is the stale 401-line copy.
+- `src-tauri/target` had reached 4.8 GB. Not one old version: `target/release/build/rust-scaffold` alone held 49 copies of about 60 MB, one per build configuration (test builds, feature changes, toolchain update). Cleared with `cargo clean`; the next build takes about 2 minutes. `cargo clean` is always safe.
+- AGENTS.md was overwritten at 19:11: Kim changed the version to 0.2.3 in an editor window that still held the old, pre-rewrite text, and saved it. Restored from the last commit plus these entries. Kim will not edit AGENTS.md from now on.
+
+### 13 November 2026: shortcut keys, keys.json (0.2.3) (Claude)
+- Backup first: `backup/rust_template_pre_keys.zip` (verified).
+- New `src-tauri/src/keys.rs`, `keys.default.json`, command `get_keys`; `ui/js/keys.js`; Help card "Shortcut keys" (cheat sheet drawn from the loaded file, status line, skipped bindings). Ctrl+K moved out of `search.js` into keys.json; `search.js` now exposes `window.AppSearch.open()`. Search library entry "Shortcut keys" added to `search.default.json` and Kim's `~/.config/rust_scaffold/search.json` (nothing else changed there).
+- Defaults: / and Ctrl+K search, Escape leaves a text box, Alt+1 to Alt+9 the nine pages. No F1 (Kim: likely an OS key).
+- Design: the file only picks among actions defined in `keys.js` (focus-search, leave-field, page:NAME); it cannot run code. User JavaScript (`user.js`) was discussed and deferred by Kim: anything able to write the settings folder could run code with all the app's commands, and the CSP would have to be loosened. Needs its own design, opt-in and off by default.
+- Rules: Rust writes keys in one form (Ctrl+Alt+Shift+K); Shift only with letters and named keys ("?" not "Shift+/"); Tab and Ctrl+A/C/V/X/Y/Z refused; duplicates skipped. Keys without Ctrl or Alt are ignored while typing in a text box (except leave-field). Keys already handled by another script (defaultPrevented) are left alone, so Escape in the search box still closes the list first.
+- Tests: 49 pass (5 new: default file valid and has no F1, standard form, bad keys refused, bad and duplicate bindings skipped, missing file created and bad files left alone).
+- Hidden-screen test (Xvfb :99, 854x638, `set -euo pipefail` script, no input to Kim's desktop): keys.json created on first start; / focused search and "dash" listed results; three Escapes closed the list, cleared the text, left the box; Ctrl+K then typing "a/b" typed the slash; Alt+7 opened Jobs, Alt+9 Help; after adding bad bindings and a new Alt+0 to the file, reopening Help applied Alt+0 and listed both skipped bindings with reasons; the Errors badge counted the warnings.
+- Built with `build.sh`: `dist/rust-scaffold` 4,995,208 bytes.
+- Not tested: Kim's real desktop (Xvfb has no window manager, so LXQt or Openbox might take some Alt keys), the horizontal menu (/ does nothing there by design), Escape in other text boxes, the cheat sheet at 640x480, other themes, Windows.
+- Job kinds proposal written to `docs/job_kinds.md` (not built; Kim to decide).

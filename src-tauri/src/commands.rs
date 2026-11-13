@@ -5,6 +5,7 @@ use tauri::State;
 
 use crate::config::{self, Config, ConfigState, LoadStatus};
 use crate::jobs::{JobInspect, JobsReply, Queue};
+use crate::keys::{self, KeysReply};
 use crate::logging::{self, LogEntry};
 use crate::options::{self, OptionsReply};
 use crate::search::{self, SearchReply};
@@ -99,6 +100,13 @@ pub fn get_options() -> OptionsReply {
 #[tauri::command]
 pub fn get_search() -> SearchReply {
     search::load(search::search_path())
+}
+
+/// Reads keys.json fresh on every call; the page asks at start and when the
+/// Help page opens.
+#[tauri::command]
+pub fn get_keys() -> KeysReply {
+    keys::load(keys::keys_path())
 }
 
 #[derive(Serialize)]

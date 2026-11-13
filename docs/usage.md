@@ -17,7 +17,7 @@ copies it to `dist\` (stopping without launching if the build fails). Not yet
 tested on Windows.
 
 Settings live in the per-user settings folder, found with the `dirs` crate:
-`config.json`, `options.json`, `search.json` and `debug.log` are read from and
+`config.json`, `options.json`, `search.json`, `keys.json` and `debug.log` are read from and
 written to `~/.config/rust_scaffold` on Linux (or `$XDG_CONFIG_HOME/rust_scaffold`)
 and `%APPDATA%\rust_scaffold` on Windows. The program itself can sit anywhere,
 including a read-only folder such as `C:\Program Files`, and starting it from a
@@ -231,7 +231,7 @@ appears in both without extra work.
 
 ### Search
 
-The vertical menu has a search box (Ctrl+K moves to it; in the contracted menu
+The vertical menu has a search box (/ or Ctrl+K moves to it; in the contracted menu
 the magnifying glass expands the menu first). After three characters it lists
 up to eight matching places. Up and Down choose, Enter goes, Escape closes the
 list and a second Escape clears the box. Every word typed must match the
@@ -264,6 +264,43 @@ rest: limits are 1 MiB, 500 entries, and ids made of letters, digits, hyphens
 and underscores. The page also skips entries whose page or target does not
 exist. Skipped entries are listed on the Help page, which also
 shows how many places were loaded.
+
+## Shortcut keys
+
+`keys.json` in the settings folder joins keys to actions. It is created from
+`src-tauri/keys.default.json` when missing, read at start and read again each
+time the Help page opens, where a cheat sheet lists the keys in use and any
+bindings that were skipped (skips also appear on the Errors page).
+
+    { "bindings": [
+        { "key": "/",      "action": "focus-search" },
+        { "key": "Ctrl+K", "action": "focus-search" },
+        { "key": "Escape", "action": "leave-field" },
+        { "key": "Alt+1",  "action": "page:dashboard" } ] }
+
+Defaults: / and Ctrl+K for search, Escape to leave a text box, Alt+1 to Alt+9
+for the nine pages in menu order. There is no F1 by default.
+
+- Keys: one character (`/`, `?`, `k`) or a named key (Escape, Enter, Space,
+  Home, End, PageUp, PageDown, Insert, Delete, Backspace, the four arrows, F1
+  to F12), with optional `Ctrl+`, `Alt+` and `Shift+`. Case does not matter.
+  Shift goes only with letters and named keys: write `?`, not `Shift+/`.
+  Tab is not allowed (it moves between controls), nor are Ctrl+A, C, V, X, Y
+  and Z (editing).
+- Actions: `focus-search`, `leave-field`, `page:NAME` (NAME is the part
+  after `tab-` in the tab's id).
+- Rust (`src-tauri/src/keys.rs`) checks every binding, skips bad or duplicate
+  ones with a reason, and sends keys in one standard form
+  (`Ctrl+Alt+Shift+K`). `ui/js/keys.js` writes each key press in the same form
+  and looks it up.
+- While a text box has focus, keys without Ctrl or Alt type as normal; only
+  `leave-field` still works. A key another script has already handled (for
+  example Escape closing the search list) is left alone.
+- The file can only choose among actions defined in `keys.js`; it cannot run
+  code. To add an action, add it to `run()` and `describe()` in `keys.js` and
+  to `check_action` in `keys.rs`.
+- The desktop may take some keys before the app sees them (on many Linux
+  desktops, Alt with a function key). Pick another key if one does nothing.
 
 ## Title bar size and accessibility
 

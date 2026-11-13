@@ -32,6 +32,7 @@
     { "label": "Reduce motion", "page": "options", "target": "opt-reduce_motion", "keywords": ["animation", "motion", "vestibular", "accessibility"], "icon": "pause-circle" },
 
     { "label": "How to use the app", "page": "help", "target": "help-usage", "keywords": ["help", "guide", "manual", "instructions"], "icon": "book" },
+    { "label": "Shortcut keys", "page": "help", "target": "help-keys", "keywords": ["keys", "keyboard", "shortcuts", "hotkeys", "cheat sheet"], "icon": "keyboard" },
     { "label": "Change log", "page": "help", "target": "help-changelog", "keywords": ["changes", "version", "release notes", "history"], "icon": "journal-text" },
     { "label": "About and developer", "page": "help", "target": "help-about", "keywords": ["about", "developer", "author", "credits", "kim"], "icon": "info-circle" }
   ]
