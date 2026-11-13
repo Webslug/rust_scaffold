@@ -36,6 +36,10 @@ core. The release binary is about 4.3 MB, well under the 50 MB target.
 - A settings file (`config.json`) in the project folder. It is created on first
   run, is never read if it is larger than 5 MiB, and is never overwritten when
   it cannot be read.
+- An Options tab that edits settings in the app. Its controls (switches,
+  checkboxes, radio buttons, text boxes, number boxes, sliders, list groups,
+  selects and buttons) are described in `options.json`, which you can edit
+  without rebuilding. New settings need no Rust changes.
 - Example of the interface calling a Rust command.
 - Bootstrap 5 and Bootstrap Icons, bundled locally. The app works offline.
 
@@ -127,10 +131,12 @@ can also edit it by hand while the app is closed.
       "order": {},
       "collapsed": [],
       "start_minimised": false,
-      "tray_items": []
+      "tray_items": [],
+      "extras": {}
     }
 
-Every key is documented in [docs/usage.md](docs/usage.md).
+`options.json`, also created on first run, decides which settings appear on
+the Options tab and how. Every key is documented in [docs/usage.md](docs/usage.md).
 
 ## Project layout
 
@@ -138,6 +144,7 @@ Every key is documented in [docs/usage.md](docs/usage.md).
     run.sh, run.bat       build and launch
     requirements.txt      system requirements
     config.json           created at first run
+    options.json          Options tab controls, created at first run
     docs/usage.md         how to use, change and reuse the scaffold
     ui/                   the interface (embedded in the binary at build time)
       index.html
@@ -145,8 +152,9 @@ Every key is documented in [docs/usage.md](docs/usage.md).
       js/                 window controls, themes, sortable lists, app logic
       fonts/, img/
     src-tauri/            the Rust side
-      src/                main.rs, lib.rs, config.rs, commands.rs, tray.rs
+      src/                main.rs, lib.rs, config.rs, options.rs, commands.rs, tray.rs
       benchmark/          repeatable X11 desktop tests and saved results
+      options.default.json  written as options.json when that file is missing
       tauri.conf.json, capabilities/, icons/, Cargo.toml
 
 ## Using it as a template

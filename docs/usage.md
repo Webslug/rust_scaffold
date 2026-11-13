@@ -53,6 +53,7 @@ setting in the app. You can also edit it by hand while the app is closed.
 | `collapsed` | `[]` | Ids of collapsed accordion panels |
 | `start_minimised` | `false` | Start hidden in the tray |
 | `tray_items` | `[]` | Extra tray menu entries |
+| `extras` | `{}` | Settings defined only in `options.json` (see Options tab) |
 
 Rules enforced by `src-tauri/src/config.rs`:
 
@@ -64,7 +65,109 @@ Rules enforced by `src-tauri/src/config.rs`:
 - Ids are lowercase letters, digits and hyphens, at most 40 characters. Limits:
   20 sortable lists, 50 items per list, 100 collapsed panels, 10 tray items,
   tray labels up to 40 characters.
+- `extras`: at most 100 keys. A key is lowercase letters, digits and
+  underscores, at most 40 characters. A value is `true`/`false`, a number, or
+  text of at most 4000 characters (line breaks and tabs allowed, no other
+  control characters). Lists, objects and `null` are rejected.
 - Saves are atomic (a temporary file is written, then renamed).
+
+## Options tab
+
+The Options tab edits settings inside the app. Which controls it shows, and
+how, comes from `options.json` in the project folder, not from the code:
+
+- `config.json` holds the values.
+- `options.json` describes the controls: a label on each shelf, not the
+  contents. Changing a control's type or label never touches the saved value.
+
+`options.json` is read every time the Options tab opens. Edit it, switch to
+another tab and back, and the change appears. No rebuild and no restart. If the
+file is missing, the app writes the default copy
+(`src-tauri/options.default.json`). A file over 1 MiB is not read. Invalid JSON
+shows a warning and no controls; the file is never overwritten.
+
+Changes are staged. **Save** writes only the values you changed. **Revert**
+discards unsaved changes. Opening the tab again also discards them. Theme, title
+bar and corner changes apply as soon as they are saved; `start_minimised`
+applies at the next start.
+
+### File format
+
+    {
+      "options": [
+        { "group": "Examples", "control": "switch", "key": "autosave",
+          "label": "Autosave", "default": true }
+      ]
+    }
+
+Other top-level keys (for example `"_readme"`) and unknown fields in an entry
+are ignored, so you can leave notes in the file.
+
+| Field | Used by | Meaning |
+|-------|---------|---------|
+| `control` | all | `switch`, `check`, `radio`, `input`, `text`, `number`, `range`, `list`, `select`, `button` |
+| `key` | all but `button` | The setting it edits |
+| `label` | all | Visible label, 1 to 80 characters |
+| `group` | all | Card heading; entries with the same group share a card. Default "Options" |
+| `help` | all | Small text under the control, up to 300 characters |
+| `readonly` | all | `true` shows the value but does not allow changes |
+| `default` | extra settings | Value shown until the setting is saved for the first time |
+| `size` | text, number, select, list, range | Width: `sm`, `md`, `lg` or `full` |
+| `rows` | `text` | Height in lines, 1 to 20 |
+| `placeholder` | `input`, `text` | Hint shown in an empty box |
+| `choices` | `radio`, `list`, `select` | List of text values, or `{"value": ..., "label": "..."}` objects. `"themes"` means every theme (theme key only) |
+| `min`, `max`, `step` | `number`, `range` | Limits; a range needs `min` and `max` |
+| `action` | `button` | `revert` (discard changes) or `defaults` (set every entry that has a `default` back to it; press Save to keep) |
+
+What each control stores:
+
+| Control | Looks like | Value |
+|---------|-----------|-------|
+| `switch` | Bootstrap switch | `true` or `false` |
+| `check` | Checkbox | `true` or `false` |
+| `input` | One-line text box | text |
+| `text` | Multi-line text box | text |
+| `number` | Number box | number |
+| `range` | Slider with its value beside it | number |
+| `radio` | Radio buttons | the chosen choice's value |
+| `select` | Drop-down list | the chosen choice's value |
+| `list` | Bootstrap list group, one item active | the chosen choice's value |
+| `button` | Button | nothing; runs its `action` |
+
+### Built-in settings and extra settings
+
+If `key` is one of the app's own settings, the control edits that setting. Only
+these are allowed, with these controls:
+
+| Key | Controls |
+|-----|----------|
+| `theme` | `select`, `radio`, `list` (use `"choices": "themes"`) |
+| `width`, `height` | `number`, `range` |
+| `show_titlebar`, `rounded_corners`, `start_minimised` | `switch`, `check` |
+
+`order`, `collapsed`, `tray_items` and `extras` are managed by the app and
+cannot be options. Built-in settings take their defaults from Rust, so a
+`default` on them is rejected.
+
+Any other key is an extra setting, stored under `extras` in `config.json`.
+Adding one needs no Rust change: add the entry to `options.json`, reopen the
+tab, change the value and press Save. Your own code reads it from
+`config.extras` in JavaScript or `config.extras` in Rust (a
+`serde_json::Value`).
+
+### When an entry is wrong
+
+Rust checks every entry (`src-tauri/src/options.rs`). A bad entry is skipped and
+listed in a warning at the top of the tab, with its position and the reason,
+for example `entry 2 "oops": unknown control "teleport"`. The other entries
+still load. Rules include: known control and key format, no duplicate keys,
+choices present and unique for choice controls, `min` below `max`, a
+`default` that suits the control and lies within its limits and choices, at
+most 200 entries and 50 choices each.
+
+If a saved value no longer suits its control (for example a choice was removed
+from `options.json`), the control shows its `default` instead, and the old
+value stays in `config.json` until you save that control.
 
 ## Window controls
 

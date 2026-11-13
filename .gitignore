@@ -3,8 +3,10 @@ src-tauri/gen/
 config.json
 debug.log
 config.json.tmp
+options.json
 *.log
 backup/
 *.swp
 *~
 .DS_Store
+dist/

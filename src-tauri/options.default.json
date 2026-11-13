@@ -1,0 +1,21 @@
+{
+  "_readme": "Controls shown on the Options tab. Edit this file and reopen the tab; no rebuild is needed. See docs/usage.md for every field.",
+  "options": [
+    { "group": "Appearance", "control": "select", "key": "theme", "label": "Theme", "choices": "themes", "size": "md" },
+    { "group": "Appearance", "control": "switch", "key": "show_titlebar", "label": "Show the title bar" },
+    { "group": "Appearance", "control": "switch", "key": "rounded_corners", "label": "Rounded window corners" },
+
+    { "group": "Window", "control": "number", "key": "width", "label": "Width", "readonly": true, "size": "sm", "help": "Set by resizing the window." },
+    { "group": "Window", "control": "number", "key": "height", "label": "Height", "readonly": true, "size": "sm" },
+    { "group": "Window", "control": "check", "key": "start_minimised", "label": "Start hidden in the tray", "help": "Takes effect the next time the app starts." },
+
+    { "group": "Examples", "control": "input", "key": "nickname", "label": "Nickname", "default": "", "placeholder": "Your name", "size": "md" },
+    { "group": "Examples", "control": "text", "key": "notes", "label": "Notes", "default": "", "rows": 3, "size": "full" },
+    { "group": "Examples", "control": "radio", "key": "units", "label": "Units", "choices": [ { "value": "metric", "label": "Metric" }, { "value": "imperial", "label": "Imperial" } ], "default": "metric" },
+    { "group": "Examples", "control": "select", "key": "start_page", "label": "Start page", "choices": [ "Dashboard", "Panels", "Tables" ], "default": "Dashboard", "size": "sm", "help": "Example only; the app does not use it yet." },
+    { "group": "Examples", "control": "list", "key": "layout", "label": "Layout", "choices": [ { "value": "comfortable", "label": "Comfortable" }, { "value": "compact", "label": "Compact" } ], "default": "comfortable", "size": "md" },
+    { "group": "Examples", "control": "range", "key": "volume", "label": "Volume", "min": 0, "max": 100, "step": 5, "default": 50, "size": "md" },
+    { "group": "Examples", "control": "input", "key": "app_build", "label": "Read-only text", "default": "Example value", "readonly": true, "size": "md" },
+    { "group": "Examples", "control": "button", "label": "Restore defaults", "action": "defaults", "help": "Sets the example controls back to their defaults. Press Save to keep them." }
+  ]
+}

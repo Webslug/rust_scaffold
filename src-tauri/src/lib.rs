@@ -1,5 +1,6 @@
 mod commands;
 mod config;
+mod options;
 mod tray;
 
 use std::fs::OpenOptions;
@@ -69,7 +70,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::app_info,
             commands::get_config,
-            commands::save_config
+            commands::save_config,
+            commands::get_options
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

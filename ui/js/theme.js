@@ -62,6 +62,7 @@
 
   window.AppTheme = {
     apply: apply,
+    list: function () { return THEMES.slice(); },
     onChange: function (fn) { onChange = fn; }
   };
 })();

@@ -1,39 +1,20 @@
 #!/usr/bin/env bash
-# Builds the app if anything changed, then launches it from the project
-# folder (config.json and debug.log live here).
+# Launches the app from dist/ without building. Run ./build.sh first, or
+# pass --build to build and then launch. Starts from the project folder
+# because config.json and debug.log live here.
 set -uo pipefail
 
 cd "$(dirname "$(readlink -f "$0")")"
 
-if ! command -v cargo >/dev/null && [ -f "$HOME/.cargo/env" ]; then
-  . "$HOME/.cargo/env"
+BIN="dist/rust-scaffold"
+
+if [ "${1:-}" = "--build" ]; then
+  ./build.sh || exit $?
 fi
 
-BIN="src-tauri/target/release/rust-scaffold"
-
-build() {
-  # Low priority so a build does not disturb audio or other foreground work.
-  (cd src-tauri && nice -n 10 cargo build --release --quiet)
-}
-
-# The C compiler is restricted to the "tools" group (see AGENTS.md). Group
-# membership only reaches a session at login, so if this shell lacks it but
-# the account is a member, run the build through sg.
-if ! cc --version >/dev/null 2>&1 && getent group tools | grep -qw "$(id -un)"; then
-  echo "Compiler needs the tools group; using sg until you next log in."
-  sg tools -c "cd src-tauri && nice -n 10 cargo build --release --quiet"
-else
-  build
-fi
-status=$?
-
-if [ "$status" -ne 0 ]; then
-  if [ -x "$BIN" ]; then
-    echo "Build failed (exit $status). Launching the previous build." >&2
-  else
-    echo "Build failed (exit $status) and there is no previous build." >&2
-    exit "$status"
-  fi
+if [ ! -x "$BIN" ]; then
+  echo "No executable at $BIN. Run ./build.sh first (or ./run.sh --build)." >&2
+  exit 1
 fi
 
 # On X11 the transparent rounded corners need a compositor.

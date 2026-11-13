@@ -128,6 +128,46 @@
     });
   });
 
+  /* Used by options.js. commit() applies the given changes to the live config
+     and saves it. Applying first means a save from elsewhere (a resize, say)
+     made meanwhile carries the new values too. If Rust rejects the save, the
+     changed keys are put back. Keys Rust knows live at the top level; anything
+     else goes into config.extras. */
+  function holderOf(key) {
+    var builtIn = key !== "extras" && Object.prototype.hasOwnProperty.call(config, key);
+    return builtIn ? config : config.extras;
+  }
+
+  window.AppConfig = {
+    get: function () { return config; },
+    canSave: function () { return canSave; },
+    commit: function (changes) {
+      if (!config) { return Promise.reject("config is not loaded"); }
+      if (!canSave) { return Promise.reject("saving is disabled because config.json could not be loaded"); }
+      var keys = Object.keys(changes);
+      var previous = {};
+      keys.forEach(function (key) {
+        var holder = holderOf(key);
+        previous[key] = { had: Object.prototype.hasOwnProperty.call(holder, key), value: holder[key] };
+        holder[key] = changes[key];
+      });
+      function applyLive() {
+        config.theme = window.AppTheme.apply(config.theme);
+        root.classList.toggle("square-corners", !config.rounded_corners);
+        applyTitlebar();
+        renderInfo();
+      }
+      return invoke("save_config", { config: config }).then(applyLive, function (err) {
+        keys.forEach(function (key) {
+          var holder = holderOf(key);
+          if (previous[key].had) { holder[key] = previous[key].value; }
+          else { delete holder[key]; }
+        });
+        throw err;
+      });
+    }
+  };
+
   titleButton.addEventListener("click", toggleTitlebar);
   document.getElementById("btn-title-reveal").addEventListener("click", toggleTitlebar);
 

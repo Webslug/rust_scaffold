@@ -906,3 +906,10 @@
 [data-theme="rose"]         { --window-bg-top: #30131d; --window-bg-bottom: #150a0d; }
 [data-theme="vapor"]        { --window-bg-top: #3b1569; --window-bg-bottom: #1a0933; }
 [data-theme="quartz"]       { --window-bg-top: #24618a; --window-bg-bottom: #4a2a6e; }
+
+/* Options tab control widths (options.json "size") */
+:root {
+  --option-width-sm: 9rem;
+  --option-width-md: 18rem;
+  --option-width-lg: 28rem;
+}

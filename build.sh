@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
-# Build the standalone release executable without launching the app.
+# Build the standalone release executable and copy it to dist/ without
+# launching the app. run.sh launches the dist/ copy.
 set -euo pipefail
+
+# While true, the build cache (src-tauri/target) is kept for faster
+# incremental rebuilds. Set to false to delete it after each build.
+DEV_MODE=true
 
 PROJECT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 cd "$PROJECT_DIR"
@@ -33,4 +38,18 @@ if [ ! -x "$BIN" ]; then
   echo "Cargo returned success, but the expected executable is missing: $BIN" >&2
   exit 1
 fi
+
+mkdir -p "$PROJECT_DIR/dist"
+cp -f "$BIN" "$PROJECT_DIR/dist/rust-scaffold"
 echo "Build complete: $BIN"
+echo "Copied to: $PROJECT_DIR/dist/rust-scaffold"
+
+# Remove the build cache (src-tauri/target only) once the dist/ copy is
+# confirmed, unless DEV_MODE is true.
+TARGET_DIR="$PROJECT_DIR/src-tauri/target"
+if [ "$DEV_MODE" = true ]; then
+  echo "DEV_MODE is true: leaving $TARGET_DIR in place."
+elif [ -x "$PROJECT_DIR/dist/rust-scaffold" ] && [ -d "$TARGET_DIR" ] && [ "$(basename "$TARGET_DIR")" = "target" ]; then
+  rm -rf -- "$TARGET_DIR"
+  echo "Removed build cache: $TARGET_DIR"
+fi

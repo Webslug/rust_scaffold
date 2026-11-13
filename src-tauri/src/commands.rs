@@ -4,6 +4,7 @@ use serde::Serialize;
 use tauri::State;
 
 use crate::config::{self, Config, ConfigState, LoadStatus};
+use crate::options::{self, OptionsReply};
 use crate::tray::TrayStatus;
 
 #[derive(Serialize)]
@@ -49,4 +50,10 @@ pub fn get_config(state: State<Mutex<ConfigState>>, tray: State<TrayStatus>) -> 
 pub fn save_config(state: State<Mutex<ConfigState>>, config: Config) -> Result<(), String> {
     let mut state = state.lock().unwrap();
     config::save(&mut state, config)
+}
+
+/// Reads options.json fresh on every call, so edits appear without a restart.
+#[tauri::command]
+pub fn get_options() -> OptionsReply {
+    options::load(options::options_path())
 }

@@ -3,6 +3,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 use crate::debug_log;
 
@@ -19,6 +20,9 @@ const MAX_ITEMS_PER_LIST: usize = 50;
 const MAX_COLLAPSED: usize = 100;
 const MAX_TRAY_ITEMS: usize = 10;
 const MAX_TRAY_LABEL_LEN: usize = 40;
+const MAX_EXTRAS: usize = 100;
+const MAX_EXTRA_KEY_LEN: usize = 40;
+const MAX_EXTRA_TEXT_LEN: usize = 4000;
 /// What a custom tray menu item may do. A fixed set on purpose: config.json
 /// must never be able to run arbitrary commands.
 pub const TRAY_ACTIONS: [&str; 4] = ["show", "hide", "toggle", "quit"];
@@ -51,6 +55,9 @@ pub struct Config {
     pub start_minimised: bool,
     /// Custom tray menu entries, shown between Show/Hide and Quit.
     pub tray_items: Vec<TrayItem>,
+    /// Settings defined only in options.json, unknown to this struct. Kept
+    /// here so saving never drops them. Values are booleans, numbers or text.
+    pub extras: BTreeMap<String, Value>,
 }
 
 impl Default for Config {
@@ -65,6 +72,7 @@ impl Default for Config {
             collapsed: Vec::new(),
             start_minimised: false,
             tray_items: Vec::new(),
+            extras: BTreeMap::new(),
         }
     }
 }
@@ -76,6 +84,28 @@ fn is_slug(id: &str, max: usize) -> bool {
         && id
             .chars()
             .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+}
+
+/// Extra keys are lowercase letters, digits and underscores, at most 40 long.
+pub fn is_extra_key(key: &str) -> bool {
+    !key.is_empty()
+        && key.len() <= MAX_EXTRA_KEY_LEN
+        && key
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
+}
+
+/// Extra values are booleans, numbers or text. Text may hold line breaks and
+/// tabs but no other control characters.
+fn is_extra_value(value: &Value) -> bool {
+    match value {
+        Value::Bool(_) | Value::Number(_) => true,
+        Value::String(text) => {
+            text.chars().count() <= MAX_EXTRA_TEXT_LEN
+                && !text.chars().any(|c| c.is_control() && c != '\n' && c != '\t')
+        }
+        _ => false,
+    }
 }
 
 impl Config {
@@ -109,6 +139,14 @@ impl Config {
         }
         if self.collapsed.len() > MAX_COLLAPSED || !self.collapsed.iter().all(|id| is_slug(id, MAX_ID_LEN)) {
             return Err("invalid collapsed panel list".into());
+        }
+        if self.extras.len() > MAX_EXTRAS {
+            return Err("too many extra settings".into());
+        }
+        for (key, value) in &self.extras {
+            if !is_extra_key(key) || !is_extra_value(value) {
+                return Err(format!("invalid extra setting {key:?}"));
+            }
         }
         self.width = self.width.clamp(MIN_SIZE, MAX_SIZE);
         self.height = self.height.clamp(MIN_SIZE, MAX_SIZE);
@@ -373,6 +411,44 @@ mod tests {
         many.tray_items = (0..11)
             .map(|i| TrayItem { label: format!("Item {i}"), action: "show".into() })
             .collect();
+        assert!(many.validate().is_err());
+    }
+
+    #[test]
+    fn extras_round_trip_and_old_files_load() {
+        let path = temp_path("extras");
+        fs::write(&path, r#"{"theme":"rose"}"#).unwrap();
+        let mut state = load(path.clone());
+        assert!(state.config.extras.is_empty());
+        let mut cfg = state.config.clone();
+        cfg.extras.insert("nickname".into(), Value::from("Kim\nsecond line"));
+        cfg.extras.insert("volume".into(), Value::from(0.75));
+        cfg.extras.insert("autosave".into(), Value::from(true));
+        save(&mut state, cfg.clone()).unwrap();
+        assert_eq!(load(path).config, cfg);
+    }
+
+    #[test]
+    fn bad_extras_are_rejected() {
+        let make = |key: &str, value: Value| {
+            let mut c = Config::default();
+            c.extras.insert(key.into(), value);
+            c
+        };
+        assert!(make("Nick", Value::from("x")).validate().is_err());
+        assert!(make("nick-name", Value::from("x")).validate().is_err());
+        assert!(make(&"a".repeat(41), Value::from("x")).validate().is_err());
+        assert!(make("nick", Value::Null).validate().is_err());
+        assert!(make("nick", serde_json::json!(["a"])).validate().is_err());
+        assert!(make("nick", serde_json::json!({"a": 1})).validate().is_err());
+        assert!(make("nick", Value::from("bell\u{7}")).validate().is_err());
+        assert!(make("nick", Value::from("x".repeat(4001))).validate().is_err());
+        assert!(make("nick", Value::from("x".repeat(4000))).validate().is_ok());
+
+        let mut many = Config::default();
+        for i in 0..101 {
+            many.extras.insert(format!("k{i}"), Value::from(i));
+        }
         assert!(many.validate().is_err());
     }
 }
