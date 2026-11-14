@@ -1,2 +1,0 @@
-Rust is excellent at file I/O — async with Tokio if you need it, and memory-mapped files via the memmap2 crate if you're dealing with big data. For CPU and RAM, the sysinfo crate gives you process and system stats cross-platform without much fuss. VRAM is the annoying one — there's no clean cross-platform crate, so you'd be calling NVML for NVIDIA cards or ROCm bindings for AMD, which means platform-specific code paths. Doable, just not pretty.
-
