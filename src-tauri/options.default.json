@@ -10,6 +10,7 @@
     { "group": "Window", "control": "number", "key": "width", "label": "Width", "readonly": true, "size": "sm", "help": "Set by resizing the window." },
     { "group": "Window", "control": "number", "key": "height", "label": "Height", "readonly": true, "size": "sm" },
     { "group": "Window", "control": "check", "key": "start_minimised", "label": "Start hidden in the tray", "help": "Takes effect the next time the app starts." },
+    { "group": "Window", "control": "switch", "key": "hide_to_tray", "label": "Hide to the tray", "help": "When the tray hides the window, take it off the taskbar. Turn off to minimise it to the taskbar instead." },
     { "group": "Window", "control": "switch", "key": "hardware_acceleration", "label": "Hardware acceleration", "help": "Draws the page on the graphics card where supported. Takes effect the next time the app starts." },
     { "group": "Diagnostics", "control": "number", "key": "error_log_max", "label": "Errors kept", "min": 10, "max": 1000, "step": 10, "size": "sm", "help": "The Errors tab keeps this many of the newest errors and warnings. Older ones are removed." },
     { "group": "Jobs", "control": "select", "key": "job_concurrency", "label": "Jobs at once", "choices": [ { "value": 1, "label": "1" }, { "value": 2, "label": "2" }, { "value": 3, "label": "3" } ], "size": "sm", "help": "How many jobs the job queue runs at the same time. More wait their turn. Also set on the Jobs tab." },

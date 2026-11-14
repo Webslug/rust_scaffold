@@ -59,6 +59,10 @@ pub struct Config {
     /// Start with the window hidden, living in the tray. Ignored if the tray
     /// could not be created, so the app can never become unreachable.
     pub start_minimised: bool,
+    /// What hiding the window from the tray does: true takes it off the
+    /// taskbar (hidden, reachable only from the tray); false minimises it to
+    /// the taskbar. Without a tray the window is always minimised.
+    pub hide_to_tray: bool,
     /// Custom tray menu entries, shown between Show/Hide and Quit.
     pub tray_items: Vec<TrayItem>,
     /// "vertical" (sidebar menu, the default) or "horizontal" (tabs above the page).
@@ -96,7 +100,7 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Config {
-            theme: "aero-blue".into(),
+            theme: "racing-green".into(),
             width: 640,
             height: 480,
             show_titlebar: true,
@@ -104,6 +108,7 @@ impl Default for Config {
             order: BTreeMap::new(),
             collapsed: Vec::new(),
             start_minimised: false,
+            hide_to_tray: true,
             tray_items: Vec::new(),
             menu_layout: "vertical".into(),
             menu_collapsed: false,
@@ -120,6 +125,15 @@ impl Default for Config {
             extras: BTreeMap::new(),
         }
     }
+}
+
+/// Names of the built-in config.json fields, taken from the defaults.
+fn built_in_keys() -> &'static Vec<String> {
+    static KEYS: std::sync::OnceLock<Vec<String>> = std::sync::OnceLock::new();
+    KEYS.get_or_init(|| match serde_json::to_value(Config::default()) {
+        Ok(Value::Object(map)) => map.keys().filter(|k| *k != "extras").cloned().collect(),
+        _ => Vec::new(),
+    })
 }
 
 /// Ids are lowercase slugs: letters, digits, hyphens, at most `max` long.
@@ -185,6 +199,10 @@ impl Config {
         if self.collapsed.len() > MAX_COLLAPSED || !self.collapsed.iter().all(|id| is_slug(id, MAX_ID_LEN)) {
             return Err("invalid collapsed panel list".into());
         }
+        // A setting an older build saved as an extra, before it became a
+        // built-in field, is dropped so it is never stored twice.
+        let built_in = built_in_keys();
+        self.extras.retain(|key, _| !built_in.contains(key));
         if self.extras.len() > MAX_EXTRAS {
             return Err("too many extra settings".into());
         }
@@ -215,13 +233,17 @@ impl Config {
     }
 }
 
-/// How the last load went. Anything other than Ok or Created blocks saving,
-/// so a file we could not read is never overwritten.
+/// How the last load went. Ok, Created and Recreated allow saving; anything
+/// else blocks it, so a file we could not read is never overwritten.
 #[derive(Serialize, Clone, Copy, Debug, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum LoadStatus {
     Ok,
     Created,
+    /// Was over the size limit; set aside as `config.json.corrupt` and
+    /// replaced by the defaults.
+    Recreated,
+    /// Was over the size limit and could not be set aside; not loaded, not changed.
     TooLarge,
     Invalid,
     Unreadable,
@@ -229,7 +251,7 @@ pub enum LoadStatus {
 
 impl LoadStatus {
     pub fn saving_allowed(self) -> bool {
-        matches!(self, LoadStatus::Ok | LoadStatus::Created)
+        matches!(self, LoadStatus::Ok | LoadStatus::Created | LoadStatus::Recreated)
     }
 }
 
@@ -264,12 +286,21 @@ pub fn load(path: PathBuf) -> ConfigState {
             (Config::default(), LoadStatus::Unreadable)
         }
         Ok(meta) if meta.len() > MAX_CONFIG_BYTES => {
-            warn!(
-                "config: {} bytes exceeds the {} byte limit, not loaded",
-                meta.len(),
-                MAX_CONFIG_BYTES
-            );
-            (Config::default(), LoadStatus::TooLarge)
+            let size = meta.len();
+            let defaults = Config::default();
+            match crate::files::set_aside(&path).and_then(|aside| write_atomic(&path, &defaults).map(|()| aside)) {
+                Ok(aside) => {
+                    warn!(
+                        "config: {size} bytes exceeds the {MAX_CONFIG_BYTES} byte limit; moved to {} and recreated with defaults",
+                        aside.display()
+                    );
+                    (defaults, LoadStatus::Recreated)
+                }
+                Err(e) => {
+                    error!("config: {size} bytes exceeds the {MAX_CONFIG_BYTES} byte limit and could not be replaced: {e}; not loaded");
+                    (defaults, LoadStatus::TooLarge)
+                }
+            }
         }
         Ok(_) => match fs::read_to_string(&path) {
             Err(e) => {
@@ -310,12 +341,12 @@ pub fn save(state: &mut ConfigState, config: Config) -> Result<(), String> {
 }
 
 /// Writes to a temporary file then renames, so a crash mid-write cannot
-/// leave a truncated config.json.
+/// leave a truncated config.json. Creates the folder if it was deleted.
 fn write_atomic(path: &Path, config: &Config) -> std::io::Result<()> {
     let json = serde_json::to_string_pretty(config)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
     let tmp = path.with_extension("json.tmp");
-    fs::write(&tmp, json)?;
+    crate::files::write_new(&tmp, json)?;
     fs::rename(&tmp, path)
 }
 
@@ -350,11 +381,37 @@ mod tests {
     }
 
     #[test]
-    fn oversized_file_is_not_loaded() {
+    fn oversized_file_is_set_aside_and_recreated() {
         let path = temp_path("big");
-        fs::write(&path, vec![b' '; MAX_CONFIG_BYTES as usize + 1]).unwrap();
-        let state = load(path);
-        assert_eq!(state.status, LoadStatus::TooLarge);
+        let aside = path.with_extension("json.corrupt");
+        let _ = fs::remove_file(&aside);
+        let big = vec![b' '; MAX_CONFIG_BYTES as usize + 1];
+        fs::write(&path, &big).unwrap();
+        let mut state = load(path.clone());
+        assert_eq!(state.status, LoadStatus::Recreated);
+        assert_eq!(fs::read(&aside).unwrap(), big, "the old file is kept as .corrupt");
+        assert!(fs::metadata(&path).unwrap().len() < 4096, "a fresh default was written");
+        assert!(save(&mut state, Config::default()).is_ok(), "saving works after a reset");
+        assert_eq!(load(path.clone()).status, LoadStatus::Ok);
+
+        // A second oversized file replaces the older .corrupt copy.
+        fs::write(&path, vec![b'x'; MAX_CONFIG_BYTES as usize + 1]).unwrap();
+        assert_eq!(load(path).status, LoadStatus::Recreated);
+        assert_eq!(fs::read(&aside).unwrap()[0], b'x');
+    }
+
+    #[test]
+    fn deleted_file_and_folder_are_recreated() {
+        let path = temp_path("deleted");
+        fs::remove_dir_all(path.parent().unwrap()).unwrap();
+        let mut state = load(path.clone());
+        assert_eq!(state.status, LoadStatus::Created);
+        assert_eq!(load(path.clone()).status, LoadStatus::Ok);
+
+        // Folder deleted while the app runs: the next save puts it back.
+        fs::remove_dir_all(path.parent().unwrap()).unwrap();
+        assert!(save(&mut state, Config::default()).is_ok());
+        assert_eq!(load(path).status, LoadStatus::Ok);
     }
 
     #[test]
@@ -439,12 +496,14 @@ mod tests {
     fn tray_options_round_trip_and_default() {
         let old = Config::default();
         assert!(!old.start_minimised);
+        assert!(old.hide_to_tray, "hiding to the tray is on by default");
         assert!(old.tray_items.is_empty());
 
         let path = temp_path("tray");
         let mut state = load(path.clone());
         let mut cfg = Config::default();
         cfg.start_minimised = true;
+        cfg.hide_to_tray = false;
         cfg.tray_items = vec![TrayItem { label: "Hide window".into(), action: "hide".into() }];
         save(&mut state, cfg.clone()).unwrap();
         assert_eq!(load(path).config, cfg);
@@ -524,6 +583,17 @@ mod tests {
             .map(|i| TrayItem { label: format!("Item {i}"), action: "show".into() })
             .collect();
         assert!(many.validate().is_err());
+    }
+
+    #[test]
+    fn extras_that_name_a_built_in_field_are_dropped() {
+        let path = temp_path("extras_shadow");
+        fs::write(&path, r#"{"hide_to_tray":false,"extras":{"hide_to_tray":true,"nickname":"Kim"}}"#).unwrap();
+        let state = load(path);
+        assert_eq!(state.status, LoadStatus::Ok);
+        assert!(!state.config.hide_to_tray, "the built-in field wins");
+        assert_eq!(state.config.extras.len(), 1);
+        assert!(state.config.extras.contains_key("nickname"));
     }
 
     #[test]

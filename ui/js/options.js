@@ -10,7 +10,8 @@
   var invoke = window.__TAURI__.core.invoke;
 
   var STATUS_TEXT = {
-    too_large: "options.json is larger than 1 MB, so it was not loaded.",
+    recreated: "options.json was larger than 1 MB, so it was treated as corrupt, kept as options.json.corrupt and replaced with defaults.",
+    too_large: "options.json is larger than 1 MB and could not be replaced, so it was not loaded.",
     invalid: "options.json could not be used:",
     unreadable: "options.json could not be read or created."
   };

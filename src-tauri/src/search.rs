@@ -182,10 +182,14 @@ mod tests {
     }
 
     #[test]
-    fn oversized_and_invalid_files_are_not_loaded_or_changed() {
+    fn oversized_file_is_recreated_invalid_file_left_alone() {
         let path = temp_path("big");
         fs::write(&path, vec![b' '; MAX_SEARCH_BYTES as usize + 1]).unwrap();
-        assert_eq!(load(path).status, FileStatus::TooLarge);
+        let reply = load(path.clone());
+        assert_eq!(reply.status, FileStatus::Recreated);
+        assert!(!reply.entries.is_empty());
+        assert_eq!(fs::read_to_string(&path).unwrap(), DEFAULT_SEARCH);
+        assert_eq!(load(path).status, FileStatus::Ok);
 
         let path = temp_path("bad");
         fs::write(&path, "{nope").unwrap();

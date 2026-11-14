@@ -24,14 +24,29 @@ including a read-only folder such as `C:\Program Files`, and starting it from a
 terminal, a file manager or a shortcut makes no difference. The folder is
 worked out once per run (`settings_dir()` in `src-tauri/src/lib.rs`):
 
-1. `RUST_SCAFFOLD_DIR`, if set. The folder is created if missing and nothing is
-   copied into it. Use it for tests and benchmarks, for example
+1. `RUST_SCAFFOLD_DIR`, if set. The folder is created if missing. Use it for
+   tests and benchmarks, for example
    `RUST_SCAFFOLD_DIR=/tmp/try dist/rust-scaffold`.
-2. The per-user folder. When it has no `config.json`, the three JSON files are
-   copied in once from the program's own folder (where versions before 0.2.2
-   kept them). The originals are not changed or deleted.
+2. The per-user folder.
 3. The program's own folder, only if the per-user folder cannot be found or
    created.
+
+Nothing is ever copied in from the program's folder. The app writes each file
+from the default built into the program:
+
+- **Missing file:** created with the defaults the next time it is read. You can
+  delete any of the four JSON files, or the whole settings folder, at any time.
+  `config.json` is read at start (and written again on the next save);
+  `options.json`, `search.json` and `keys.json` are re-read while the app runs.
+- **File over its size limit:** treated as corrupt. It is renamed to
+  `NAME.json.corrupt` (replacing an older `.corrupt` copy, so only one is kept
+  per file), a fresh default is written, and a warning is shown in the app and
+  on the Errors page. Limits: `config.json` 5 MiB, `options.json` and
+  `search.json` 1 MiB, `keys.json` 64 KiB. A file exactly at its limit is
+  still read. If the rename or the new write fails, the file is left alone and
+  not loaded.
+- **Invalid JSON or values, under the limit:** not replaced, so a typo in a
+  hand edit is never thrown away. See the rules for each file below.
 
 The UI in `ui/` is embedded in the binary at compile time. After editing any
 HTML, CSS or JavaScript, run the script again (an incremental rebuild takes
@@ -57,6 +72,43 @@ incremental rebuild about a minute (about 25 seconds without LTO).
 Delete `src-tauri/target` to reclaim about
 1.3 GB of build files at any time; it is rebuilt on the next run.
 
+### Checks on a hidden screen
+
+`tools/xvfb_check.sh` starts the app on a private, invisible X screen (Xvfb)
+and runs check scripts against it. Nothing appears on the desktop, no key or
+click reaches it, and the real settings folder is not used. Needs `Xvfb`,
+`xdotool`, `xdpyinfo`, `import` (ImageMagick) and `dbus-daemon`. The app
+gets a private D-Bus session bus with no service activation, so its tray icon
+never reaches the real panel and no desktop services are started for it.
+
+    tools/xvfb_check.sh --list                      list the checks
+    tools/xvfb_check.sh smoke settings_files        run two checks
+    tools/xvfb_check.sh --bin dist/rust-scaffold smoke   test another binary
+    tools/xvfb_check.sh --size 640x480 --keep smoke      small screen, keep files
+
+By default it tests `src-tauri/target/release/rust-scaffold`, so build that
+first (`cargo build --release` in `src-tauri`). It copies the binary into a
+scratch folder under `/tmp`, gives it scratch settings, cache and data
+folders, and stops only the processes it started. It stops at the first
+failing command. It prints PASS or FAIL per assertion and exits non-zero if
+any failed; the scratch folder (screenshots, app output) is then kept and
+its path printed.
+
+Checks so far: `isolation` (the real panel's tray icons are unchanged while
+the app runs), `smoke` (window shown by `app.js` in under 4 s, settings
+files created), `settings_files` (nothing copied in, oversized files set aside
+and recreated, deleted folder recreated), `errors_badge` and `menu_layout`
+(screenshots to check by eye; run `menu_layout` with `--size 1280x800`).
+
+Checks are short shell files in `tools/checks/`, sourced by the tool. They
+use its helpers: `app_start` (optionally `app_start xdg` for the normal
+settings path instead of the override), `app_stop`, `key alt+8`,
+`type_text "abc"`, `click X Y` (inside the window), `shot NAME`, and
+`expect "description" command...`. The variable `$SETTINGS` is the
+settings folder in use. Never call `xdotool` or `import` directly in a
+check: the tool unsets `DISPLAY`, so a direct call fails instead of reaching
+the desktop.
+
 ## Configuration file
 
 `config.json` is created on first run and rewritten whenever you change a
@@ -64,13 +116,14 @@ setting in the app. You can also edit it by hand while the app is closed.
 
 | Key | Default | Meaning |
 |-----|---------|---------|
-| `theme` | `"aero-blue"` | Theme id, a lowercase slug (see `ui/js/theme.js`) |
+| `theme` | `"racing-green"` | Theme id, a lowercase slug (see `ui/js/theme.js`) |
 | `width`, `height` | `640`, `480` | Window size, clamped to 200..10000 |
 | `show_titlebar` | `true` | `false` hides the whole title bar |
 | `rounded_corners` | `true` | `false` gives a square window |
 | `order` | `{}` | Saved item order per sortable list |
 | `collapsed` | `[]` | Ids of collapsed accordion panels |
 | `start_minimised` | `false` | Start hidden in the tray |
+| `hide_to_tray` | `true` | Hiding from the tray takes the window off the taskbar; `false` minimises it to the taskbar instead. Without a tray it always minimises. Showing a hidden window centres it on the primary monitor |
 | `tray_items` | `[]` | Extra tray menu entries |
 | `menu_layout` | `"vertical"` | `"vertical"` (menu down the left) or `"horizontal"` (tabs across the top) |
 | `menu_collapsed` | `false` | Vertical menu contracted to icons |
@@ -88,7 +141,8 @@ setting in the app. You can also edit it by hand while the app is closed.
 
 Rules enforced by `src-tauri/src/config.rs`:
 
-- A file larger than 5 MiB (5,242,880 bytes) is not read.
+- A file larger than 5 MiB (5,242,880 bytes) is set aside as
+  `config.json.corrupt` and replaced with the defaults; saving still works.
 - Invalid JSON or invalid values load the defaults, and saving is switched off
   for that session so the file is never overwritten. The window shows a
   warning banner.
@@ -117,7 +171,8 @@ how, comes from `options.json` in the settings folder, not from the code:
 `options.json` is read every time the Options tab opens. Edit it, switch to
 another tab and back, and the change appears. No rebuild and no restart. If the
 file is missing, the app writes the default copy
-(`src-tauri/options.default.json`). A file over 1 MiB is not read. Invalid JSON
+(`src-tauri/options.default.json`). A file over 1 MiB is set aside as
+`options.json.corrupt` and the default copy is written. Invalid JSON
 shows a warning and no controls; the file is never overwritten.
 
 Changes are staged. **Save** writes only the values you changed. **Revert**
@@ -380,15 +435,28 @@ minimised or hidden. Menu: Show / Hide first, your `tray_items`, Quit last.
     ]
 
 Allowed actions are `show`, `hide`, `toggle` and `quit`. Anything else is
-rejected, so the config file can never run commands. "Show / Hide" minimises a
-visible window and restores a minimised or hidden one.
+rejected, so the config file can never run commands. "Show / Hide" hides a
+visible window and brings back a minimised or hidden one. With `hide_to_tray`
+on (the default) hiding takes the window off the taskbar; off, it minimises to
+the taskbar. Without a tray it always minimises. A hidden window comes back
+centred on the primary monitor; a minimised one where it was.
 
 With `"start_minimised": true` the window stays hidden at launch. If the tray
 cannot be created the window opens anyway, so the app is never unreachable.
 
-On Linux, Tauri does not deliver tray click or double-click events, so there is
-no double-click toggle; use the menu. On Windows a double-click toggles the
-window.
+A double-click on the tray icon does the same as "Show / Hide". Windows and
+macOS report double-clicks themselves. On Linux the tray uses the KSNI backend
+(Cargo feature `linux-tray-clicks`, on by default), which reports each left
+click once; two left clicks within 500 ms count as a double-click
+(`DOUBLE_CLICK` in `src-tauri/src/tray.rs`). The desktop panel needs a
+StatusNotifier host (LXQt: the Status Notifier plugin; KDE has one built in).
+Right click is handled by the panel and opens the menu.
+
+The feature costs about 41 crates (`zbus` and helpers) and about 1.3 MB. To
+drop it, remove `"linux-tray-clicks"` from `default` in `[features]` in
+`src-tauri/Cargo.toml`: the tray then uses AppIndicator, which reports no
+clicks, so only the menu works. `tray-icon` in `Cargo.toml` must stay on the
+same version Tauri uses (`cargo tree -i tray-icon` should show one copy).
 
 ## Change things
 
@@ -415,8 +483,11 @@ pair: the button needs `data-bs-target="#page-name"`, the pane needs
 
     <i class="bi bi-sliders"></i><span class="tab-label">Options</span>
 
-Help stays last, in `<li class="nav-item nav-item-help">`. Add new
-tabs before it. To make a page findable by its parts, add entries to
+Options and Help stay together at the end of the menu (the bottom of the
+vertical menu, the right of the tab row), apart from the pages, because users
+look for settings there. Options carries `<li class="nav-item nav-item-end">`,
+which pushes it and everything after it to the end. Add new page tabs before
+Options. To make a page findable by its parts, add entries to
 `search.json` (the tab itself is found by name automatically).
 
 When the labels no longer fit on one row (between 760 and 860 px wide in Aero
@@ -551,10 +622,16 @@ reach the Errors page either way.
   `run.sh`, which starts it for you if it is installed.
 - **Build fails with "could not exec the linker cc".** Install the C toolchain
   (`build-essential` on Debian and Ubuntu).
+- **The window appears after about 5 seconds, unstyled.** The start-up
+  script (`ui/js/app.js`) failed, and the start-up fallback
+  (`src-tauri/src/startup.rs`) showed the window anyway. The Errors page lists
+  the script error and the fallback's own error.
 - **Tray icon is missing.** Install `libayatana-appindicator3-1` and make sure
   the desktop panel has a system tray.
-- **config.json warning banner.** The file was too large, invalid or
-  unreadable. Fix or delete it and restart; until then settings are not saved.
+- **config.json warning banner.** Either the file was over 5 MiB and has been
+  replaced with defaults (the old one is `config.json.corrupt`; settings save
+  normally), or it was invalid or unreadable. In the second case fix or delete
+  it and restart; until then settings are not saved.
 
 ## Known limitations
 

@@ -44,8 +44,9 @@ core. The release binary is about 4.5 MB, well under the 50 MB target.
   optional start-minimised mode.
 - A settings file (`config.json`) in the per-user settings folder
   (`~/.config/rust_scaffold` on Linux, `%APPDATA%\rust_scaffold` on Windows). It is created on first
-  run, is never read if it is larger than 5 MiB, and is never overwritten when
-  it cannot be read.
+  run and whenever it is missing. A file over 5 MiB is treated as corrupt,
+  kept as `config.json.corrupt` and replaced with defaults; an invalid file is
+  never overwritten.
 - An Options tab that edits settings in the app. Its controls (switches,
   checkboxes, radio buttons, text boxes, number boxes, sliders, list groups,
   selects and buttons) are described in `options.json`, which you can edit
@@ -220,7 +221,7 @@ theme, window size, title bar state, panel order and collapsed panels to it. You
 can also edit it by hand while the app is closed.
 
     {
-      "theme": "aero-blue",
+      "theme": "racing-green",
       "width": 640,
       "height": 480,
       "show_titlebar": true,

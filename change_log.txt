@@ -1,0 +1,52 @@
+Rust Scaffold change log
+========================
+
+Short daily notes of what changed. Newest day first. Full details, tests and
+reasons are in AGENTS.md (Log section); history before 14 November 2026 is in
+AGENTS.md and docs/AGENTS_OLD.bak.
+
+
+14 November 2026 (version 0.2.4, built into dist/)
+--------------------------------------------------
+- Version 0.2.4: everything below, built into dist/ after Kim tested the
+  tray double-click and both Hide to the tray settings on her desktop.
+- Settings files are never copied from the program's folder any more. A
+  missing config.json, options.json, search.json or keys.json is recreated
+  from the built-in defaults; the whole settings folder can be deleted.
+- A settings file over its size limit (config 5 MB, options and search 1 MB,
+  keys 64 KB) is treated as corrupt: renamed to NAME.json.corrupt (one copy
+  kept) and recreated with defaults. Saving keeps working afterwards. Invalid
+  JSON under the limit is still never replaced.
+- New messages for this in the app (banner, Options, Search, Help).
+- New tool tools/xvfb_check.sh: runs the app on a private hidden screen with
+  scratch settings, so checks never touch the real desktop or settings.
+  Checks live in tools/checks/ (smoke, settings_files).
+- Rust tests: 54 pass (5 new). Hidden-screen checks: see below.
+- Docs updated: README.md, docs/usage.md, AGENTS.md.
+- Fixed: the Errors badge undercounted warnings logged while the app
+  started (showed 2 of 4).
+- New: if the start-up script fails, the window is shown after 5 seconds
+  anyway and the Errors page says what went wrong (before, the app ran with
+  no window at all).
+- Menu: Options now sits with Help at the end of the menu (bottom of the
+  vertical menu, right of the tab row), apart from the pages.
+- Hidden-screen checks: 24 pass (new: errors_badge, menu_layout).
+- Default theme is now Racing Green (new or recreated settings only).
+- Default shortcut keys follow the menu order again: Alt+6 Jobs, Alt+7
+  Errors, Alt+8 Options. keys.json deleted so it is recreated.
+- Built into dist/ (5,000,096 bytes).
+- Researched tray double-click on Linux: possible with a new tray backend
+  (KSNI) at the cost of 41 extra crates (about +1.3 MB). Test build made
+  for Kim to click; not in the app yet.
+- New setting "Hide to the tray" (on by default): the tray's Show / Hide
+  takes the window off the taskbar; off, it minimises to the taskbar
+  instead. A hidden window comes back centred on the main screen.
+- The first tray test copy was built before the hide option existed, so it
+  still minimised. Rebuilt; candidate waiting for Kim's test.
+- Tray double-click on Linux: two clicks within half a second show or hide
+  the window (new KSNI tray backend, Cargo feature linux-tray-clicks, on by
+  default, about 41 crates and 1.3 MB).
+- Settings saved as an "extra" by an older build are dropped once they
+  become a proper setting (Kim's config.json had one).
+- Test tool: each hidden run now gets its own private D-Bus, so no tray icon
+  can appear in the real panel during checks. New check: isolation.

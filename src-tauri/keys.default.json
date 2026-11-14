@@ -9,9 +9,9 @@
     { "key": "Alt+3", "action": "page:tables" },
     { "key": "Alt+4", "action": "page:cards" },
     { "key": "Alt+5", "action": "page:charts" },
-    { "key": "Alt+6", "action": "page:options" },
-    { "key": "Alt+7", "action": "page:jobs" },
-    { "key": "Alt+8", "action": "page:errors" },
+    { "key": "Alt+6", "action": "page:jobs" },
+    { "key": "Alt+7", "action": "page:errors" },
+    { "key": "Alt+8", "action": "page:options" },
     { "key": "Alt+9", "action": "page:help" }
   ]
 }

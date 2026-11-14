@@ -1,6 +1,6 @@
 [package]
 name = "rust-scaffold"
-version = "0.2.3"
+version = "0.2.4"
 description = "Lean Rust + Tauri desktop application scaffold"
 authors = ["Kim"]
 edition = "2021"
@@ -14,6 +14,12 @@ crate-type = ["rlib"]
 log = "0.4"
 # Tests only: #[tokio::test] with a paused clock, so job tests run instantly.
 tokio = { version = "1", features = ["rt", "macros", "test-util"] }
+
+# Same crate and major version Tauri uses for its tray (check `cargo tree -i
+# tray-icon` after a Tauri update): listing it here only adds the "ksni"
+# feature to Tauri's copy. A different version would be a second, unused copy.
+[target.'cfg(target_os = "linux")'.dependencies]
+tray-icon = { version = "0.25", default-features = false, features = ["ksni"], optional = true }
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
@@ -44,8 +50,14 @@ tracing-subscriber = { version = "0.3", default-features = false, features = ["s
 # Builds with plain cargo (no Tauri CLI, no Node). With no devUrl the
 # frontend in ../ui is always embedded, so custom-protocol stays on.
 [features]
-default = ["custom-protocol"]
+default = ["custom-protocol", "linux-tray-clicks"]
 custom-protocol = ["tauri/custom-protocol"]
+# Linux only: switches Tauri's tray to the KSNI backend (a StatusNotifierItem
+# over D-Bus), the only Linux backend that reports clicks, so a double-click
+# on the tray icon can show or hide the window. Costs about 41 crates (zbus
+# and helpers) and about 1.3 MB. Remove it from `default` if an app does not
+# need tray clicks; the tray then still works, with its menu only.
+linux-tray-clicks = ["dep:tray-icon"]
 
 # Size-focused release build. Cuts the binary substantially at the cost of a
 # slower full rebuild (a few minutes). panic = "abort" drops the unwinding code.

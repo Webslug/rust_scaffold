@@ -13,8 +13,9 @@
   display: none;
 }
 
-/* Help sits at the far end of the tab row. */
-.app-tabs .nav-item-help {
+/* Options and Help sit together at the far end of the tab row, apart from
+   the pages. nav-item-end marks the first item of that end group. */
+.app-tabs .nav-item-end {
   margin-left: auto;
 }
 
@@ -209,8 +210,8 @@ html[data-menu="vertical"] .app-tabs .nav-item {
   width: 100%;
 }
 
-/* Help sits at the bottom of the menu. */
-html[data-menu="vertical"] .app-tabs .nav-item-help {
+/* Options and Help sit together at the bottom of the menu. */
+html[data-menu="vertical"] .app-tabs .nav-item-end {
   margin-left: 0;
   margin-top: auto;
   padding-top: var(--space-2);

@@ -105,7 +105,7 @@ fn known_field(key: &str) -> Option<&'static [Kind]> {
     match key {
         "theme" => Some(&[Kind::Choice]),
         "width" | "height" | "error_log_max" => Some(&[Kind::Number]),
-        "show_titlebar" | "rounded_corners" | "start_minimised" | "menu_collapsed" | "high_contrast"
+        "show_titlebar" | "rounded_corners" | "start_minimised" | "hide_to_tray" | "menu_collapsed" | "high_contrast"
         | "large_targets" | "underline_links" | "strong_focus" | "reduce_motion"
         | "hardware_acceleration" => Some(&[Kind::Bool]),
         "menu_layout" | "titlebar_scale" | "text_size" => Some(&[Kind::Choice]),
@@ -365,10 +365,14 @@ mod tests {
     }
 
     #[test]
-    fn oversized_and_invalid_files_are_not_loaded_or_changed() {
+    fn oversized_file_is_recreated_invalid_file_left_alone() {
         let path = temp_path("big");
         fs::write(&path, vec![b' '; MAX_OPTIONS_BYTES as usize + 1]).unwrap();
-        assert_eq!(load(path).status, OptionsStatus::TooLarge);
+        let reply = load(path.clone());
+        assert_eq!(reply.status, OptionsStatus::Recreated);
+        assert!(!reply.options.is_empty());
+        assert_eq!(fs::read_to_string(&path).unwrap(), DEFAULT_OPTIONS);
+        assert_eq!(load(path).status, OptionsStatus::Ok);
 
         let path = temp_path("bad");
         fs::write(&path, "{nope").unwrap();

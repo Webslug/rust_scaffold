@@ -59,6 +59,10 @@
   var entries = []; // oldest first, as Rust keeps them
   var max = 100;
   var unseen = 0;
+  // One list per get_errors request in flight. Live entries that arrive
+  // while a request is out are collected here, because the reply may have
+  // been taken before they were recorded and would otherwise drop them.
+  var inFlight = [];
 
   function isOpen() {
     return tab.classList.contains("active");
@@ -112,19 +116,32 @@
   }
 
   function load() {
+    var arrived = [];
+    inFlight.push(arrived);
+    function done() {
+      inFlight.splice(inFlight.indexOf(arrived), 1);
+    }
     return invoke("get_errors").then(function (reply) {
-      entries = reply.entries;
+      done();
+      var known = {};
+      reply.entries.forEach(function (entry) { known[entry.id] = true; });
+      entries = reply.entries.concat(arrived.filter(function (entry) { return !known[entry.id]; }));
       max = reply.max;
+      while (entries.length > max) {
+        entries.shift();
+      }
       note.textContent = reply.log_file
         ? "Kept in memory since the app started. Everything from debug level up is also written to " + reply.log_file + ", which is cut to its newest half when it passes 1 MB."
         : "Kept in memory since the app started. No log file is written (DEBUG_MODE is false in src-tauri/src/lib.rs).";
       render();
     }).catch(function (err) {
+      done();
       status.textContent = "Could not load the list: " + err;
     });
   }
 
   function add(entry) {
+    inFlight.forEach(function (arrived) { arrived.push(entry); });
     for (var i = entries.length - 1; i >= 0; i--) {
       if (entries[i].id === entry.id) {
         return; // already loaded with the full list

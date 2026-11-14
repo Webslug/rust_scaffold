@@ -7,6 +7,7 @@ mod keys;
 mod logging;
 mod options;
 mod search;
+mod startup;
 mod tray;
 
 use std::fs;
@@ -31,10 +32,6 @@ const APP_FOLDER: &str = "rust_scaffold";
 /// benchmark and tests use it so they never touch the real settings.
 pub const DIR_OVERRIDE: &str = "RUST_SCAFFOLD_DIR";
 
-/// Files copied once from the executable's folder into a new, empty settings
-/// folder, so settings from versions before 0.2.2 carry over.
-const MIGRATED_FILES: [&str; 3] = ["config.json", "options.json", "search.json"];
-
 static SETTINGS_DIR: OnceLock<PathBuf> = OnceLock::new();
 
 /// The folder holding the executable, with symlinks followed to the real
@@ -51,11 +48,11 @@ pub fn exe_dir() -> PathBuf {
 /// The folder holding config.json, options.json, search.json, keys.json and
 /// debug.log.
 /// Worked out once per run:
-/// 1. `RUST_SCAFFOLD_DIR`, if set (created if missing; no files copied in).
+/// 1. `RUST_SCAFFOLD_DIR`, if set (created if missing).
 /// 2. The per-user config folder from the `dirs` crate plus `APP_FOLDER`.
-///    When it has no config.json yet, the files above are copied in from the
-///    executable's folder; the originals are left in place.
 /// 3. The executable's folder, if neither of the above can be used.
+/// Nothing is copied in from anywhere: each loader writes its built-in
+/// default when its file is missing.
 pub fn settings_dir() -> &'static Path {
     let mut notes = Vec::new();
     let dir = SETTINGS_DIR.get_or_init(|| find_settings_dir(&mut notes));
@@ -81,8 +78,13 @@ fn find_settings_dir(notes: &mut Vec<(bool, String)>) -> PathBuf {
             Err(e) => notes.push((true, format!("settings: cannot use {DIR_OVERRIDE} {}: {e}", dir.display()))),
         }
     }
-    let exe = exe_dir();
-    let Some(dir) = dirs::config_dir().map(|d| d.join(APP_FOLDER)) else {
+    pick_user_dir(dirs::config_dir(), exe_dir(), notes)
+}
+
+/// Steps 2 and 3 of `settings_dir`, split out so tests can pass temporary
+/// folders instead of the real user config folder.
+fn pick_user_dir(config_root: Option<PathBuf>, exe: PathBuf, notes: &mut Vec<(bool, String)>) -> PathBuf {
+    let Some(dir) = config_root.map(|d| d.join(APP_FOLDER)) else {
         notes.push((true, format!("settings: no user config folder, using {}", exe.display())));
         return exe;
     };
@@ -90,19 +92,24 @@ fn find_settings_dir(notes: &mut Vec<(bool, String)>) -> PathBuf {
         notes.push((true, format!("settings: cannot create {}: {e}; using {}", dir.display(), exe.display())));
         return exe;
     }
-    if dir != exe && !dir.join("config.json").exists() {
-        for name in MIGRATED_FILES {
-            let (from, to) = (exe.join(name), dir.join(name));
-            if from.is_file() && !to.exists() {
-                match fs::copy(&from, &to) {
-                    Ok(_) => notes.push((false, format!("settings: copied {} to {}", from.display(), to.display()))),
-                    Err(e) => notes.push((true, format!("settings: could not copy {}: {e}", from.display()))),
-                }
-            }
-        }
-    }
     notes.push((false, format!("settings: {}", dir.display())));
     dir
+}
+
+/// Places the window in the middle of the primary monitor, for a window of
+/// `width` x `height` logical pixels. Call it while the window is hidden:
+/// the window manager re-places a hidden window when it is shown, ignoring a
+/// plain center() call.
+pub(crate) fn centre_on_primary(window: &tauri::WebviewWindow, width: u32, height: u32) {
+    if let Ok(Some(monitor)) = window.primary_monitor() {
+        let scale = monitor.scale_factor();
+        let (w, h) = ((width as f64 * scale) as i32, (height as f64 * scale) as i32);
+        let size = monitor.size();
+        let origin = monitor.position();
+        let x = origin.x + (size.width as i32 - w) / 2;
+        let y = origin.y + (size.height as i32 - h) / 2;
+        let _ = window.set_position(PhysicalPosition::new(x.max(origin.x), y.max(origin.y)));
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -132,17 +139,7 @@ pub fn run() {
             // Restore the saved size while the window is still hidden.
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.set_size(LogicalSize::new(width as f64, height as f64));
-                // Centre explicitly: the window manager re-places a hidden
-                // window when it is shown, ignoring a plain center() call.
-                if let Ok(Some(monitor)) = window.primary_monitor() {
-                    let scale = monitor.scale_factor();
-                    let (w, h) = ((width as f64 * scale) as i32, (height as f64 * scale) as i32);
-                    let size = monitor.size();
-                    let origin = monitor.position();
-                    let x = origin.x + (size.width as i32 - w) / 2;
-                    let y = origin.y + (size.height as i32 - h) / 2;
-                    let _ = window.set_position(PhysicalPosition::new(x.max(origin.x), y.max(origin.y)));
-                }
+                centre_on_primary(&window, width, height);
                 info!("window: restored size {width}x{height}");
             }
             let tray_ok = match tray::setup(app.handle(), &tray_items) {
@@ -153,6 +150,8 @@ pub fn run() {
                 }
             };
             app.manage(tray::TrayStatus(AtomicBool::new(tray_ok)));
+            // Shows the window if app.js never reports ready.
+            startup::arm(app.handle().clone());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -166,6 +165,7 @@ pub fn run() {
             commands::clear_errors,
             commands::report_ui_error,
             commands::log_test_entry,
+            commands::ui_ready,
             commands::jobs_list,
             commands::jobs_start,
             commands::jobs_cancel,
@@ -175,4 +175,33 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn nothing_is_copied_from_the_executable_folder() {
+        let base = std::env::temp_dir().join(format!("rust_scaffold_lib_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&base);
+        let (root, exe) = (base.join("config"), base.join("bin"));
+        fs::create_dir_all(&exe).unwrap();
+        for name in ["config.json", "options.json", "search.json", "keys.json"] {
+            fs::write(exe.join(name), "{\"from\":\"exe\"}").unwrap();
+        }
+        let mut notes = Vec::new();
+        let dir = pick_user_dir(Some(root.clone()), exe.clone(), &mut notes);
+        assert_eq!(dir, root.join(APP_FOLDER));
+        assert_eq!(fs::read_dir(&dir).unwrap().count(), 0, "settings folder must start empty");
+
+        // The loaders then write their defaults, not the executable's copies.
+        let state = config::load(dir.join("config.json"));
+        assert_eq!(state.status, config::LoadStatus::Created);
+        assert!(!fs::read_to_string(dir.join("config.json")).unwrap().contains("exe"));
+
+        // No user config folder: the executable's folder is used as is.
+        assert_eq!(pick_user_dir(None, exe.clone(), &mut notes), exe);
+        let _ = fs::remove_dir_all(&base);
+    }
 }

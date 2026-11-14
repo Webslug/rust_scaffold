@@ -28,7 +28,8 @@
   var highlightTimer = null;
 
   var STATUS_TEXT = {
-    too_large: "search.json is larger than 1 MB and was not read.",
+    recreated: "search.json was larger than 1 MB, so it was treated as corrupt, kept as search.json.corrupt and replaced with defaults.",
+    too_large: "search.json is larger than 1 MB and could not be replaced, so it was not read.",
     invalid: "search.json could not be read as a search library.",
     unreadable: "search.json could not be read or created."
   };

@@ -10,7 +10,8 @@
   var RESIZE_DEBOUNCE_MS = 500;
 
   var WARNINGS = {
-    too_large: "config.json is larger than 5 MB, so it was not loaded. Defaults are in use and saving is disabled.",
+    recreated: "config.json was larger than 5 MB, so it was treated as corrupt, kept as config.json.corrupt and replaced with defaults.",
+    too_large: "config.json is larger than 5 MB and could not be replaced, so it was not loaded. Defaults are in use and saving is disabled.",
     invalid: "config.json could not be parsed or holds invalid values. Defaults are in use and saving is disabled so the file is not overwritten.",
     unreadable: "config.json could not be read or created. Defaults are in use and saving is disabled."
   };
@@ -244,7 +245,7 @@
 
   invoke("get_config").then(function (reply) {
     config = reply.config;
-    canSave = reply.status === "ok" || reply.status === "created";
+    canSave = reply.status === "ok" || reply.status === "created" || reply.status === "recreated";
     startHidden = reply.start_hidden;
     config.theme = window.AppTheme.apply(config.theme);
     root.classList.toggle("square-corners", !config.rounded_corners);
@@ -263,5 +264,11 @@
     // The window starts hidden so there is no flash of the default theme.
     // With start_minimised (and a working tray) it simply stays hidden.
     return startHidden ? null : appWindow.show();
+  }).then(function () {
+    // Stops the Rust start-up fallback (src-tauri/src/startup.rs), which
+    // shows the window if this point is never reached.
+    return invoke("ui_ready");
+  }).catch(function (err) {
+    report("Could not show the window: " + err);
   });
 })();

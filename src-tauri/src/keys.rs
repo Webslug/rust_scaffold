@@ -270,7 +270,7 @@ mod tests {
     }
 
     #[test]
-    fn missing_file_is_created_oversized_and_invalid_ones_left_alone() {
+    fn missing_and_oversized_files_are_recreated_invalid_ones_left_alone() {
         let path = temp_path("missing");
         let _ = fs::remove_file(&path);
         let reply = load(path.clone());
@@ -280,7 +280,11 @@ mod tests {
 
         let path = temp_path("big");
         fs::write(&path, vec![b' '; MAX_KEYS_BYTES as usize + 1]).unwrap();
-        assert_eq!(load(path).status, FileStatus::TooLarge);
+        let reply = load(path.clone());
+        assert_eq!(reply.status, FileStatus::Recreated);
+        assert_eq!(reply.bindings.len(), 12);
+        assert_eq!(fs::read_to_string(&path).unwrap(), DEFAULT_KEYS);
+        assert_eq!(load(path).status, FileStatus::Ok);
 
         let path = temp_path("bad");
         fs::write(&path, "{nope").unwrap();

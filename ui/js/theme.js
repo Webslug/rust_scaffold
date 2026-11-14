@@ -20,7 +20,7 @@
     { id: "vapor", label: "Vapor" },
     { id: "quartz", label: "Quartz" }
   ];
-  var DEFAULT_THEME = "aero-blue";
+  var DEFAULT_THEME = "racing-green";
 
   var root = document.documentElement;
   var menu = document.getElementById("theme-menu");

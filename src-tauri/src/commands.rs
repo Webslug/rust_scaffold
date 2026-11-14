@@ -145,6 +145,13 @@ pub fn report_ui_error(message: String, location: String) {
     tracing::error!(target: "ui", "{message} ({location})");
 }
 
+/// app.js calls this once the window is shown, or deliberately left hidden
+/// for start_minimised. Without it, the start-up fallback shows the window.
+#[tauri::command]
+pub fn ui_ready() {
+    crate::startup::mark_ready();
+}
+
 /// The Errors tab's test button: records a warning or an error on purpose.
 #[tauri::command]
 pub fn log_test_entry(level: String) -> Result<(), String> {

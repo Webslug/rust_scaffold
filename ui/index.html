@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="aero-blue">
+<html lang="en" data-theme="racing-green">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -16,7 +16,7 @@
       <span id="app-title" class="app-title" data-tauri-drag-region>Rust Scaffold</span>
       <button type="button" id="btn-title" class="window-btn title-toggle" title="Hide the title bar" aria-label="Hide the title bar" aria-pressed="true"><i class="bi bi-fonts"></i></button>
       <div class="dropdown theme-picker">
-        <button type="button" class="window-btn theme-btn" data-bs-toggle="dropdown" aria-expanded="false" title="Change the theme" aria-label="Change the theme"><i class="bi bi-palette"></i><span id="theme-label" class="theme-btn-label">Aero Blue</span></button>
+        <button type="button" class="window-btn theme-btn" data-bs-toggle="dropdown" aria-expanded="false" title="Change the theme" aria-label="Change the theme"><i class="bi bi-palette"></i><span id="theme-label" class="theme-btn-label">Racing Green</span></button>
         <ul id="theme-menu" class="dropdown-menu dropdown-menu-end"></ul>
       </div>
       <div class="window-controls">
@@ -61,15 +61,15 @@
           <button type="button" class="nav-link" id="tab-charts" data-bs-toggle="tab" data-bs-target="#page-charts" role="tab" aria-controls="page-charts" aria-selected="false"><i class="bi bi-bar-chart-line"></i><span class="tab-label">Charts</span></button>
         </li>
         <li class="nav-item" role="presentation">
-          <button type="button" class="nav-link" id="tab-options" data-bs-toggle="tab" data-bs-target="#page-options" role="tab" aria-controls="page-options" aria-selected="false"><i class="bi bi-sliders"></i><span class="tab-label">Options</span></button>
-        </li>
-        <li class="nav-item" role="presentation">
           <button type="button" class="nav-link" id="tab-jobs" data-bs-toggle="tab" data-bs-target="#page-jobs" role="tab" aria-controls="page-jobs" aria-selected="false"><i class="bi bi-list-task"></i><span class="tab-label">Jobs</span></button>
         </li>
         <li class="nav-item" role="presentation">
           <button type="button" class="nav-link" id="tab-errors" data-bs-toggle="tab" data-bs-target="#page-errors" role="tab" aria-controls="page-errors" aria-selected="false"><i class="bi bi-bug"></i><span class="tab-label">Errors</span><span id="errors-badge" class="tab-count d-none" aria-label="new errors and warnings"></span></button>
         </li>
-        <li class="nav-item nav-item-help" role="presentation">
+        <li class="nav-item nav-item-end" role="presentation">
+          <button type="button" class="nav-link" id="tab-options" data-bs-toggle="tab" data-bs-target="#page-options" role="tab" aria-controls="page-options" aria-selected="false"><i class="bi bi-sliders"></i><span class="tab-label">Options</span></button>
+        </li>
+        <li class="nav-item" role="presentation">
           <button type="button" class="nav-link" id="tab-help" data-bs-toggle="tab" data-bs-target="#page-help" role="tab" aria-controls="page-help" aria-selected="false"><i class="bi bi-question-circle"></i><span class="tab-label">Help</span></button>
         </li>
       </ul>
@@ -494,6 +494,7 @@
               <div class="card-header"><h2 class="h6 card-header-title mb-0" id="help-changelog-title"><i class="bi bi-journal-text me-2" aria-hidden="true"></i>Change log</h2></div>
               <div class="card-body">
                 <ul class="help-changelog">
+                  <li><strong>0.2.4, 14 November 2026.</strong> Double-click the tray icon to hide or show the window, now on Linux too. New option "Hide to the tray" (on by default): hiding takes the window off the taskbar; turn it off to minimise to the taskbar instead. A hidden window comes back centred on the main screen. Options now sits with Help at the end of the menu. Racing Green is the default theme, and Alt+1 to Alt+9 follow the menu order. Settings files are recreated when missing, and a file over its size limit is set aside as .corrupt and replaced with defaults. If the start-up script fails, the window still appears after 5 seconds and the Errors page says why. The Errors badge now counts every warning from start-up.</li>
                   <li><strong>0.2.3, 13 November 2026.</strong> The Jobs table fits narrow windows: it hides Waited and Late by, then Ran and the bar, as space runs out (Inspect still shows them). Select boxes no longer draw their arrow over the text. New shortcut keys, set in keys.json in the settings folder: / or Ctrl+K for search, Alt+1 to Alt+9 for the pages, Escape to leave a text box. They are listed on this page.</li>
                   <li><strong>0.2.2, 13 November 2026.</strong> Settings move to the per-user settings folder (~/.config/rust_scaffold on Linux, %APPDATA%\rust_scaffold on Windows), so the app also works when installed in a read-only folder. Settings from earlier versions are copied across on first start. New Errors page: errors and warnings appear the moment they happen (tracing crate), with an optional size-capped debug.log. New Jobs page: a Tokio job queue running 1 to 3 jobs at once, with inspect and kill.</li>
                   <li><strong>0.2.1, 13 November 2026.</strong> Built with Rust 1.100 and Tauri 2.12.5. New Build section on this page shows when the app was compiled, the Rust and Cargo versions and the crates it uses.</li>

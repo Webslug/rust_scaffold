@@ -24,7 +24,8 @@
   var actionOf = {}; // standard key -> action
 
   var STATUS_TEXT = {
-    too_large: "keys.json is larger than 64 KB and was not read.",
+    recreated: "keys.json was larger than 64 KB, so it was treated as corrupt, kept as keys.json.corrupt and replaced with defaults.",
+    too_large: "keys.json is larger than 64 KB and could not be replaced, so it was not read.",
     invalid: "keys.json could not be read as a list of shortcut keys.",
     unreadable: "keys.json could not be read or created."
   };
