@@ -282,8 +282,8 @@ delete the rest.
 Copy the folder without `src-tauri/target`, `dist/` and `backup/`. Rename the
 package, library, product name, identifier and window title; the exact files
 and fields are listed in [docs/usage.md](docs/usage.md) ("Use as a template
-for a new project"). Bump `version` in `src-tauri/Cargo.toml` and
-`src-tauri/tauri.conf.json` together.
+for a new project"). Set `version` in `src-tauri/Cargo.toml` only;
+`tauri.conf.json` has no version, so Tauri takes it from `Cargo.toml`.
 
 ### 2. Decide what stays
 

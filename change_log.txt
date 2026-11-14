@@ -8,6 +8,13 @@ AGENTS.md and docs/AGENTS_OLD.bak.
 
 14 November 2026 (version 0.2.4, built into dist/)
 --------------------------------------------------
+- Kim checked the dist/ build: tray double-click, tray menu and Quit work.
+- The version number now lives only in src-tauri/Cargo.toml; Tauri takes
+  it from there (tested). tauri.conf.json no longer has one.
+- Roadmap rewritten: job kinds next, then how-to guides for new apps. The
+  fork script waits for a later version.
+- Settings JSON files and SQLite databases may be deleted freely while the
+  app is in development (rule in AGENTS.md).
 - Version 0.2.4: everything below, built into dist/ after Kim tested the
   tray double-click and both Hide to the tray settings on her desktop.
 - Settings files are never copied from the program's folder any more. A

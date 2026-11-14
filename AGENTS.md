@@ -36,6 +36,7 @@ We continue to use this file to log successes, failures, tweaks and adjustments.
 - Markdown documents go in `docs/`. No em dashes in public documents. Python scripts get a `DEBUG_MODE` flag, false by default.
 - After every change, add a short dated note to `change_log.txt` (root, newest day first, plain words) as well as the detailed entry in the Log below.
 - A test binary handed to Kim must be built after the last source change it is meant to test: compare the binary's time with the newest source file before handing it over.
+- Allowed without asking (Kim, 14 November 2026): while the app is in development, the settings JSON files (`config.json`, `options.json`, `search.json`, `keys.json`, and any `*.corrupt` copies) and any SQLite databases the app creates may be deleted when testing or adding settings, in Kim's real settings folder (`~/.config/rust_scaffold`) as well as scratch folders. Nothing valuable is kept in them and the app recreates them. Say in the reply and the Log which files were deleted. This allowance does not cover anything else: not `backup/`, `dist/`, source, docs or the `*.default.json` files.
 - Hidden-screen checks use `tools/xvfb_check.sh` and check files in `tools/checks/`. Never write a one-off xdotool or screenshot script.
 - Never commit, stage, branch, push or pull. Kim manages git.
 
@@ -55,7 +56,7 @@ Root:
 - `backup/`: zips taken before each milestone.
 
 Rust (`src-tauri/`):
-- `Cargo.toml`, `Cargo.lock`, `tauri.conf.json` (window, version, CSP), `capabilities/default.json` (window permissions).
+- `Cargo.toml`, `Cargo.lock`, `tauri.conf.json` (window, CSP; no version, Tauri takes it from `Cargo.toml`), `capabilities/default.json` (window permissions).
 - `build.rs`: records build time, rustc and cargo versions and the crate list for the Help page.
 - `src/lib.rs`: start-up order, `settings_dir()`, `DEBUG_MODE`, `APP_FOLDER`, `DIR_OVERRIDE`, command list.
 - `src/commands.rs`: every command the interface can call.
@@ -107,7 +108,7 @@ Things to know:
 - Build for Kim: `./build.sh`, about 1 minute incremental, about 2 minutes clean. Run: `./run.sh`.
 - Hidden-screen checks: `tools/xvfb_check.sh smoke settings_files` (needs `cargo build --release` first; never touches the desktop or real settings; see `docs/usage.md`).
 - Tests: `cd src-tauri && nice -n 10 cargo test --release -j 4` (54 tests: config, options, search, keys, settings files, settings folder, logging, job queue). Job tests use Tokio's paused clock, so a 100-step job is tested in milliseconds.
-- Version numbers live in `src-tauri/Cargo.toml` and `src-tauri/tauri.conf.json`. After a version change run `cargo update --workspace --offline` (because `build.sh` uses `--locked`) and add a line to the change log on the Help page.
+- The version number lives only in `src-tauri/Cargo.toml` (`tauri.conf.json` has no `version`, so Tauri uses the Cargo one; the About page reads `CARGO_PKG_VERSION`). After a version change run `cargo update --workspace --offline` (because `build.sh` uses `--locked`) and add a line to the change log on the Help page.
 
 ---
 
@@ -246,3 +247,12 @@ They drive the real desktop with xdotool, so ask Kim first. Both start the app w
 - Backup after: `backup/rust_template_0.2.4.zip` (verified).
 - Not tested in this build: Kim's `./run.sh` launch of this exact `dist/` file (the candidate she tested was built from the same source, minus only the version number and the Help text).
 
+
+### 14 November 2026: roadmap rewritten, version in Cargo.toml only, deletion allowance (Claude)
+- Kim checked the 0.2.4 `dist/` build with `./run.sh`: it starts, tray double-click hides and shows, the tray menu and Quit work.
+- Backup first: `backup/rust_template_pre_roadmap_jobkinds.zip` (verified).
+- Version test (roadmap "something to check"): scratch copy in /tmp with `Cargo.toml` at 0.2.99 and the `version` line removed from `tauri.conf.json`, plus a temporary test printing `generate_context!()` package info: 0.2.99, config version None. Control with the line back: 0.2.4. The About page cannot show this (it reads `CARGO_PKG_VERSION`), so the probe was needed. Scratch copy deleted; project source untouched (`git status` clean) until the change below.
+- Applied: `version` removed from `src-tauri/tauri.conf.json`; AGENTS.md and README.md now say the version lives only in `Cargo.toml`.
+- `docs/roadmap_0.2.4.md` rewritten: Steps 1, 2 and 5 and the extra work marked done; next are job kinds, then "how to" guides for new apps, then the optional Options tidy. The fork script moved to a later version by Kim's decision (project still changing); measured scope now 95 lines in 33 files, not 12 places in 9. Forks start without this project's history.
+- New rule above: settings JSON files and SQLite databases may be deleted without asking while in development (Kim's decision).
+- Tests: 56 pass; release build clean; `xvfb_check.sh smoke` 5 of 5. `dist/` not rebuilt (no change a user can see).
