@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "note": "Scheduled jobs and rules. Usually edited on the Jobs page (Schedules and Rules); this file can also be edited by hand, then press Reload. Each schedule runs a job kind (src-tauri/src/job_kinds.rs) with its input: command (script, folder) or ai (provider: ollama, llama_cpp, claude_code, codex or grok_build; model; prompt; folder; endpoint). when: manual (only Run now or a rule), once (at), every (interval: 30s, 10m, 2h, 14d), daily (time), weekly (day, time) or monthly (day 1 to 31, time). Times are local: HH:MM and YYYY-MM-DD HH:MM. Optional: enabled (true), catch_up (true: a run missed while the app was closed runs once at start), max_runs, until, timeout_ms, retries (0 to 10), retry_wait (1m), retry_doubling (true), note. A rule: when a schedule ends (done, failed, timed_out, killed, not_done or any), optionally with a result label, a number of times in a row, then start, enable or disable a schedule. See docs/usage.md.",
+  "schedules": [
+    {
+      "name": "demo_disk_check",
+      "note": "Shows free space on / every hour. Turn it on to try it.",
+      "kind": "command",
+      "input": {
+        "script": "df -h / | tail -n 1",
+        "folder": null
+      },
+      "when": {
+        "type": "every",
+        "interval": "1h"
+      },
+      "enabled": false
+    },
+    {
+      "name": "demo_morning_ai",
+      "note": "Asks the local Ollama model for a line each morning at 08:00, made up once at start if the app was closed then. Ollama must be running.",
+      "kind": "ai",
+      "input": {
+        "provider": "ollama",
+        "model": "qwen3:1.7b",
+        "prompt": "Write one cheerful sentence to start the day."
+      },
+      "when": {
+        "type": "daily",
+        "time": "08:00"
+      },
+      "enabled": false
+    },
+    {
+      "name": "demo_month_end",
+      "note": "Runs on the last day of each month at 23:00, at most 12 times.",
+      "kind": "command",
+      "input": {
+        "script": "echo \"Month end: $(date)\"",
+        "folder": null
+      },
+      "when": {
+        "type": "monthly",
+        "day": 31,
+        "time": "23:00"
+      },
+      "max_runs": 12,
+      "enabled": false
+    },
+    {
+      "name": "demo_follow_up",
+      "note": "Started only by the rule demo_after_failure.",
+      "kind": "command",
+      "input": {
+        "script": "echo \"The disk check failed twice in a row.\"",
+        "folder": null
+      },
+      "when": {
+        "type": "manual"
+      },
+      "enabled": false
+    }
+  ],
+  "rules": [
+    {
+      "name": "demo_after_failure",
+      "note": "When demo_disk_check fails twice in a row, start demo_follow_up. Set enabled to true to try it.",
+      "when": {
+        "schedule": "demo_disk_check",
+        "ended": "failed",
+        "times": 2
+      },
+      "then": {
+        "action": "start",
+        "schedule": "demo_follow_up"
+      },
+      "enabled": false
+    }
+  ]
+}

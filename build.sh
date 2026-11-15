@@ -40,6 +40,12 @@ if [ ! -x "$BIN" ]; then
 fi
 
 mkdir -p "$PROJECT_DIR/dist"
+# Keep the build being replaced, so a bad build is undone with one copy:
+# cp dist/rust-scaffold.previous dist/rust-scaffold
+if [ -f "$PROJECT_DIR/dist/rust-scaffold" ]; then
+  cp -f "$PROJECT_DIR/dist/rust-scaffold" "$PROJECT_DIR/dist/rust-scaffold.previous"
+  echo "Previous build kept: $PROJECT_DIR/dist/rust-scaffold.previous"
+fi
 cp -f "$BIN" "$PROJECT_DIR/dist/rust-scaffold"
 echo "Build complete: $BIN"
 echo "Copied to: $PROJECT_DIR/dist/rust-scaffold"

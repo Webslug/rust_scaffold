@@ -92,6 +92,12 @@ pub struct Config {
     /// How many jobs the job queue runs at once, 1 to 3 (see jobs.rs). More
     /// wait in the queue.
     pub job_concurrency: u32,
+    /// Only one running job may hold each resource a job kind names (for
+    /// example "gpu"), so two model jobs never load at once. Others wait.
+    pub job_resource_locks: bool,
+    /// A schedule whose jobs fail this many times in a row is paused, with
+    /// the reason on the Errors page. 0 turns this off. 0 to 100.
+    pub schedule_failure_limit: u32,
     /// Settings defined only in options.json, unknown to this struct. Kept
     /// here so saving never drops them. Values are booleans, numbers or text.
     pub extras: BTreeMap<String, Value>,
@@ -122,6 +128,8 @@ impl Default for Config {
             hardware_acceleration: true,
             error_log_max: crate::logging::DEFAULT_MAX_ENTRIES,
             job_concurrency: crate::jobs::DEFAULT_CONCURRENCY,
+            job_resource_locks: true,
+            schedule_failure_limit: crate::scheduler::DEFAULT_FAILURE_LIMIT,
             extras: BTreeMap::new(),
         }
     }
@@ -229,6 +237,7 @@ impl Config {
             .clamp(crate::logging::MIN_ENTRIES, crate::logging::MAX_ENTRIES);
         self.height = self.height.clamp(MIN_SIZE, MAX_SIZE);
         self.job_concurrency = crate::jobs::clamp_limit(self.job_concurrency);
+        self.schedule_failure_limit = self.schedule_failure_limit.min(crate::scheduler::MAX_FAILURE_LIMIT);
         Ok(self)
     }
 }
@@ -545,6 +554,17 @@ mod tests {
         // Older files without the key keep the default error list size.
         assert_eq!(state.config.error_log_max, 100);
         assert_eq!(state.config.job_concurrency, 2);
+    }
+
+    #[test]
+    fn job_safeguards_default_on_and_limit_is_clamped() {
+        let cfg = Config::default();
+        assert!(cfg.job_resource_locks);
+        assert_eq!(cfg.schedule_failure_limit, 3);
+        let off = Config { schedule_failure_limit: 0, ..Config::default() };
+        assert_eq!(off.validate().unwrap().schedule_failure_limit, 0, "0 turns it off");
+        let big = Config { schedule_failure_limit: 1000, ..Config::default() };
+        assert_eq!(big.validate().unwrap().schedule_failure_limit, 100);
     }
 
     #[test]

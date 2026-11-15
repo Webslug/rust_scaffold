@@ -264,11 +264,13 @@ find, and `keys.json` holds the shortcut keys. Every key is documented in
     src-tauri/            the Rust side
       src/                main.rs, lib.rs, config.rs, options.rs, search.rs,
                           keys.rs, files.rs, commands.rs, tray.rs, gpu.rs,
-                          logging.rs, jobs.rs
+                          logging.rs, jobs.rs (queue), job_kinds.rs,
+                          scheduler.rs (schedules and rules)
       benchmark/          repeatable X11 desktop tests and saved results
       options.default.json  written as options.json when that file is missing
       search.default.json   written as search.json when that file is missing
       keys.default.json     written as keys.json when that file is missing
+      jobs.default.json     written as jobs.json when that file is missing
       tauri.conf.json, capabilities/, icons/, Cargo.toml
 
 ## Building a new app from this template

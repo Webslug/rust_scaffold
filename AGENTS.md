@@ -1,8 +1,8 @@
 ## Rust Scaffold: boilerplate for Kim's future Rust apps
 
 User: Kim.
-Version: 0.2.4
-Date: 14 November 2026
+Version: 0.2.5
+Date: 15 November 2026
 Project folder: /opt/templates/rust
 Full history before this file was rewritten: `docs/AGENTS_OLD.bak` (424 lines, every phase, test and failure in detail).
 
@@ -18,7 +18,7 @@ A lean, reusable Rust and Tauri 2 desktop application for Linux (Windows is code
 - Live error reporting (Errors page) using the `tracing` crate.
 - A Tokio job queue that runs tasks in Rust asynchronously, with a Jobs page to watch, inspect and kill them.
 
-Principles: keep it small, keep dependencies few, and prove things with tests. We are cautious about crates and only add small ones, preferably ones Tauri already compiles. Current direct crates: tauri, serde, serde_json, tokio, regex, time, dirs, tracing, tracing-subscriber (436 crates in total including dependencies). The distributed app is a single file of about 4.9 MB (target: under 50 MB).
+Principles: keep it small, keep dependencies few, and prove things with tests. We are cautious about crates and only add small ones, preferably ones Tauri already compiles. Current direct crates: tauri, serde, serde_json, tokio, regex, time, dirs, tracing, tracing-subscriber, libc (Unix only, already compiled for Tauri), and on Linux tray-icon (KSNI feature). The distributed app is a single file of about 6.9 MB (target: under 50 MB). No HTTP crate: the AI job talks to local servers with a small HTTP client in `job_kinds.rs`; OpenRouter (HTTPS) was left out on purpose to avoid a TLS crate.
 
 We continue to use this file to log successes, failures, tweaks and adjustments. Add a dated entry to the log at the bottom after every change.
 
@@ -26,10 +26,11 @@ We continue to use this file to log successes, failures, tweaks and adjustments.
 
 ## Rules for anyone working here
 
+- Developer agency (Kim, 14 November 2026): Kim owns this project and makes its decisions. Assistants must respect her ownership, explain technical choices so she can understand and control her project, and carry out authorised work without unnecessary permission loops or unrequested scope. If a real constraint prevents an action, state the specific constraint and the available alternatives plainly.
 - Kim is new to Rust and wants to learn. Explain the reasons behind Rust and Tokio decisions in plain terms, use comparisons, and correct misconceptions directly.
 - For anything large: give a short numbered plan, get Kim's approval, then work one step at a time and stop after each step for her check.
 - Back up before changes: a verified zip in `backup/` (exclude `src-tauri/target`).
-- `build.sh` copies the build into `dist/`, which is the copy Kim runs. Only approved code goes there. Build experiments with `cargo build --release` and copy the binary to a separate folder (for example `$CLAUDE_JOB_DIR/tmp`), run it with `RUST_SCAFFOLD_DIR` pointing at a temporary settings folder, and restore any source you changed byte for byte.
+- `build.sh` copies the build into `dist/`, which is the copy Kim runs, and keeps the build it replaces as `dist/rust-scaffold.previous` (undo: copy it back). Tested work goes straight into `dist/` with `build.sh` (Kim, 15 November 2026: no more separate test copies in /tmp). Only throwaway experiments (measurements, probes, code that will be reverted) are built outside `dist/`; restore any source changed for them byte for byte.
 - Never drive the mouse or keyboard (xdotool tests, benchmarks) without asking Kim first that the desktop is free. Do not open windows while she is watching something full screen.
 - Do not say "works", "fixed" or "ruled out" without a test that could have failed under Kim's real conditions (her launch path `./run.sh`, her window size, maximised, her themes). Report what was tested and what was not.
 - No shadows or blur for now (see History). No inline `style=""` in HTML; the Content-Security-Policy blocks it anyway. Colours, sizes and spacing come from tokens in `ui/css/variables.css`. One CSS file per control type, imported by `ui/css/index.css`.
@@ -51,7 +52,7 @@ Root:
 - `run.sh` / `run.bat`: start `dist/rust-scaffold` detached (`run.bat --build` builds first on Windows, untested).
 - `dist/rust-scaffold`: the app Kim runs.
 - `change_log.txt`: short daily notes of changes, newest first.
-- `tools/xvfb_check.sh`, `tools/checks/*.sh`: the hidden-screen test tool and its checks (isolation, smoke, settings_files, errors_badge, menu_layout).
+- `tools/xvfb_check.sh`, `tools/checks/*.sh`: the hidden-screen test tool and its checks (isolation, smoke, settings_files, errors_badge, menu_layout, local_time, jobs_page, schedules_page, pipeline; jobs_page and schedules_page need `--size 1280x800`; the AI parts and pipeline need Ollama running with qwen3:1.7b and are skipped otherwise).
 - `README.md`, `requirements.txt`, `docs/usage.md`: user and developer documentation. `docs/` also holds the GPU, GRUB recovery, performance and failure write-ups.
 - `backup/`: zips taken before each milestone.
 
@@ -63,7 +64,7 @@ Rust (`src-tauri/`):
 - `src/config.rs`: `config.json` load, validate, atomic save, 5 MB limit (oversized file set aside and recreated).
 - `src/options.rs`, `src/search.rs`, `src/keys.rs`, `src/files.rs`: `options.json`, `search.json` and `keys.json` (shortcut keys), shared read-or-create code.
 - `src/logging.rs`: tracing layer, Errors list, `debug.log`.
-- `src/jobs.rs`: the Tokio job queue.
+- `src/jobs.rs`: the Tokio job queue (knows no kinds). `src/job_kinds.rs`: the job kinds (`impl JobKind`) and the `KINDS` list.
 - `src/tray.rs`, `src/gpu.rs`: tray icon; GPU rendering switch for WebKitGTK on NVIDIA.
 - `src/startup.rs`: start-up fallback; shows the window and logs an error if `app.js` has not called `ui_ready` within 5 s.
 - `options.default.json`, `search.default.json`, `keys.default.json`: copied into the settings folder when missing.
@@ -93,7 +94,7 @@ Rust code logs with `error!`, `warn!`, `info!` and `debug!`. A custom layer in `
 
 ## The Tokio job queue (async tasks in Rust)
 
-`src/jobs.rs` is a small async pipeline: callers queue jobs, at most `job_concurrency` (1 to 3, config.json, default 2) run at once on Tauri's own Tokio runtime, and the rest wait in order. Each change is pushed to the window as a `jobs:changed` event carrying a rising `seq` number, so the page always keeps the newest copy of a job. The only job kind today is a mock "count" job (count 1 to N, N at most 100, with a pause of 100 to 10000 ms between counts, optional fail-on-purpose step), used to prove that async work can be started, queued, inspected and stopped. Real apps add their own job kinds in Rust; the interface can only request kinds defined there.
+`src/jobs.rs` is a small async pipeline: callers queue jobs, at most `job_concurrency` (1 to 3, config.json, default 2) run at once on Tauri's own Tokio runtime, and the rest wait in order. Each change is pushed to the window as a `jobs:changed` event carrying a rising `seq` number, so the page always keeps the newest copy of a job. What a job does is a job kind (`JobKind` trait), listed in `src/job_kinds.rs`; the queue takes a kind name and JSON input and runs only listed kinds. Each kind must declare its capabilities and resources (no default, so leaving them out does not compile), runs with a time limit, sees only a `JobCtx`, and ends with an `Outcome` (label, small JSON value, message). Every run records its origin. Kinds: `command` (a bash script in any folder; output kept; exit code as the label; kill stops the whole process group) and `ai` (a prompt to Claude Code, Codex or GrokBuild run read-only as in Concilium, or to a local Ollama or llama.cpp server, which holds the `gpu` resource). The count demo was removed on 15 November; a test-only `count` kind remains for the queue and scheduler tests. How to add a kind: `docs/usage.md`. Schedules and rules (`src/scheduler.rs`, `jobs.json`, `jobs_state.json`) start jobs at set times and react to results; they are edited on the Jobs page (Schedules, Rules, Next 24 hours views, `ui/js/schedules.js`). How they work: `docs/usage.md`. Design and what is not built: `docs/adaptive_jobs.md`.
 
 Things to know:
 - Queued jobs are plain data, not tasks, so they can be listed and cancelled for free, and the limit can change while jobs run. Lowering it lets running jobs finish.
@@ -107,7 +108,7 @@ Things to know:
 
 - Build for Kim: `./build.sh`, about 1 minute incremental, about 2 minutes clean. Run: `./run.sh`.
 - Hidden-screen checks: `tools/xvfb_check.sh smoke settings_files` (needs `cargo build --release` first; never touches the desktop or real settings; see `docs/usage.md`).
-- Tests: `cd src-tauri && nice -n 10 cargo test --release -j 4` (54 tests: config, options, search, keys, settings files, settings folder, logging, job queue). Job tests use Tokio's paused clock, so a 100-step job is tested in milliseconds.
+- Tests: `cd src-tauri && nice -n 10 cargo test --release -j 4` (103 tests: config, options, search, keys, settings files, settings folder, logging, job queue, job kinds, scheduler, pipelines; plus `live_ollama`, ignored unless run with `-- --ignored`, which asks the real local Ollama). Job tests use Tokio's paused clock, so a 100-step job is tested in milliseconds.
 - The version number lives only in `src-tauri/Cargo.toml` (`tauri.conf.json` has no `version`, so Tauri uses the Cargo one; the About page reads `CARGO_PKG_VERSION`). After a version change run `cargo update --workspace --offline` (because `build.sh` uses `--locked`) and add a line to the change log on the Help page.
 
 ---
@@ -145,6 +146,10 @@ They drive the real desktop with xdotool, so ask Kim first. Both start the app w
 ---
 
 ## Log
+
+### 14 November 2026: developer agency instruction (Codex)
+- At Kim's request, added the developer agency rule above: respect her ownership, explain decisions, avoid unnecessary permission loops and state actual constraints plainly.
+- Backup: `backup/pre_developer_agency_note_2026-11-14.zip` contains both changed documents, verified with `unzip -t`. Documentation only; checked the saved wording. No app source changed, no build needed and no settings deleted.
 
 ### 13 November 2026: Jobs page (0.2.2 step 4), select fix, Errors toolbar, AGENTS.md rewritten (Claude)
 - Backup before changes: `backup/rust_template_pre_jobs.zip` (verified). Old AGENTS.md copied to `docs/AGENTS_OLD.bak` (byte-identical).
@@ -256,3 +261,103 @@ They drive the real desktop with xdotool, so ask Kim first. Both start the app w
 - `docs/roadmap_0.2.4.md` rewritten: Steps 1, 2 and 5 and the extra work marked done; next are job kinds, then "how to" guides for new apps, then the optional Options tidy. The fork script moved to a later version by Kim's decision (project still changing); measured scope now 95 lines in 33 files, not 12 places in 9. Forks start without this project's history.
 - New rule above: settings JSON files and SQLite databases may be deleted without asking while in development (Kim's decision).
 - Tests: 56 pass; release build clean; `xvfb_check.sh smoke` 5 of 5. `dist/` not rebuilt (no change a user can see).
+
+### 14 November 2026: local docs excluded from GitHub (Codex)
+- Kim confirmed that removing `docs/` from Git tracking and publishing the change succeeded. `/docs/` is already in `.gitignore`.
+- Backup first: `backup/rust_template_pre_docs_git_note_2026-11-14.zip`, verified with `unzip -t`; excludes `src-tauri/target/`, `backup/` and `.git/`.
+- Added `docs/github_exclusions.md`: one-time ignore and untracking commands, publishing with `push.sh`, read-only verification, and the distinction between the current version and earlier commits. Local documentation stays intact.
+- Updated `change_log.txt`. Documentation only; no build or app tests needed. No settings deleted and no Git state changed by Codex.
+
+### 14 November 2026: adaptive jobs design (Claude)
+- Kim's brief `docs/advanced_jobs.md`: jobs on schedules (once, intervals, daily to monthly, limited runs) whose outcomes start or enable other jobs. Design written to `docs/adaptive_jobs.md`, nothing built: job kinds with a structured outcome (status, label, value), triggers, rules with "N in a row" streaks and a loop guard, `jobs.json` plus `jobs_state.json`, kinds and named commands compiled in (the file cannot run code). Assumption stated there: jobs run only while the app is open, missed runs caught up once or skipped. Kim's scenarios worked through on paper; "X and Y both succeeded" deliberately not covered yet.
+- Hypothesis found while reading, not tested: `logging.rs` calls `now_local()`, which the `time` crate refuses on Linux in a multi-threaded process, so Errors page times may be UTC (unnoticed in UK winter). Step 0 of the plan tests it with `TZ=Asia/Tokyo`.
+- `docs/roadmap_0.2.4.md` item 1 now points at the design; `docs/job_kinds.md` kept for its trait and handle design.
+- Same day, at Kim's request ("safeguards early"): `docs/adaptive_jobs.md` gained a Safeguards section, built into the foundation rather than added later: required capability declarations per kind (network, gpu, write_files, run_programs, costs_money), an approval gate with new states (awaiting approval, proposed), resource locks (one GPU job at a time), circuit breaker, rate limits, Pause everything (page and tray), interrupted runs and paused start after a crash, origin of every run, a 24-hour preview, a versioned `jobs.json`. Build plan now steps 0 to 8, safeguards core is step 2. Run history kept in `jobs_state.json` with DEBUG_MODE off (app data, not a debug log); Kim to confirm.
+- Same day: Kim expects many AI agents starting and reacting to jobs in 2027. `docs/adaptive_jobs.md` gained "Many AIs at once" (safeguards 11 to 16): one local door with named callers, allowances and daily budgets; cascade ids (kill a whole cascade); results are data, never instructions (prompt injection cannot raise a job's permissions); deadlines and proposal expiry; duplicate requests merged; approvals per caller and capability with budgets, to avoid approval fatigue. The door itself is under Later; steps 1 to 6 keep its seams.
+- Same day: Kim expects AIs (via Claude Code, Codex, DeepSeek, Kimi, OpenRouter) to add and remove jobs, triggers, endpoints and failure conditions, not just start runs. `docs/adaptive_jobs.md` gained "AIs that change the jobs themselves" (safeguards 17 to 22): the settings file is itself a door, so changes made behind the app's back load as proposed (file fingerprint); changes are proposals shown as before and after; owners per definition; change history and undo per change or per caller; network allowlist and API keys kept out of `jobs.json` and never returned to agents; per-caller limits on jobs, rules and shortest interval. Identity belongs to the calling program and its key, not the model. Likely door: a small local MCP server (decided when built). Owners, history and the fingerprint moved into build step 4.
+
+### 14 November 2026: adaptive jobs step 0, local time (Claude)
+- Hypothesis from the design (Errors page times are UTC because `time` refuses local time in a multi-threaded process) tested with new check `tools/checks/local_time.sh`: `TZ=Asia/Tokyo`, one warning at start-up (tray, private bus) and one 3 s later (oversized `options.json`, read when Options opens, many threads running). Both showed Tokyo time (2026-11-15 00:42:54 and 00:42:57; UTC was 15:42). Hypothesis false for `time` 0.3.55; nothing to fix. Screenshot checked by eye.
+- Not tested: zone set only by `/etc/localtime` without `TZ` (Kim's case; indistinguishable from UTC in UK winter), behaviour across a clock change (for the scheduler's date tests).
+- Docs: `docs/adaptive_jobs.md` (technical points, step 0, no "unless" on crates), roadmap, check list above.
+
+### 14 November 2026: adaptive jobs step 1, job kinds (Claude)
+- Backup first: `backup/rust_template_pre_job_kinds.zip` (verified).
+- `src/jobs.rs` no longer knows any kind. New: `JobKind` trait (`NAME`, `CAPABILITIES`, `RESOURCES` with no defaults so a kind that leaves them out does not compile, `TIMEOUT` default 1 h, `Input`, `check`, `run`), `KindEntry` and `kind::<K>()` (a list of plain functions, since different `Input` types cannot share a list), `JobCtx` (progress, note, detail, killed; a job never sees the queue), `Outcome` (label: lower-case word up to 32 chars; value: JSON up to 4 KiB; message), `Origin` (only `User` so far), `Capability` (network, gpu, write_files, run_programs, costs_money), new state `timed_out` (`tokio::time::timeout` around each run). Input limited to 16 KiB; time limit given at start 1 s to 24 h. Error lines now name the kind and label: "job 2 (count): failed [on_purpose]: ...".
+- New `src/job_kinds.rs`: `KINDS` list and `CountJob` (moved, not rewritten; "Late by" now in `detail`; outcome labels `counted` and `on_purpose`). `CountInput` refuses unknown fields.
+- Command `jobs_start` now takes `kind`, `input` (JSON) and optional `timeoutMs`. `ui/js/jobs.js`: bar from `done`/`total` (indeterminate when total is 0), "Timed out" state, Inspect shows started by, uses, needs, input, live note, time limit, result, result value, message; long durations as minutes and hours.
+- Tests: 62 pass (old 13 job tests with only the start calls changed; new: unknown kinds and bad input refused, time limit stops the job and frees the slot, view shows origin, capabilities and input, outcomes kept, outcomes over the limits fail the job, kind names unique). Mutation check: time limit removed and outcome check disabled, 2 tests failed; `jobs.rs` restored byte for byte (`cmp`).
+- New check `tools/checks/jobs_page.sh` (click positions relative to the window, `--size 1280x800`): a 5-step job (Done, result `counted`, value `{"counted":5}`) and one failing at step 3 (Failed, `on_purpose`, Errors page line), Inspect cards checked by eye. Other checks 26 of 26 pass. Release build has no warnings.
+- Docs: `docs/usage.md` (how to add a kind), README tree, this file, `docs/job_kinds.md` status, `docs/adaptive_jobs.md` step 1 done. `dist/` not rebuilt.
+- Not tested: Kim's desktop; the timed-out state and the indeterminate bar on screen (no kind in the app can reach them; unit tests only); themes other than Racing Green; 640x480.
+- Test tool, open issue: one run of `isolation smoke settings_files errors_badge` (16:13) failed at the sixth app start of the run (first start of `errors_badge`) with "Failed to initialize gtk backend!: Failed to initialize GTK" from tao, while Xvfb (:1) was still alive. GTK starts before any of the app's own code, so step 1 is an unlikely cause (hypothesis). Re-runs: 4 of 4 passed (26 of 26 each). Frequency so far 1 in 5; cause unknown. If it repeats, keep the scratch folder and check Xvfb's client count and the previous app's exit.
+
+### 14 November 2026: scheduler step stopped by Kim, code left mid-step (Claude)
+- STATE: the source does NOT compile. Kim stopped the work during the scheduler step. Anyone continuing must first either finish it or restore `backup/rust_template_pre_scheduler.zip` (verified, taken just before this step). `dist/rust-scaffold` is untouched: still the 0.2.4 build Kim tested.
+- Written in this step, untested: `src-tauri/src/scheduler.rs` (jobs.json schedules: once, every, daily, weekly, monthly; max_runs, until, catch_up; jobs_state.json; one Tokio task, sleeps at most 60 s; Run now, Pause/Resume; pauses a schedule after `schedule_failure_limit` failures in a row), `src-tauri/jobs.default.json` (three demo schedules, all disabled), wiring in `lib.rs` and four commands in `commands.rs`. In `jobs.rs`: resource locks (one running job per resource, config `job_resource_locks`, default on), `Queue::check`, `Queue::result`, `Origin::Schedule`. In `config.rs` and `options.default.json`: `job_resource_locks` and `schedule_failure_limit` (default 3, 0 = off). No approval gate.
+- Known remaining compile error: `src-tauri/src/scheduler.rs` line 986, `view.runs` must be `view.state.runs` (test code). No scheduler test has run yet. Not done: Jobs page UI for schedules, Kim's `options.json` entries, docs, hidden-screen check.
+
+### 14 November 2026: record of Claude's failures on this project (Claude, at Kim's request)
+Collected from this log and `docs/AGENTS_OLD.bak`. Each was a real failure that cost Kim time or trust; kept as a factual record for Codex, GrokBuild or anyone auditing the work.
+1. Called the project a failure and marked causes "ruled out" without tests that could detect them. Codex later found and fixed the real cause (CSS shadows) by measuring (12 November).
+2. A test script reached Kim's real desktop: clicks, a click plus Return and 14 scroll steps went to her browser, and a screenshot of her screen was taken (13 November).
+3. An unmeasured shadow experiment was built with `build.sh` and reached `dist/`; Kim found it slow.
+4. A test copy handed to Kim was built before the change it was meant to test (hide to the tray), so she tested old code (14 November).
+5. Hidden-screen test runs used Kim's real session D-Bus, so a tray icon probably appeared in her panel during each run (14 November; not verified for past runs).
+6. Reported 28 passing checks when there were 26; one was counted twice (14 November).
+7. Turned Kim's request for job kinds into a 22-safeguard, nine-step design before building anything, which slowed the work and read to Kim as obstruction (14 November).
+8. Stated a hypothesis about local time (Errors page in UTC) that a test then showed to be wrong (14 November; cost one short test).
+Each was recorded when found; items 1 to 6 led to the rules near the top of this file.
+
+### 15 November 2026: AGENTS.md wording tidied (Claude, at Kim's request)
+- Kim asked for the wording added on the evening of 14 November about Claude Code's character to be removed, keeping the practical parts. Changed: the developer agency rule (now ownership, explanations, no permission loops, plain constraints), the Codex "developer agency instruction" entry; removed: the Codex "judgement" entry and the quoted view in the scheduler-stopped entry; the failures record kept, with a neutral introduction. Backup first: `backup/agents_md_pre_tidy_2026-11-15.zip` (verified). Documentation only.
+
+### 15 November 2026: scheduler compiled and tested, test copy for Kim (Claude)
+- The scheduler source left mid-step on 14 November now compiles (the line 986 test fix was already in the file). Tests: 80 pass (18 new), no warnings. Hidden-screen checks isolation, smoke, settings_files, jobs_page: 26 of 26 pass.
+- Test copy (not in `dist/`): `/tmp/sched_test/rust-scaffold-sched`, built after the newest source change, started by `/tmp/sched_test/run_sched_test.sh` with a scratch settings folder (`/tmp/sched_test/settings`) holding two enabled schedules: a count every minute, and one failing every 20 s that should pause itself after 3 failures.
+- Not tested: the scheduler on screen or on Kim's desktop; the Jobs page has no schedule list yet (scheduled runs show in the normal job table).
+
+### 15 November 2026: schedules and rules on the Jobs page (Claude)
+- Kim tested the scheduler copy (no problems) and asked for the full feature, not more small steps: schedules set on the page, at times and dates, once or repeating, with the triggers from `docs/advanced_jobs.md`. Built in one pass against `docs/adaptive_jobs.md`. Backup first: `backup/rust_template_pre_jobs_ui.zip` (verified).
+- `scheduler.rs`: `manual` trigger; retries (`retries` 0 to 10, `retry_wait`, `retry_doubling`; only the final result counts for the failure limit and rules); run history (last 20 per schedule: time, result, who started it); rules in `jobs.json` (when schedule A ends `done`/`failed`/`timed_out`/`killed`/`not_done`/`any`, optional label, N times in a row: `start`, `enable` or `disable` schedule B; streaks in `jobs_state.json`; loop guard `MAX_CHAIN` = 10; enable/disable by a rule kept in state, not the file); Pause everything (kept across restarts, Run now still works); 24-hour preview; page editing (`save_schedule`, `delete_schedule`, `set_enabled`, `save_rule`, `delete_rule`): the whole new file is checked before it is written, a refused entry writes nothing, a file that is not valid JSON is never rewritten, renames follow into rules and state, a schedule used by a rule cannot be deleted. Writing from the page reformats `jobs.json` (pretty JSON; unknown top-level keys such as `note` are kept).
+- `jobs.rs`: `Origin::Rule`, `JobKind::EXAMPLE` (example input for the form), `Queue::kinds`. Seven new commands (`schedules_save`, `schedules_delete`, `schedules_set_enabled`, `schedules_pause_all`, `rules_save`, `rules_delete`, `jobs_kinds`).
+- Page: view buttons Queue, Schedules, Rules, Next 24 hours (own buttons, not Bootstrap tabs, so no `shown.bs.tab` events reach other scripts); new `ui/js/schedules.js`; CSS in `jobs.css`, tokens in `variables.css`. Times are typed as text (`08:00`, `2026-12-01 09:00`), the same format as the file, rather than WebKitGTK date pickers (not checked whether they work there). Inspect shows "schedule NAME" and "rule R (schedule S)".
+- `jobs.default.json`: note rewritten; a manual demo schedule and a demo rule added, all off.
+- Kim's `~/.config/rust_scaffold/options.json`: the two scheduler entries inserted after "Jobs at once" (backup `backup/kim_options_before_scheduler_2026-11-15.json`; diff shows only those two lines). Nothing deleted.
+- Tests: 89 pass (9 new: manual, X fails starts Y and Y fails starts Z, label N in a row enables and a miss resets, loop guard, retries and doubling wait, Pause everything across a restart, page save/rename/delete/refusal without writing, preview, history limit). One test was wrong on first run (retry timing counted from the start, not from when the failure is seen); the code was right, the test was fixed.
+- Hidden screen: new check `schedules_page` (8 assertions): the real app retried a failing schedule, the rule started the follow-up, an untouched daily schedule did not run, a bad name was refused with nothing written, a schedule and a rule were added through the form. Screenshots checked by eye; two layout faults found and fixed (sideways scroll in the Schedules table, squashed retry field). `jobs_page` click positions moved down 58 px for the view buttons. isolation, smoke, settings_files, errors_badge: 26 of 26.
+- Not tested: Kim's desktop, maximised, other themes, 640x480, a real daily or monthly run at its time (unit tests only), the Edit and History buttons and Delete by click (code only; Delete is covered by unit tests), Pause everything by click (unit test only). `dist/` not rebuilt.
+
+### 15 November 2026: builds go straight to dist/ (Claude, Kim's decision)
+- Kim judged the separate /tmp test copies too cautious. Rule changed (see Rules): tested work is built into `dist/` with `build.sh`, which now keeps the replaced build as `dist/rust-scaffold.previous`.
+- Built: `dist/rust-scaffold` 6,742,136 bytes, identical to `target/release` (`cmp`); the schedules and rules work above is now in Kim's normal app. `dist/rust-scaffold.previous` is the 14 November 0.2.4 build. Version still 0.2.4.
+
+### 15 November 2026: command and AI jobs, count demo removed (Claude)
+- Kim's requests: remove the count proof of concept; jobs that run bash commands in any folder (no folder restriction, Kim's choice); jobs that send a prompt to Codex, Claude Code, GrokBuild, Ollama or llama.cpp, based on `/home/kim/projects/concilium/functions/functions_providers.py`; OpenRouter left out on purpose (would need a TLS crate). Plan approved. Backup first: `backup/rust_template_pre_command_ai_jobs.zip` (verified).
+- Crates: none added. `reqwest` is listed in `Cargo.lock` (through Tauri) but was never downloaded or compiled here, so it would have been new; instead a small HTTP/1.1 client (Content-Length, chunked, plain http only) on Tokio's TCP. Tokio gained the features `process`, `io-util`, `net` (the lock file only gained a dependency line to `signal-hook-registry`, already present). `libc` (already in the tree) listed directly for `killpg`.
+- `jobs.rs`: `JobCtx::output` (job output, newest 256 KiB kept, `output_cut` flag, not sent in window events; `jobs_inspect` returns it), `Queue::output_tail`, `JobKind::capabilities(input)` and `resources(input)` (defaults: the constants), input limit 16 to 64 KiB.
+- `job_kinds.rs`: `CommandJob` (`/bin/bash -c`, `cmd /C` on Windows; folder any, empty = home, `~` expanded; own process group, killed as a group on kill, time limit or exit; stdout and stderr streamed to the output, last line as the live note; labels `exit_N` or `signal`). `AiJob` (providers `claude_code`, `codex`, `grok_build` with Concilium's read-only options, PATH extended with ~/.local/bin, ~/.npm-global/bin, ~/.grok/bin, ~/.bun/bin and nvm's newest Node, Claude Code session variables removed; `ollama`, `llama_cpp` over local HTTP, `gpu` resource; labels `answered`, `unavailable`, `error`, `empty`, `not_started`; never starts a server). Count kind moved to `test_kind`, test builds only.
+- Scheduler: history entries keep the last 400 bytes of output; `jobs_state.json` limit raised to 4 MiB. `jobs.default.json`: command and AI demos, all off.
+- Page: new `ui/js/job_forms.js` (fields per kind, JSON box for kinds without a form), used by the Queue view's "Run a job now" form and the schedule editor. Queue table: kind name per job, live note or failure message instead of a count, "Late by" removed, compact buttons, Waited hidden under 52rem. Inspect: Output box with Copy (same clipboard fallback as the Errors page). History: Output column.
+- Tests: 98 pass (new: command output, exit code labels, folder, home, missing folder; kill stops a grandchild process (mutation check: with `killpg` disabled the test fails; source restored with `cmp`); time limit; output keeps the newest part; URL and response parsing incl. chunked; Ollama and llama.cpp against a fake local server, request body checked, `gpu` resource; unreachable server = `unavailable`; stand-in `claude`, `codex`, `grok` scripts check the read-only options and prompt delivery without calling a real AI). Live: `live_ollama` with Kim's `qwen3:1.7b` (already loaded, about 1.5 GB VRAM) answered "green".
+- Hidden screen (`schedules_page`, 10 assertions, and `jobs_page`, by eye): in the real app a failing script retried, a rule started a follow-up script, a second rule asked Ollama, and the answer ("blue") was kept in the history; the Queue view ran `df -h /`, a script failing with exit code 3 ("exit code 3: broke"), and an Ollama prompt (answer shown in the row and in Inspect's Output). Layout faults found by eye and fixed: sideways scroll in the queue table (long live note), "At once" label wrapping. isolation, smoke, settings_files, errors_badge: 26 of 26. All run against `dist/rust-scaffold`.
+- Built with `build.sh`: `dist/rust-scaffold` 6,862,800 bytes; `dist/rust-scaffold.previous` is the schedules build from earlier today.
+- Not tested: real Claude Code, Codex and GrokBuild calls (stand-ins only; they spend tokens), llama.cpp for real (fake server only), Windows, Kim's desktop, maximised, other themes. `/tmp/sched_test/` (the earlier test copy) is no longer needed and can be deleted.
+
+### 15 November 2026: old count demos removed from Kim's settings, model box per AI (Claude)
+- Kim's `~/.config/rust_scaffold/jobs.json` still held the three count demos from the morning's build, so the app warned "unknown job kind count" three times. It held nothing else (no rules; `jobs_state.json` empty). Copied to `backup/kim_jobs_json_old_count_demos_2026-11-15.json`, then `jobs.json` and `jobs_state.json` deleted (settings files, allowed while in development); the app recreates them from the new defaults (command and AI demos, all off). Kim confirmed the count demos are not wanted.
+- Bug found by Kim: switching the AI from Ollama to Claude Code kept "qwen3:1.7b" in the model box, and Claude Code refused it. `job_forms.js` now keeps a model per AI while the form is open; switching shows that AI's own (empty at first). Hidden-screen check `jobs_page` switches and screenshots it: the box empties for llama.cpp and shows qwen3:1.7b again on switching back (checked by eye).
+- Leftover mentions of counting removed from a `jobs.js` comment and `docs/usage.md`. The test-only `count` kind stays (test builds only).
+- Built with `build.sh`; `jobs_page` and `schedules_page` pass against `dist/`.
+
+### 15 November 2026: version 0.2.5, pipelines, Ollama model list (Claude)
+- Kim approved: pass a job's result to the job a rule starts, with tests; an Ollama model list (Kim: minicpm-v and qwen2vl are image models, not LLMs); version 0.2.5. Not yet: "how to" guides and forking new apps (Kim: the scaffold is not ready). Backup first: `backup/rust_template_pre_0.2.5_pipelines.zip` (verified).
+- `jobs.rs`: `Previous` (schedule, job, state, label, output) and `PreviousView` (the same without the output, in `JobView.previous`); `Queue::start_after`; `JobCtx::previous`; `tail_start` made `pub(crate)`.
+- `scheduler.rs`: when a rule fires, the finished job's output (up to 256 KiB) is read once and given to every job the rule starts; kept on the entry so a retry gets it again; none for Run now and timetable starts.
+- `job_kinds.rs`: commands get `PREVIOUS_OUTPUT` (last 100 KiB, NUL bytes removed), `PREVIOUS_OUTPUT_FILE` (whole output, temporary file), `PREVIOUS_LABEL`, `PREVIOUS_STATE`, `PREVIOUS_SCHEDULE`, `PREVIOUS_JOB`, as environment variables only, never pasted into the script (Kim was told why: AI output in a script would run as code). AI prompts: `{previous_output}` (last 12,000 bytes, to stay inside a small local model's 4,096-token context), `{previous_label}`, `{previous_state}`, `{previous_schedule}`; empty when there is no previous job; the output is filled last so placeholder-like text inside it stays. `ollama_models` (`/api/tags`, then `/api/show` per model for `capabilities`; vision models flagged; checked first by hand on Kim's server: qwen2vl and minicpm-v report "vision", qwen3 and cot do not) and command `ollama_models`. HTTP client now does GET as well as POST.
+- Page: Ollama model box is a list of installed text models with sizes (vision models left out), "Other" for a typed name, falls back to the text box when Ollama does not answer; notes under the command and AI fields explain the variables and placeholders; Inspect shows "Given the result of". Help change log entry for 0.2.5; `Cargo.toml` 0.2.5, `cargo update --workspace --offline`.
+- Tests: 103 pass (new: a command started by a rule gets the previous result in its environment, and nothing when started by a person; text with `$(...)` and backticks in the previous output is passed as text and never runs (marker file absent); an AI prompt gets the previous output with placeholders filled, a failed attempt is retried with the same input (fake Ollama answering HTTP 500 then 200); prompt filling and the 12,000-byte cut and NUL removal; model list with vision flags, smallest first, and "not answering"). Mutation check: with the rule handing `None` instead of the result, all three pipeline tests fail; source restored with `cmp`.
+- Real app, new check `pipeline` (4 assertions, against `dist/`): log lines -> qwen3:1.7b counted the ERROR lines and answered "3" (correct) -> a script saved exactly that answer to a file; `df -h /` -> qwen3:1.7b answered "It is 82% full." (the real `df` said 82%). Other checks against `dist/`: isolation, smoke, settings_files, errors_badge 26 of 26; schedules_page 10 of 10; jobs_page by eye (both commands, the Ollama job, the model list showing "qwen3:1.7b (1.4 GB)", switching AI and back, Inspect). `jobs_page` was made robust: it submits with Enter in a text box instead of clicking Run now, whose position moves when the form changes (a run had silently skipped the command jobs).
+- Built with `build.sh`: `dist/rust-scaffold` (0.2.5); `dist/rust-scaffold.previous` is the earlier build of today.
+- Not tested: the full model list on screen with every entry (the list order and vision filter are checked in a unit test; on screen the select showed qwen3:1.7b because it is the selected example model, not because it is first: cot and tool_calling, 1.1 GB each, are smaller), Claude Code, Codex and GrokBuild in a pipeline (stand-ins only), very long outputs through a real model, Kim's desktop, maximised, other themes.
+

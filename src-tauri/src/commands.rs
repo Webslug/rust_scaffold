@@ -1,13 +1,15 @@
 use std::sync::Mutex;
 
 use serde::Serialize;
+use serde_json::Value;
 use tauri::State;
 
 use crate::config::{self, Config, ConfigState, LoadStatus};
-use crate::jobs::{JobInspect, JobsReply, Queue};
+use crate::jobs::{JobInspect, JobsReply, Origin, Queue};
 use crate::keys::{self, KeysReply};
 use crate::logging::{self, LogEntry};
 use crate::options::{self, OptionsReply};
+use crate::scheduler::{KindView, Scheduler, SchedulesReply};
 use crate::search::{self, SearchReply};
 use crate::tray::TrayStatus;
 
@@ -82,11 +84,18 @@ pub fn get_config(state: State<Mutex<ConfigState>>, tray: State<TrayStatus>) -> 
 }
 
 #[tauri::command]
-pub fn save_config(state: State<Mutex<ConfigState>>, jobs: State<Queue>, config: Config) -> Result<(), String> {
+pub fn save_config(
+    state: State<Mutex<ConfigState>>,
+    jobs: State<Queue>,
+    schedules: State<Scheduler>,
+    config: Config,
+) -> Result<(), String> {
     let mut state = state.lock().unwrap();
     config::save(&mut state, config)?;
     logging::set_max(state.config.error_log_max);
     jobs.set_limit(state.config.job_concurrency);
+    jobs.set_resource_locks(state.config.job_resource_locks);
+    schedules.set_failure_limit(state.config.schedule_failure_limit);
     Ok(())
 }
 
@@ -172,11 +181,12 @@ pub fn jobs_list(jobs: State<Queue>) -> JobsReply {
     jobs.list()
 }
 
-/// Queues a mock count job (1 to 100, 100 to 10000 ms apart). `fail_at`
-/// makes it fail on purpose at that step. Returns the job id.
+/// Queues a job of a kind listed in src/job_kinds.rs, with that kind's
+/// input as JSON (for "count": count, delay_ms, fail_at). `timeout_ms`
+/// replaces the kind's time limit. Returns the job id.
 #[tauri::command]
-pub fn jobs_start(jobs: State<Queue>, count: u32, delay_ms: u64, fail_at: Option<u32>) -> Result<u64, String> {
-    jobs.start_count(count, delay_ms, fail_at)
+pub fn jobs_start(jobs: State<Queue>, kind: String, input: Value, timeout_ms: Option<u64>) -> Result<u64, String> {
+    jobs.start(&kind, input, Origin::User, timeout_ms)
 }
 
 #[tauri::command]
@@ -197,4 +207,85 @@ pub fn jobs_clear_finished(jobs: State<Queue>) -> usize {
 #[tauri::command]
 pub fn jobs_inspect(jobs: State<Queue>, id: u64) -> Result<JobInspect, String> {
     jobs.inspect(id)
+}
+
+// ---- Scheduled jobs (src/scheduler.rs, jobs.json) ---------------------------
+// Changes also arrive as `schedules:changed` window events.
+
+/// Every schedule, its next run, run count and last result, and any
+/// schedules skipped as invalid.
+#[tauri::command]
+pub fn schedules_list(schedules: State<Scheduler>) -> SchedulesReply {
+    schedules.list()
+}
+
+/// Reads jobs.json again after an edit.
+#[tauri::command]
+pub fn schedules_reload(schedules: State<Scheduler>) -> SchedulesReply {
+    schedules.reload();
+    schedules.list()
+}
+
+/// Starts a schedule's job now. Returns the job id.
+#[tauri::command]
+pub fn schedules_run_now(schedules: State<Scheduler>, name: String) -> Result<u64, String> {
+    schedules.run_now(&name)
+}
+
+#[tauri::command]
+pub fn schedules_pause(schedules: State<Scheduler>, name: String, paused: bool) -> Result<(), String> {
+    schedules.set_paused(&name, paused)
+}
+
+/// Adds a schedule (`oldName` empty) or replaces the one called `oldName`,
+/// writing jobs.json. Refused, with nothing written, when not valid.
+#[tauri::command]
+pub fn schedules_save(schedules: State<Scheduler>, old_name: Option<String>, definition: Value) -> Result<SchedulesReply, String> {
+    schedules.save_schedule(old_name, definition)?;
+    Ok(schedules.list())
+}
+
+#[tauri::command]
+pub fn schedules_delete(schedules: State<Scheduler>, name: String) -> Result<SchedulesReply, String> {
+    schedules.delete_schedule(&name)?;
+    Ok(schedules.list())
+}
+
+/// Turns a schedule's timetable on or off in jobs.json.
+#[tauri::command]
+pub fn schedules_set_enabled(schedules: State<Scheduler>, name: String, enabled: bool) -> Result<SchedulesReply, String> {
+    schedules.set_enabled(&name, enabled)?;
+    Ok(schedules.list())
+}
+
+/// Pause everything: no schedule or rule starts a job until resumed.
+#[tauri::command]
+pub fn schedules_pause_all(schedules: State<Scheduler>, paused: bool) -> SchedulesReply {
+    schedules.set_paused_all(paused);
+    schedules.list()
+}
+
+#[tauri::command]
+pub fn rules_save(schedules: State<Scheduler>, old_name: Option<String>, definition: Value) -> Result<SchedulesReply, String> {
+    schedules.save_rule(old_name, definition)?;
+    Ok(schedules.list())
+}
+
+#[tauri::command]
+pub fn rules_delete(schedules: State<Scheduler>, name: String) -> Result<SchedulesReply, String> {
+    schedules.delete_rule(&name)?;
+    Ok(schedules.list())
+}
+
+/// The job kinds a schedule can run, with an example input for each.
+#[tauri::command]
+pub fn jobs_kinds(jobs: State<Queue>) -> Vec<KindView> {
+    crate::scheduler::kind_views(jobs.kinds())
+}
+
+/// The models installed in a local Ollama (for the AI job's model list).
+/// Reads the model list only; no model is loaded.
+#[tauri::command]
+pub async fn ollama_models(endpoint: Option<String>) -> Result<Vec<crate::job_kinds::ModelInfo>, String> {
+    crate::job_kinds::ollama_models(endpoint.as_deref()).await
 }

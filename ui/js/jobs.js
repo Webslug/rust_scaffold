@@ -1,8 +1,10 @@
-/* Jobs tab: start, watch, inspect and kill jobs run by the Rust job queue
-   (src-tauri/src/jobs.rs).
+/* Jobs tab, Queue view: start, watch, inspect and kill jobs run by the Rust
+   job queue (src-tauri/src/jobs.rs). Kinds of job (command, AI prompt) are
+   defined in src-tauri/src/job_kinds.rs; their input fields come from
+   js/job_forms.js.
 
    Rust pushes every change to a job as a "jobs:changed" window event, so the
-   table follows each count without polling. The Tokio runtime figures in the
+   table follows each job without polling. The Tokio runtime figures in the
    summary cannot be pushed; they are fetched when the page opens and when a
    job starts or ends. "At once" is saved in config.json as job_concurrency,
    the same setting as on the Options tab. */
@@ -17,20 +19,31 @@
     running: { label: "Running", badge: "badge-info" },
     done: { label: "Done", badge: "badge-success" },
     failed: { label: "Failed", badge: "badge-danger" },
-    cancelled: { label: "Killed", badge: "badge-warning" }
+    cancelled: { label: "Killed", badge: "badge-warning" },
+    timed_out: { label: "Timed out", badge: "badge-danger" }
+  };
+
+  // What a kind touches outside the app (Capability in jobs.rs).
+  var CAPABILITIES = {
+    network: "network",
+    gpu: "graphics card",
+    write_files: "writes files",
+    run_programs: "runs programs",
+    costs_money: "costs money"
   };
 
   var tab = document.getElementById("tab-jobs");
   var form = document.getElementById("jobs-form");
-  var countInput = document.getElementById("jobs-count");
-  var delayInput = document.getElementById("jobs-delay");
-  var failInput = document.getElementById("jobs-fail");
+  var runFields = window.JobForms.mount(document.getElementById("jobs-run-fields"), "jobs-run-");
   var limitSelect = document.getElementById("jobs-limit");
   var status = document.getElementById("jobs-status");
   var rows = document.getElementById("jobs-rows");
   var inspectCard = document.getElementById("jobs-inspect");
   var inspectTitle = document.getElementById("jobs-inspect-title");
   var inspectList = document.getElementById("jobs-inspect-list");
+  var outputBox = document.getElementById("jobs-output-box");
+  var outputPre = document.getElementById("jobs-output");
+  var outputTitle = document.getElementById("jobs-output-title");
 
   var jobs = {};       // id -> job, as Rust sends it
   var rowOf = {};      // id -> { tr, cells }
@@ -40,21 +53,37 @@
   var message = "";    // last action result, shown before the summary
 
   function isFinished(job) {
-    return job.state === "done" || job.state === "failed" || job.state === "cancelled";
+    return job.state !== "queued" && job.state !== "running";
   }
 
   function duration(ms) {
     if (ms === null || ms === undefined) { return "–"; }
-    return ms < 1000 ? ms + " ms" : (ms / 1000).toFixed(1) + " s";
+    if (ms < 1000) { return ms + " ms"; }
+    if (ms < 60000) { return (ms / 1000).toFixed(1) + " s"; }
+    var minutes = Math.floor(ms / 60000);
+    if (minutes < 60) { return minutes + " min " + Math.floor((ms % 60000) / 1000) + " s"; }
+    return Math.floor(minutes / 60) + " h " + (minutes % 60) + " min";
   }
 
   function clock(unixMs) {
     return unixMs ? new Date(unixMs).toLocaleTimeString("en-GB") : "–";
   }
 
-  function late(job) {
-    if (job.progress < 2) { return "–"; }
-    return job.late_avg_ms.toFixed(1) + " / " + job.late_max_ms.toFixed(1) + " ms";
+  function uses(job) {
+    if (!job.capabilities.length) { return "nothing outside the app"; }
+    return job.capabilities.map(function (c) { return CAPABILITIES[c] || c; }).join(", ");
+  }
+
+  function startedBy(origin) {
+    if (!origin) { return "–"; }
+    if (origin.by === "user") { return "you, from this page"; }
+    if (origin.by === "schedule") { return "schedule " + origin.name; }
+    if (origin.by === "rule") { return "rule " + origin.rule + " (schedule " + origin.schedule + ")"; }
+    return origin.by;
+  }
+
+  function json(value) {
+    return value === null || value === undefined ? "–" : JSON.stringify(value);
   }
 
   // ---- Table -------------------------------------------------------------
@@ -76,13 +105,13 @@
     var tr = document.createElement("tr");
     tr.dataset.id = id;
     var cells = {};
-    ["name", "state", "progress", "wait", "run", "late", "buttons"].forEach(function (key) {
+    ["name", "state", "progress", "wait", "run", "buttons"].forEach(function (key) {
       var td = document.createElement("td");
       tr.appendChild(td);
       cells[key] = td;
     });
     cells.run.className = "jobs-number jobs-narrow-hide";
-    cells.wait.className = cells.late.className = "jobs-number jobs-extra";
+    cells.wait.className = "jobs-number jobs-extra";
     cells.buttons.className = "jobs-buttons";
 
     cells.badge = document.createElement("span");
@@ -113,16 +142,27 @@
     }
     var c = row.cells;
     var state = STATES[job.state] || STATES.failed;
-    c.name.textContent = "#" + job.id;
+    c.name.textContent = "#" + job.id + " " + window.JobForms.label(job.kind);
     c.badge.className = "badge " + state.badge;
     c.badge.textContent = state.label;
-    c.bar.max = job.count;
-    c.bar.value = job.progress;
+    if (job.total > 0) {
+      c.bar.max = job.total;
+      c.bar.value = job.done;
+    } else if (isFinished(job)) {
+      c.bar.max = 1;
+      c.bar.value = job.state === "done" ? 1 : 0;
+    } else {
+      c.bar.removeAttribute("value"); // total not known: an indeterminate bar
+    }
     c.bar.setAttribute("aria-label", "Job " + job.id + " progress");
-    c.count.textContent = job.progress + " / " + job.count;
+    // Counted progress, else the live note (a command's last line, the
+    // start of an AI answer); a failure shows why.
+    var failedText = (job.state === "failed" || job.state === "timed_out") ? job.message : null;
+    var text = job.total > 0 ? job.done + " / " + job.total : (failedText || job.note || (isFinished(job) ? "" : "working"));
+    c.count.textContent = text;
+    c.count.title = text;
     c.wait.textContent = duration(job.wait_ms);
     c.run.textContent = duration(job.run_ms);
-    c.late.textContent = late(job);
     c.kill.disabled = isFinished(job);
     row.tr.classList.toggle("jobs-selected", selected === job.id);
   }
@@ -135,7 +175,7 @@
     if (!ids.length) {
       var tr = document.createElement("tr");
       var td = document.createElement("td");
-      td.colSpan = 7;
+      td.colSpan = 6;
       td.className = "jobs-empty";
       td.textContent = "No jobs yet. Add one above.";
       tr.appendChild(td);
@@ -146,10 +186,13 @@
   // ---- Summary -------------------------------------------------------------
 
   function summary() {
-    var count = { queued: 0, running: 0, done: 0, failed: 0, cancelled: 0 };
-    Object.keys(jobs).forEach(function (id) { count[jobs[id].state] += 1; });
+    var count = { queued: 0, running: 0, done: 0, failed: 0, cancelled: 0, timed_out: 0 };
+    Object.keys(jobs).forEach(function (id) {
+      if (count.hasOwnProperty(jobs[id].state)) { count[jobs[id].state] += 1; }
+    });
     var text = "Running " + count.running + " of " + limit + " at once, " + count.queued + " waiting. " +
-      "Done " + count.done + ", killed " + count.cancelled + ", failed " + count.failed + ".";
+      "Done " + count.done + ", killed " + count.cancelled + ", failed " + count.failed +
+      (count.timed_out ? ", timed out " + count.timed_out : "") + ".";
     if (runtime) {
       text += " Tokio: " + runtime.workers + " worker threads, " + runtime.alive_tasks + " live tasks, " +
         runtime.global_queue_depth + " waiting for a thread.";
@@ -201,19 +244,28 @@
       var items = [
         ["State", state.label],
         ["Kind", job.kind],
-        ["Progress", job.progress + " of " + job.count],
-        ["Pause", job.delay_ms + " ms"],
-        ["Fail at step", job.fail_at === null ? "never" : String(job.fail_at)],
+        ["Started by", startedBy(job.origin)],
+        ["Uses", uses(job)],
+        ["Needs", job.resources.length ? job.resources.join(", ") : "–"],
+        ["Input", json(job.input)],
+        ["Given the result of", job.previous
+          ? "schedule " + job.previous.schedule + ", job #" + job.previous.job + " (" + (STATES[job.previous.state] || STATES.failed).label +
+            (job.previous.label ? ", " + job.previous.label : "") + "; " + job.previous.output_bytes + " bytes of output)"
+          : "–"],
+        ["Progress", job.total > 0 ? job.done + " of " + job.total : "not counted"],
+        ["Live note", job.note || "–"],
+        ["Time limit", duration(job.timeout_ms)],
         ["Queued at", clock(job.created_ms)],
         ["Started at", clock(job.started_ms)],
         ["Finished at", clock(job.finished_ms)],
         ["Waited", duration(job.wait_ms)],
         ["Ran", duration(job.run_ms)],
-        ["Late by (average / worst)", late(job)],
         ["Place in queue", info.queue_position === null ? "–" : String(info.queue_position)],
         ["Tokio task id", info.task_id === null ? "none (no task running)" : info.task_id],
         ["Task ended in Tokio", info.task_finished === null ? "–" : (info.task_finished ? "yes" : "no")],
-        ["Note", job.message || "–"]
+        ["Result", job.label || "–"],
+        ["Result value", json(job.value)],
+        ["Message", job.message || "–"]
       ];
       inspectList.textContent = "";
       items.forEach(function (item) {
@@ -224,7 +276,10 @@
         inspectList.appendChild(dt);
         inspectList.appendChild(dd);
       });
-      inspectTitle.textContent = "Job #" + job.id;
+      outputBox.classList.toggle("d-none", !info.output);
+      outputPre.textContent = info.output || "";
+      outputTitle.textContent = info.output_cut ? "Output (the newest part; older output was dropped)" : "Output";
+      inspectTitle.textContent = "Job #" + job.id + " " + window.JobForms.label(job.kind);
       inspectCard.classList.remove("d-none");
     }, function () {
       closeInspect(); // the job was cleared
@@ -266,27 +321,47 @@
     summary();
   }
 
-  function start(times) {
-    var count = Number(countInput.value);
-    var delay = Number(delayInput.value);
-    var fail = failInput.value === "" ? null : Number(failInput.value);
-    var calls = [];
-    for (var i = 0; i < times; i++) {
-      calls.push(invoke("jobs_start", { count: count, delayMs: delay, failAt: fail }));
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var job;
+    try {
+      job = runFields.read();
+    } catch (err) {
+      report("Not started: " + err.message + ".");
+      return;
     }
-    Promise.all(calls).then(function (ids) {
-      report(ids.length === 1 ? "Added job #" + ids[0] + "." : "Added jobs #" + ids[0] + " to #" + ids[ids.length - 1] + ".");
+    invoke("jobs_start", { kind: job.kind, input: job.input }).then(function (id) {
+      report("Started job #" + id + ".");
     }, function (err) {
-      report("Not added: " + err + ".");
+      report("Not started: " + err + ".");
+    });
+  });
+
+  // The clipboard API, or the older copy command where it is missing (the
+  // same as the Errors page).
+  function copyText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text);
+    }
+    return new Promise(function (resolve, reject) {
+      var area = document.createElement("textarea");
+      area.value = text;
+      area.className = "visually-hidden";
+      document.body.appendChild(area);
+      area.select();
+      var ok = document.execCommand("copy");
+      area.remove();
+      (ok ? resolve : reject)(new Error("copy was refused"));
     });
   }
 
-  form.addEventListener("submit", function (e) {
-    e.preventDefault();
-    start(1);
+  document.getElementById("btn-jobs-output-copy").addEventListener("click", function () {
+    copyText(outputPre.textContent).then(function () {
+      report("Output copied.");
+    }, function () {
+      report("Could not copy the output.");
+    });
   });
-
-  document.getElementById("btn-jobs-add5").addEventListener("click", function () { start(5); });
 
   document.getElementById("btn-jobs-cancel-all").addEventListener("click", function () {
     invoke("jobs_cancel_all").then(function (n) {

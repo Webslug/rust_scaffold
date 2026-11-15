@@ -2937,9 +2937,10 @@ dependencies = [
 
 [[package]]
 name = "rust-scaffold"
-version = "0.2.4"
+version = "0.2.5"
 dependencies = [
  "dirs",
+ "libc",
  "log",
  "regex",
  "serde",
@@ -3945,6 +3946,7 @@ dependencies = [
  "libc",
  "mio",
  "pin-project-lite",
+ "signal-hook-registry",
  "socket2",
  "tokio-macros",
  "windows-sys 0.61.2",

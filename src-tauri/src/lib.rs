@@ -2,10 +2,12 @@ mod commands;
 mod config;
 mod files;
 mod gpu;
+mod job_kinds;
 mod jobs;
 mod keys;
 mod logging;
 mod options;
+mod scheduler;
 mod search;
 mod startup;
 mod tray;
@@ -125,6 +127,8 @@ pub fn run() {
     let (width, height) = (state.config.width, state.config.height);
     let tray_items = state.config.tray_items.clone();
     let job_limit = state.config.job_concurrency;
+    let resource_locks = state.config.job_resource_locks;
+    let failure_limit = state.config.schedule_failure_limit;
     tauri::Builder::default()
         .manage(Mutex::new(state))
         .setup(move |app| {
@@ -135,7 +139,19 @@ pub fn run() {
             let notify: jobs::Notify = std::sync::Arc::new(move |job: &jobs::JobView| {
                 let _ = events.emit(jobs::CHANGED_EVENT, job);
             });
-            app.manage(jobs::Queue::new(tauri::async_runtime::handle().inner().clone(), job_limit, notify));
+            let runtime = tauri::async_runtime::handle().inner().clone();
+            let queue = jobs::Queue::new(runtime.clone(), job_limit, notify, job_kinds::KINDS);
+            queue.set_resource_locks(resource_locks);
+            app.manage(queue.clone());
+            // Scheduled jobs from jobs.json; the list is pushed to the window
+            // after every change.
+            let events = app.handle().clone();
+            let notify_ui: scheduler::NotifyUi = std::sync::Arc::new(move |reply: &scheduler::SchedulesReply| {
+                let _ = events.emit(scheduler::CHANGED_EVENT, reply);
+            });
+            let schedules = scheduler::Scheduler::for_app(settings_dir().to_path_buf(), queue, failure_limit, notify_ui);
+            schedules.spawn(&runtime);
+            app.manage(schedules);
             // Restore the saved size while the window is still hidden.
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.set_size(LogicalSize::new(width as f64, height as f64));
@@ -171,7 +187,19 @@ pub fn run() {
             commands::jobs_cancel,
             commands::jobs_cancel_all,
             commands::jobs_clear_finished,
-            commands::jobs_inspect
+            commands::jobs_inspect,
+            commands::schedules_list,
+            commands::schedules_reload,
+            commands::schedules_run_now,
+            commands::schedules_pause,
+            commands::schedules_save,
+            commands::schedules_delete,
+            commands::schedules_set_enabled,
+            commands::schedules_pause_all,
+            commands::rules_save,
+            commands::rules_delete,
+            commands::jobs_kinds,
+            commands::ollama_models
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

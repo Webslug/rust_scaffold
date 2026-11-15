@@ -1,6 +1,6 @@
 [package]
 name = "rust-scaffold"
-version = "0.2.4"
+version = "0.2.5"
 description = "Lean Rust + Tauri desktop application scaffold"
 authors = ["Kim"]
 edition = "2021"
@@ -21,6 +21,11 @@ tokio = { version = "1", features = ["rt", "macros", "test-util"] }
 [target.'cfg(target_os = "linux")'.dependencies]
 tray-icon = { version = "0.25", default-features = false, features = ["ksni"], optional = true }
 
+# killpg, to stop a command job's whole process group (already compiled for
+# Tauri and Tokio; listed to call it directly).
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
@@ -33,8 +38,9 @@ serde_json = "1"
 # compiles tokio, regex, time and dirs, so listing them here costs almost
 # nothing; it lets our own code use them. Unused code is removed at link time.
 # Async runtime (Tauri uses it too): files, timers, channels, runtime handle
-# and metrics (the job queue in src/jobs.rs), #[tokio::main].
-tokio = { version = "1", features = ["rt", "fs", "time", "sync", "macros"] }
+# and metrics (the job queue in src/jobs.rs), #[tokio::main]; processes, pipes
+# and TCP for the command and AI job kinds (src/job_kinds.rs).
+tokio = { version = "1", features = ["rt", "fs", "time", "sync", "macros", "process", "io-util", "net"] }
 # Regular expressions.
 regex = "1"
 # Dates and times: formatting, parsing, local time zone offset.

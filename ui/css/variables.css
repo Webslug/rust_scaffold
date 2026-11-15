@@ -43,6 +43,7 @@
   /* Typography */
   --font-heading: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
   --font-body: "Inter", "Segoe UI", system-ui, sans-serif;
+  --font-mono: ui-monospace, "DejaVu Sans Mono", Consolas, monospace;
 
   /* Radii — rounded everywhere except the navbar, per AGENTS.md */
   --radius-sm: 6px;
@@ -64,6 +65,13 @@
   --jobs-field-min: 8rem;
   --jobs-bar-width: 6rem;
   --jobs-bar-height: 0.6rem;
+  --jobs-pair-number: 4rem;
+  --jobs-wrap-min: 12rem;
+  --jobs-wrap-min-narrow: 8rem;
+  --jobs-buttons-min: 6rem;
+  --jobs-output-max: 24rem;
+  --jobs-output-small-max: 5rem;
+  --jobs-note-max: 11rem;
 
   /* Shadow */
 

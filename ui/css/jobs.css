@@ -167,3 +167,197 @@
   color: var(--text-muted);
   font-size: 0.875rem;
 }
+
+/* ==========================================================================
+   Schedules, Rules and Next 24 hours views (js/schedules.js)
+   ========================================================================== */
+
+.jobs-views {
+  flex-wrap: wrap;
+  margin-bottom: var(--space-3);
+}
+
+.jobs-banner {
+  margin-bottom: var(--space-3);
+}
+
+.jobs-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.jobs-editor {
+  margin: var(--space-3) 0;
+}
+
+.jobs-editor .jobs-fields + .jobs-wide,
+.jobs-editor .jobs-wide + .jobs-fields,
+.jobs-editor .jobs-fields + .jobs-switches,
+.jobs-editor .jobs-switches + .jobs-wide {
+  margin-top: var(--space-3);
+}
+
+/* A number and its unit side by side. */
+.jobs-pair {
+  display: grid;
+  grid-template-columns: minmax(var(--jobs-pair-number), 1fr) 1.4fr;
+  gap: var(--space-1);
+}
+
+.jobs-code {
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+}
+
+.jobs-switches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+}
+
+.jobs-error {
+  margin: var(--space-2) 0 0;
+  color: var(--danger-text);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.jobs-error:empty {
+  display: none;
+}
+
+.jobs-table td.jobs-wrap {
+  white-space: normal;
+  min-width: var(--jobs-wrap-min);
+}
+
+.jobs-table .badge + .jobs-subtle {
+  margin-left: var(--space-1);
+}
+
+.jobs-subtle {
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+}
+
+.jobs-buttons .btn.jobs-confirm {
+  background-color: var(--danger-soft);
+  color: var(--danger-text);
+}
+
+/* Schedules and Rules tables carry more buttons per row than the queue, so
+   theirs are compact, and the When and Next columns may wrap. */
+.app-content .jobs-table .jobs-buttons .btn {
+  padding: var(--space-1) var(--space-2);
+}
+
+.sched-table td.jobs-wrap {
+  min-width: var(--jobs-wrap-min-narrow);
+}
+
+/* The buttons wrap onto a second line rather than push the table wider. */
+.sched-table td.jobs-buttons {
+  white-space: normal;
+  min-width: var(--jobs-buttons-min);
+}
+
+.jobs-button-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-1);
+}
+
+.app-content .sched-table .jobs-button-row .btn + .btn {
+  margin-left: 0;
+}
+
+.sched-table .badge {
+  vertical-align: baseline;
+}
+
+.jobs-fields > .jobs-span2 {
+  grid-column: span 2;
+}
+
+/* ==========================================================================
+   Job input fields (js/job_forms.js), the run form and job output
+   ========================================================================== */
+
+.jobs-section + .jobs-section,
+.jobs-kind-fields > * + *,
+.jobs-kind-fields,
+.jobs-section + .jobs-wide,
+.jobs-section + .jobs-fields {
+  margin-top: var(--space-3);
+}
+
+.jobs-form-note {
+  margin: 0;
+}
+
+.jobs-limit-box {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.jobs-output-box {
+  margin-top: var(--space-3);
+}
+
+.jobs-output-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.jobs-output {
+  max-height: var(--jobs-output-max);
+  overflow: auto;
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  background-color: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.jobs-output-small {
+  max-height: var(--jobs-output-small-max);
+  padding: var(--space-1) var(--space-2);
+  font-size: 0.75rem;
+}
+
+.jobs-history-output {
+  min-width: var(--jobs-wrap-min);
+}
+
+.jobs-limit-box .form-label {
+  white-space: nowrap;
+}
+
+/* The live note can be a long line of output: cut it, the full text is in
+   its tooltip and in Inspect. */
+.jobs-progress .jobs-count {
+  display: inline-block;
+  max-width: var(--jobs-note-max);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+/* The queue table has the most columns: Waited goes sooner. */
+@container (max-width: 52rem) {
+  .jobs-queue-table .jobs-extra {
+    display: none;
+  }
+}
