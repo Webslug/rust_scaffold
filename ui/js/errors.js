@@ -85,6 +85,10 @@
       var entry = shown[i];
       var level = LEVELS[entry.level] || LEVELS.error;
       var tr = document.createElement("tr");
+      if (entry.earlier) {
+        tr.className = "errors-earlier";
+        tr.title = "From an earlier run of the app";
+      }
       tr.appendChild(cell(entry.time, "errors-time"));
       var levelCell = cell("", "");
       var span = document.createElement("span");
@@ -98,7 +102,7 @@
     }
     if (!shown.length) {
       var empty = document.createElement("tr");
-      var td = cell(entries.length ? "Nothing matches this filter." : "No errors or warnings since the app started.", "errors-empty");
+      var td = cell(entries.length ? "Nothing matches this filter." : "No errors or warnings kept.", "errors-empty");
       td.colSpan = 4;
       empty.appendChild(td);
       rows.appendChild(empty);
@@ -130,9 +134,10 @@
       while (entries.length > max) {
         entries.shift();
       }
+      var kept = "Kept in errors.jsonl in the settings folder, so they are still here after a restart (earlier ones are greyed). Clear empties it.";
       note.textContent = reply.log_file
-        ? "Kept in memory since the app started. Everything from debug level up is also written to " + reply.log_file + ", which is cut to its newest half when it passes 1 MB."
-        : "Kept in memory since the app started. No log file is written (DEBUG_MODE is false in src-tauri/src/lib.rs).";
+        ? kept + " Everything from debug level up is also written to " + reply.log_file + ", which is cut to its newest half when it passes 1 MB."
+        : kept + " No debug.log is written (DEBUG_MODE is false in src-tauri/src/lib.rs).";
       render();
     }).catch(function (err) {
       done();
@@ -179,7 +184,8 @@
   // skips entries the full list already holds.
   tauri.event.listen("log:entry", function (e) { add(e.payload); });
   load().then(function () {
-    unseen = entries.length;
+    // Only this run's entries count as new; earlier ones were seen before.
+    unseen = entries.filter(function (entry) { return !entry.earlier; }).length;
     showBadge();
   });
 

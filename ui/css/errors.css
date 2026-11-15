@@ -96,3 +96,8 @@
   line-height: 1.1rem;
   text-align: center;
 }
+
+/* Entries from an earlier run of the app (read from errors.jsonl). */
+.errors-table .errors-earlier td {
+  color: var(--text-muted);
+}

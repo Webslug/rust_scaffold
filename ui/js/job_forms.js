@@ -19,7 +19,10 @@
     { value: "grok_build", label: "GrokBuild", model: "optional, the tool's default" }
   ];
 
-  var KIND_LABELS = { command: "Command (bash)", ai: "AI prompt" };
+  var KIND_LABELS = { command: "Command (bash)", ai: "AI prompt", notify: "Notification" };
+
+  var PLACEHOLDERS = "{previous_output}, {previous_value}, {previous_value.FIELD} (one field, for example {previous_value.percent}), " +
+    "{previous_message}, {previous_label}, {previous_state} and {previous_schedule}";
 
   var ENDPOINTS = {
     ollama: "http://127.0.0.1:11434/api/chat",
@@ -77,8 +80,12 @@
       row.appendChild(field(p + "folder", "Run in folder", folder));
       box.appendChild(row);
       box.appendChild(el("p", "jobs-subtle jobs-form-note",
+        "Result: the exit code, unless the script writes JSON to the file $JOB_RESULT, for example " +
+        "{\"label\": \"disk_high\", \"value\": {\"percent\": 92}, \"message\": \"92% full\"} (each part optional). " +
+        "Rules can test the label and value. Progress: write 40/100 or 40% to the file $JOB_PROGRESS."));
+      box.appendChild(el("p", "jobs-subtle jobs-form-note",
         "When a rule starts this job, the job before it is in $PREVIOUS_OUTPUT (its output; the whole of it in the file $PREVIOUS_OUTPUT_FILE), " +
-        "$PREVIOUS_LABEL, $PREVIOUS_STATE and $PREVIOUS_SCHEDULE. Use them in quotes, for example \"$PREVIOUS_OUTPUT\"."));
+        "$PREVIOUS_VALUE (JSON), $PREVIOUS_MESSAGE, $PREVIOUS_LABEL, $PREVIOUS_STATE and $PREVIOUS_SCHEDULE. Use them in quotes, for example \"$PREVIOUS_OUTPUT\"."));
       return {
         set: function (v) {
           script.value = v.script || "";
@@ -120,8 +127,8 @@
       var note = el("p", "jobs-subtle jobs-form-note");
       box.appendChild(note);
       box.appendChild(el("p", "jobs-subtle jobs-form-note",
-        "When a rule starts this job, {previous_output} in the prompt becomes the output of the job before it (its last 12,000 characters). " +
-        "{previous_label}, {previous_state} and {previous_schedule} work too."));
+        "When a rule starts this job, the prompt can quote the job before it: " + PLACEHOLDERS +
+        ". {previous_output} brings in its last 12,000 characters."));
 
       var OTHER = "__other";
       var listed = null; // names from Ollama, or null when not listed
@@ -218,6 +225,48 @@
         }
       };
     }
+  };
+
+  FORMS.notify = function (box, p) {
+    var title = input("Disk {previous_value.percent}% full");
+    var text = textarea(3, "{previous_message}");
+    var urgency = el("select", "form-select");
+    [["low", "Low"], ["normal", "Normal"], ["critical", "Critical (stays until closed)"]].forEach(function (u) {
+      var o = el("option", "", u[1]);
+      o.value = u[0];
+      urgency.appendChild(o);
+    });
+    var sound = el("input", "form-check-input");
+    sound.type = "checkbox";
+    var row = el("div", "jobs-fields");
+    row.appendChild(field(p + "title", "Title", title));
+    row.appendChild(field(p + "urgency", "Urgency", urgency));
+    box.appendChild(row);
+    box.appendChild(field(p + "text", "Text", text, true));
+    var check = el("div", "form-check form-switch");
+    sound.id = p + "sound";
+    var soundLabel = el("label", "form-check-label", "Ask the desktop to play its message sound");
+    soundLabel.htmlFor = sound.id;
+    check.appendChild(sound);
+    check.appendChild(soundLabel);
+    box.appendChild(check);
+    box.appendChild(el("p", "jobs-subtle jobs-form-note",
+      "Shows a desktop notification. When a rule starts it, the title and text can quote the job before it: " + PLACEHOLDERS +
+      ". Whether a sound plays depends on the desktop."));
+    return {
+      set: function (v) {
+        title.value = v.title || "";
+        text.value = v.text || "";
+        urgency.value = v.urgency || "normal";
+        sound.checked = !!v.sound;
+      },
+      read: function () {
+        if (!title.value.trim()) { throw new Error("the title is empty"); }
+        var v = { title: title.value, text: text.value, urgency: urgency.value };
+        if (sound.checked) { v.sound = true; }
+        return v;
+      }
+    };
   };
 
   // Any other kind: its input as JSON.

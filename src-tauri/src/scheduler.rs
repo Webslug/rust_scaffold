@@ -44,7 +44,7 @@ use tokio::runtime::Handle;
 use tracing::{info, warn};
 
 use crate::files::{self, FileStatus};
-use crate::jobs::{JobState, KindEntry, Origin, Previous, Queue, MAX_OUTPUT_BYTES};
+use crate::jobs::{JobState, KindEntry, Origin, Outcome, Previous, Queue, MAX_OUTPUT_BYTES};
 
 pub const SCHEDULES_FILE: &str = "jobs.json";
 pub const STATE_FILE: &str = "jobs_state.json";
@@ -387,6 +387,78 @@ struct RuleWhenText {
     label: Option<String>,
     #[serde(default = "one")]
     times: u32,
+    #[serde(default)]
+    value: Option<ValueTest>,
+    #[serde(default)]
+    changed: bool,
+}
+
+/// A test on one field of a run's result value: `{"field": "percent",
+/// "above": 90}`. Several tests in one must all pass.
+#[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct ValueTest {
+    pub field: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub above: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub below: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub equals: Option<Value>,
+}
+
+impl ValueTest {
+    fn check(&self) -> Result<(), String> {
+        let path_ok = !self.field.is_empty()
+            && self.field.len() <= 100
+            && self.field.split('.').all(|part| !part.is_empty() && part.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-'));
+        if !path_ok {
+            return Err("the value field must be a name such as percent, or disk.percent for a field inside another".into());
+        }
+        if self.above.is_none() && self.below.is_none() && self.equals.is_none() {
+            return Err("the value test needs above, below or equals".into());
+        }
+        if self.above.is_some_and(|a| !a.is_finite()) || self.below.is_some_and(|b| !b.is_finite()) {
+            return Err("above and below must be numbers".into());
+        }
+        Ok(())
+    }
+
+    /// Whether `value` passes. A missing field, or text where a number is
+    /// needed, does not pass.
+    fn passes(&self, value: Option<&Value>) -> bool {
+        let Some(found) = value.and_then(|v| crate::jobs::value_field(v, &self.field)) else { return false };
+        if let Some(want) = &self.equals {
+            let same = match (found.as_f64(), want.as_f64()) {
+                (Some(a), Some(b)) => a == b,
+                _ => found == want,
+            };
+            if !same {
+                return false;
+            }
+        }
+        if self.above.is_some() || self.below.is_some() {
+            let Some(n) = found.as_f64() else { return false };
+            if self.above.is_some_and(|a| n <= a) || self.below.is_some_and(|b| n >= b) {
+                return false;
+            }
+        }
+        true
+    }
+
+    fn words(&self) -> String {
+        let mut parts = Vec::new();
+        if let Some(a) = self.above {
+            parts.push(format!("above {a}"));
+        }
+        if let Some(b) = self.below {
+            parts.push(format!("below {b}"));
+        }
+        if let Some(e) = &self.equals {
+            parts.push(format!("equal to {e}"));
+        }
+        format!("{} {}", self.field, parts.join(" and "))
+    }
 }
 
 #[derive(Deserialize)]
@@ -420,6 +492,8 @@ pub struct Rule {
     pub ended: Ended,
     pub label: Option<String>,
     pub times: u32,
+    pub value: Option<ValueTest>,
+    pub changed: bool,
     pub action: Action,
     pub target: String,
     /// As written in the file, for the edit form.
@@ -427,13 +501,22 @@ pub struct Rule {
 }
 
 impl Rule {
-    fn matches(&self, state: JobState, label: Option<&str>) -> bool {
-        self.ended.matches(state) && self.label.as_deref().is_none_or(|want| label == Some(want))
+    fn matches(&self, done: &Finished) -> bool {
+        self.ended.matches(done.state)
+            && self.label.as_deref().is_none_or(|want| done.outcome.label.as_deref() == Some(want))
+            && self.value.as_ref().is_none_or(|test| test.passes(done.outcome.value.as_ref()))
+            && (!self.changed || done.changed)
     }
 
     /// In words, for the Jobs page.
     pub fn describe(&self) -> String {
-        let label = self.label.as_ref().map(|l| format!(" with result \"{l}\"")).unwrap_or_default();
+        let mut label = self.label.as_ref().map(|l| format!(" with result \"{l}\"")).unwrap_or_default();
+        if let Some(test) = &self.value {
+            label.push_str(&format!(", value {}", test.words()));
+        }
+        if self.changed {
+            label.push_str(", changed since the last success");
+        }
         let times = if self.times > 1 { format!(", {} times in a row", self.times) } else { String::new() };
         let action = match self.action {
             Action::Start => "start",
@@ -588,6 +671,12 @@ pub fn parse(text: &str, queue: &Queue) -> Result<Parsed, String> {
             if !(1..=MAX_TIMES).contains(&r.when.times) {
                 return Err(format!("times must be 1 to {MAX_TIMES}"));
             }
+            if let Some(test) = &r.when.value {
+                test.check()?;
+            }
+            if r.when.changed && !matches!(r.when.ended, Ended::Done | Ended::Any) {
+                return Err("changed compares successful runs, so it needs ended done or any".into());
+            }
             Ok(Rule {
                 name: r.name,
                 enabled: r.enabled,
@@ -595,6 +684,8 @@ pub fn parse(text: &str, queue: &Queue) -> Result<Parsed, String> {
                 ended: r.when.ended,
                 label: r.when.label,
                 times: r.when.times,
+                value: r.when.value,
+                changed: r.when.changed,
                 action: r.then.action,
                 target: r.then.schedule,
                 raw,
@@ -628,6 +719,9 @@ pub struct RunState {
     pub retry_due_ms: Option<i64>,
     /// The newest runs, oldest first.
     pub history: Vec<HistoryEntry>,
+    /// Fingerprint of the last successful run's output and value, for
+    /// rules with `changed`.
+    pub last_fingerprint: Option<String>,
 }
 
 /// One finished run of a schedule.
@@ -643,6 +737,23 @@ pub struct HistoryEntry {
     /// The end of what the job printed or answered.
     #[serde(default)]
     pub output: Option<String>,
+    /// The result value the job returned, for example `{"percent": 82}`.
+    #[serde(default)]
+    pub value: Option<Value>,
+}
+
+/// A short fingerprint of a run's output and value (64-bit FNV-1a, as hex).
+/// Written out by hand rather than with Rust's `DefaultHasher`, whose
+/// results may change between Rust versions; this one is kept in
+/// jobs_state.json across updates.
+fn fingerprint(output: &str, value: Option<&Value>) -> String {
+    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
+    let value = value.map(Value::to_string).unwrap_or_default();
+    for byte in output.bytes().chain([0u8]).chain(value.bytes()) {
+        hash ^= u64::from(byte);
+        hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
+    }
+    format!("{hash:016x}")
 }
 
 fn remember(st: &mut RunState, entry: HistoryEntry) {
@@ -774,7 +885,10 @@ struct Finished {
     schedule: String,
     job: u64,
     state: JobState,
-    label: Option<String>,
+    outcome: Outcome,
+    /// A successful run whose output or value differs from the last
+    /// successful run's (false for the first one).
+    changed: bool,
     depth: u32,
 }
 
@@ -1155,7 +1269,7 @@ impl Scheduler {
                 st.last_state = Some(JobState::Failed);
                 st.last_label = None;
                 st.failures_in_a_row += 1;
-                remember(st, HistoryEntry { at_ms: to_ms(now), job: None, state: JobState::Failed, label: None, by, output: None });
+                remember(st, HistoryEntry { at_ms: to_ms(now), job: None, state: JobState::Failed, label: None, by, output: None, value: None });
                 false
             }
         }
@@ -1176,13 +1290,15 @@ impl Scheduler {
         for entry in entries.iter_mut() {
             let name = entry.schedule.name.clone();
             let Some(id) = entry.job else { continue };
-            match self.0.queue.result(id) {
+            match self.0.queue.outcome(id) {
                 Some((state, _)) if !state.finished() => continue,
-                Some((state, label)) => {
+                Some((state, outcome)) => {
+                    let label = outcome.label.clone();
                     let st = states.entry(name.clone()).or_default();
                     let by = std::mem::take(&mut entry.by);
                     let output = self.0.queue.output_tail(id, HISTORY_OUTPUT_BYTES);
-                    remember(st, HistoryEntry { at_ms: to_ms(now), job: Some(id), state, label: label.clone(), by, output });
+                    let value = outcome.value.clone();
+                    remember(st, HistoryEntry { at_ms: to_ms(now), job: Some(id), state, label: label.clone(), by, output, value });
                     st.last_state = Some(state);
                     st.last_label = label.clone();
                     let failed = matches!(state, JobState::Failed | JobState::TimedOut);
@@ -1206,7 +1322,14 @@ impl Scheduler {
                                 st.paused_reason = Some(reason);
                             }
                         }
-                        finished.push(Finished { schedule: name, job: id, state, label, depth: entry.depth });
+                        let mut changed = false;
+                        if state == JobState::Done {
+                            let output = self.0.queue.output_tail(id, MAX_OUTPUT_BYTES).unwrap_or_default();
+                            let print = fingerprint(&output, outcome.value.as_ref());
+                            changed = st.last_fingerprint.as_ref().is_some_and(|last| *last != print);
+                            st.last_fingerprint = Some(print);
+                        }
+                        finished.push(Finished { schedule: name, job: id, state, outcome, changed, depth: entry.depth });
                     }
                 }
                 None => {} // cleared from the Jobs page before it was seen
@@ -1282,7 +1405,7 @@ impl Scheduler {
         let Inner { rules, streaks, .. } = &mut *inner;
         for rule in rules.iter().filter(|r| r.enabled && r.source == done.schedule) {
             let streak = streaks.entry(rule.name.clone()).or_default();
-            if !rule.matches(done.state, done.label.as_deref()) {
+            if !rule.matches(done) {
                 *streak = 0;
                 continue;
             }
@@ -1301,7 +1424,9 @@ impl Scheduler {
             schedule: done.schedule.clone(),
             job: done.job,
             state: done.state,
-            label: done.label.clone(),
+            label: done.outcome.label.clone(),
+            value: done.outcome.value.clone(),
+            message: done.outcome.message.clone(),
             output: self.0.queue.output_tail(done.job, MAX_OUTPUT_BYTES).unwrap_or_default(),
         });
         for rule in fire {
@@ -2263,4 +2388,129 @@ mod tests {
         assert_eq!(last_output(&rig, "summarise"), "Two errors: disk and fan.");
     }
 
+
+    /// A command that reports the next number from `file` as its value
+    /// `{"percent": N}` (one number per line, used up in order).
+    fn reporter(name: &str, file: &std::path::Path) -> Value {
+        command(
+            name,
+            &format!(
+                r#"f='{}'; v=$(head -n 1 "$f"); sed -i 1d "$f"; printf '{{"value":{{"percent":%s}},"message":"%s%% full"}}' "$v" "$v" > "$JOB_RESULT""#,
+                file.display()
+            ),
+        )
+    }
+
+    async fn run_and_settle(rig: &Rig, name: &str) {
+        let before = rig.view(name).state.history.len();
+        rig.scheduler.run_now(name).unwrap();
+        settle(rig, |r| r.view(name).state.history.len() > before).await;
+        // One more pass, so rules fired by the result have started theirs.
+        settle(rig, |r| r.view("alert").running_job.is_none()).await;
+    }
+
+    #[tokio::test]
+    async fn a_rule_reacts_to_a_value_n_times_in_a_row() {
+        let rig_dir = temp_dir("value_rule_numbers");
+        let numbers = rig_dir.join("numbers.txt");
+        fs::write(&numbers, "80\n95\n50\n91\n96\n").unwrap();
+        let mut over = rule("too_full", "disk", "done", "start", "alert");
+        over["when"]["value"] = json!({ "field": "percent", "above": 90 });
+        over["when"]["times"] = json!(2);
+        let rig = Rig::new(
+            "value_rule",
+            json!({ "version": 1,
+                "schedules": [ reporter("disk", &numbers), command("alert", "echo \"$PREVIOUS_VALUE|$PREVIOUS_MESSAGE\"") ],
+                "rules": [ over ] }),
+            0,
+        );
+        assert!(rig.scheduler.list().rules[0].text.contains("value percent above 90"), "{}", rig.scheduler.list().rules[0].text);
+        // 80: no. 95: one in a row. 50: back to none. 91, 96: two in a row.
+        for (step, fired) in [(1, 0), (2, 0), (3, 0), (4, 0), (5, 1)] {
+            run_and_settle(&rig, "disk").await;
+            assert_eq!(rig.view("alert").state.history.len(), fired, "after run {step}");
+        }
+        assert_eq!(rig.view("disk").state.history.last().unwrap().value, Some(json!({ "percent": 96 })), "history keeps the value");
+        assert_eq!(last_output(&rig, "alert").trim(), r#"{"percent":96}|96% full"#);
+    }
+
+    #[tokio::test]
+    async fn a_rule_reacts_when_the_output_changes() {
+        let dir = temp_dir("changed_rule_page");
+        let page = dir.join("page.txt");
+        let mut watch = rule("on_change", "watch", "done", "start", "alert");
+        watch["when"]["changed"] = json!(true);
+        let rig = Rig::new(
+            "changed_rule",
+            json!({ "version": 1,
+                "schedules": [ command("watch", &format!("cat '{}'", page.display())), command("alert", "echo changed") ],
+                "rules": [ watch ] }),
+            0,
+        );
+        // First run: nothing to compare with. Same text: no change.
+        for (text, fired) in [("price 10", 0), ("price 10", 0), ("price 12", 1), ("price 12", 1), ("price 10", 2)] {
+            fs::write(&page, text).unwrap();
+            run_and_settle(&rig, "watch").await;
+            assert_eq!(rig.view("alert").state.history.len(), fired, "after \"{text}\"");
+        }
+        // A failed run neither counts as a change nor replaces the last
+        // successful output.
+        fs::remove_file(&page).unwrap();
+        run_and_settle(&rig, "watch").await;
+        fs::write(&page, "price 10").unwrap();
+        run_and_settle(&rig, "watch").await;
+        assert_eq!(rig.view("alert").state.history.len(), 2);
+        // The fingerprint is kept across a restart.
+        let again = Rig::open(rig.dir.clone(), 0);
+        assert!(again.view("watch").state.last_fingerprint.is_some());
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn bad_value_and_changed_rules_are_refused() {
+        let with = |when: Value| {
+            let mut r = rule("r", "a", "done", "start", "b");
+            for (k, v) in when.as_object().unwrap() {
+                r["when"][k] = v.clone();
+            }
+            r
+        };
+        let rig = Rig::new(
+            "bad_value_rules",
+            json!({ "version": 1, "schedules": [ manual("a", OK()), manual("b", OK()) ], "rules": [
+                with(json!({ "value": { "field": "percent" } })),
+                with(json!({ "value": { "field": "a b", "above": 1 } })),
+                with(json!({ "value": { "field": "percent", "over": 1 } })),
+                with(json!({ "ended": "failed", "changed": true })),
+            ]}),
+            3,
+        );
+        let skipped = rig.scheduler.list().skipped;
+        assert_eq!(skipped.len(), 4, "{skipped:?}");
+        assert!(skipped[0].contains("above, below or equals"));
+        assert!(skipped[1].contains("value field"));
+        assert!(skipped[2].contains("over"));
+        assert!(skipped[3].contains("changed compares successful runs"));
+    }
+
+    #[test]
+    fn value_tests_compare_numbers_and_text() {
+        let t = |v: Value| serde_json::from_value::<ValueTest>(v).unwrap();
+        let v = json!({ "percent": 92, "state": "ok", "disk": { "free": 3 } });
+        assert!(t(json!({ "field": "percent", "above": 90 })).passes(Some(&v)));
+        assert!(!t(json!({ "field": "percent", "above": 92 })).passes(Some(&v)), "above is strict");
+        assert!(t(json!({ "field": "percent", "above": 90, "below": 95 })).passes(Some(&v)));
+        assert!(t(json!({ "field": "percent", "equals": 92.0 })).passes(Some(&v)), "92 equals 92.0");
+        assert!(t(json!({ "field": "state", "equals": "ok" })).passes(Some(&v)));
+        assert!(!t(json!({ "field": "state", "above": 1 })).passes(Some(&v)), "text is not a number");
+        assert!(t(json!({ "field": "disk.free", "below": 5 })).passes(Some(&v)));
+        assert!(!t(json!({ "field": "missing", "below": 5 })).passes(Some(&v)));
+        assert!(!t(json!({ "field": "percent", "above": 1 })).passes(None));
+    }
+
+    #[test]
+    fn fingerprints_are_stable() {
+        // Kept in jobs_state.json, so they must not change between builds.
+        assert_eq!(fingerprint("", None), "af63bd4c8601b7df");
+        assert_ne!(fingerprint("a", None), fingerprint("", Some(&json!("a"))));
+    }
 }

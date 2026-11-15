@@ -592,6 +592,22 @@
                     <input type="text" id="rule-label" class="form-control" maxlength="32" placeholder="Any" autocomplete="off">
                   </div>
                   <div>
+                    <label class="form-label" for="rule-value-field">Value field</label>
+                    <input type="text" id="rule-value-field" class="form-control" maxlength="100" placeholder="Any, or for example percent" autocomplete="off">
+                  </div>
+                  <div>
+                    <label class="form-label" for="rule-value-above">Is above</label>
+                    <input type="text" id="rule-value-above" class="form-control" inputmode="decimal" placeholder="Number" autocomplete="off">
+                  </div>
+                  <div>
+                    <label class="form-label" for="rule-value-below">Is below</label>
+                    <input type="text" id="rule-value-below" class="form-control" inputmode="decimal" placeholder="Number" autocomplete="off">
+                  </div>
+                  <div>
+                    <label class="form-label" for="rule-value-equals">Equals</label>
+                    <input type="text" id="rule-value-equals" class="form-control" maxlength="200" placeholder="Number or text" autocomplete="off">
+                  </div>
+                  <div>
                     <label class="form-label" for="rule-times">Times in a row</label>
                     <input type="number" id="rule-times" class="form-control" min="1" max="1000" step="1" value="1">
                   </div>
@@ -610,6 +626,7 @@
                 </div>
                 <div class="jobs-switches">
                   <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="rule-enabled" checked><label class="form-check-label" for="rule-enabled">On</label></div>
+                  <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="rule-changed"><label class="form-check-label" for="rule-changed">Only when the output or value changed since the last success</label></div>
                 </div>
                 <div class="jobs-wide">
                   <label class="form-label" for="rule-note">Note</label>
@@ -634,7 +651,7 @@
                 </table>
               </div>
             </div>
-            <p class="jobs-note">A rule watches one schedule's results. When they match the given number of times in a row, it starts, turns on or turns off another schedule (or the same one). A result that does not match starts the count again. "Turn on" and "turn off" by a rule last until the schedule is saved or switched here. A chain of rules stops after <span id="rule-max-chain">10</span> links, so rules cannot start each other for ever.</p>
+            <p class="jobs-note">A rule watches one schedule's results. When they match the given number of times in a row, it starts, turns on or turns off another schedule (or the same one). A result that does not match starts the count again. "Turn on" and "turn off" by a rule last until the schedule is saved or switched here. A chain of rules stops after <span id="rule-max-chain">10</span> links, so rules cannot start each other for ever. Value tests look at the result value a job returns (a script writes it to $JOB_RESULT, for example {"value": {"percent": 92}}); a missing field or text where a number is needed does not match. The first successful run is never a change.</p>
           </div>
 
           <div data-jobs-pane="upcoming" class="d-none">
@@ -668,7 +685,7 @@
           <div class="card card-custom">
             <div class="table-responsive">
               <table class="table table-custom table-hover mb-0 errors-table">
-                <caption class="visually-hidden">Errors and warnings since the app started, newest first</caption>
+                <caption class="visually-hidden">Errors and warnings, newest first</caption>
                 <thead>
                   <tr><th scope="col">Time</th><th scope="col">Level</th><th scope="col">Source</th><th scope="col">Message</th></tr>
                 </thead>
@@ -689,7 +706,7 @@
                   <dt>Jobs</dt>
                   <dd>The Jobs page starts mock jobs that run in Rust as Tokio tasks and count up to a number, pausing between counts. "At once" sets how many run at the same time (1 to 3, also on the Options tab); the rest wait in the queue. Each row shows progress, time spent waiting and running, and how late the pauses ended. Inspect shows a job's details, including its Tokio task, and Kill stops it: before it starts if it is still queued, or at its next pause if it is running. "Fail at step" makes a job fail on purpose, to test error handling.</dd>
                   <dt>Errors</dt>
-                  <dd>The Errors page lists errors and warnings since the app started, newest first, including errors in the page's own scripts. New ones appear at once; while another page is open, a red count on the Errors menu entry shows how many arrived. Copy puts the list on the clipboard, Clear empties it, and Test records a test error. Options, Errors kept, sets how many are kept (10 to 1000, default 100).</dd>
+                  <dd>The Errors page lists errors and warnings, newest first, including errors in the page's own scripts. They are saved in errors.jsonl in the settings folder, so after a restart the earlier ones are still listed, greyed. New ones appear at once; while another page is open, a red count on the Errors menu entry shows how many arrived. Copy puts the list on the clipboard, Clear empties it (and the file), and Test records a test error. Options, Errors kept, sets how many are kept (10 to 1000, default 100).</dd>
                   <dt>Searching</dt>
                   <dd>In the vertical menu, type at least three letters into Search, for example "dash" or "theme". Use Up and Down to choose a result and Enter to go straight to it. Escape closes the list. / or Ctrl+K moves to the search box (see Shortcut keys below). When the menu is contracted, the magnifying glass expands it and opens the search.</dd>
                   <dt>Themes</dt>
@@ -729,7 +746,7 @@
               <div class="card-header"><h2 class="h6 card-header-title mb-0" id="help-changelog-title"><i class="bi bi-journal-text me-2" aria-hidden="true"></i>Change log</h2></div>
               <div class="card-body">
                 <ul class="help-changelog">
-                  <li><strong>0.2.5, 15 November 2026.</strong> The Jobs page has schedules and rules. Schedules run a job once, every so often, daily, weekly or monthly, with run limits, end dates, retries and catch-up; rules start, turn on or turn off a schedule when another ends a given way, a number of times in a row. Two job kinds: Command (a bash script in any folder) and AI prompt (Claude Code, Codex, GrokBuild, or a local Ollama or llama.cpp server). A job started by a rule is given the result of the job before it ({previous_output} in a prompt, $PREVIOUS_OUTPUT in a script), so jobs form pipelines. Inspect shows what a job printed or answered. The Ollama model list leaves out image models. Pause everything stops all schedules and rules. The counting demo is gone.</li>
+                  <li><strong>0.2.5, 15 November 2026.</strong> The Jobs page has schedules and rules. Schedules run a job once, every so often, daily, weekly or monthly, with run limits, end dates, retries and catch-up; rules start, turn on or turn off a schedule when another ends a given way, a number of times in a row. Two job kinds: Command (a bash script in any folder) and AI prompt (Claude Code, Codex, GrokBuild, or a local Ollama or llama.cpp server). A job started by a rule is given the result of the job before it ({previous_output} in a prompt, $PREVIOUS_OUTPUT in a script), so jobs form pipelines. Inspect shows what a job printed or answered. The Ollama model list leaves out image models. Pause everything stops all schedules and rules. The counting demo is gone. Later the same day: a script can report its own result (label, value such as a percentage, message) by writing JSON to $JOB_RESULT, and progress to $JOB_PROGRESS; rules can test a value (above, below, equals) or react only when the output changed; a new Notification job shows a desktop notification; prompts and notifications can quote the earlier result ({previous_value.percent}, {previous_message}), so an AI can react to a job's outcome. Errors and warnings are kept in errors.jsonl and still listed after a restart.</li>
                   <li><strong>0.2.4, 14 November 2026.</strong> Double-click the tray icon to hide or show the window, now on Linux too. New option "Hide to the tray" (on by default): hiding takes the window off the taskbar; turn it off to minimise to the taskbar instead. A hidden window comes back centred on the main screen. Options now sits with Help at the end of the menu. Racing Green is the default theme, and Alt+1 to Alt+9 follow the menu order. Settings files are recreated when missing, and a file over its size limit is set aside as .corrupt and replaced with defaults. If the start-up script fails, the window still appears after 5 seconds and the Errors page says why. The Errors badge now counts every warning from start-up.</li>
                   <li><strong>0.2.3, 13 November 2026.</strong> The Jobs table fits narrow windows: it hides Waited and Late by, then Ran and the bar, as space runs out (Inspect still shows them). Select boxes no longer draw their arrow over the text. New shortcut keys, set in keys.json in the settings folder: / or Ctrl+K for search, Alt+1 to Alt+9 for the pages, Escape to leave a text box. They are listed on this page.</li>
                   <li><strong>0.2.2, 13 November 2026.</strong> Settings move to the per-user settings folder (~/.config/rust_scaffold on Linux, %APPDATA%\rust_scaffold on Windows), so the app also works when installed in a read-only folder. Settings from earlier versions are copied across on first start. New Errors page: errors and warnings appear the moment they happen (tracing crate), with an optional size-capped debug.log. New Jobs page: a Tokio job queue running 1 to 3 jobs at once, with inspect and kill.</li>

@@ -105,8 +105,28 @@ f = json.load(open(sys.argv[1]))
 r = {x["name"]: x for x in f.get("rules", [])}
 print("rule_saved", r.get("made_rule", {}).get("then", {}).get("action") == "start" and "flaky_failed" in r)
 PY
+# A rule with a value test: Tab from the name through schedule, ends and
+# result to the value field.
+click 325 149
+sleep 1
+type_text "value_rule"
+key Tab Tab Tab Tab
+type_text "percent"
+key Tab
+type_text "90"
+sleep 1
+shot sched_rule_value_form
+key Return
+sleep 1
+python3 - "$SETTINGS/jobs.json" >>"$OUT/form_check.txt" <<'PY'
+import json, sys
+f = json.load(open(sys.argv[1]))
+r = {x["name"]: x for x in f.get("rules", [])}
+print("value_rule_saved", r.get("value_rule", {}).get("when", {}).get("value") == {"field": "percent", "above": 90})
+PY
+shot sched_rule_value_saved
 cat "$OUT/form_check.txt"
-for name in schedule_saved others_kept rule_saved; do
+for name in schedule_saved others_kept rule_saved value_rule_saved; do
     expect "form: $name" grep -qx "$name True" "$OUT/form_check.txt"
 done
 click 439 91

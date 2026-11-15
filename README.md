@@ -56,9 +56,9 @@ core. The release binary is about 4.5 MB, well under the 50 MB target.
   a switch on the Options tab.
 - An Errors page: warnings and errors (including JavaScript errors) appear the
   moment they happen, pushed from Rust through the `tracing` crate.
-- A Jobs page backed by a Tokio job queue in Rust: 1 to 3 jobs run at once,
-  the rest wait in order; inspect or kill any job. A ready base for apps that
-  need background work.
+- A Jobs page backed by a Tokio job queue in Rust: bash commands, AI prompts
+  and desktop notifications, run now or on schedules, with rules that react
+  to each result (see [Jobs](#jobs-schedules-rules-and-reactions)).
 - Shortcut keys set in `keys.json` (/ or Ctrl+K for search, Alt+1 to Alt+9
   for the pages), with a cheat sheet on the Help page.
 - Example of the interface calling a Rust command.
@@ -82,11 +82,91 @@ core. The release binary is about 4.5 MB, well under the 50 MB target.
   <img src="ui/img/autocomplete.jpg" alt="Auto Complete - Find any section instantly" width="720">
 </p>
 
-## ASync Job Queues
+## Jobs: schedules, rules and reactions
 
 <p align="center">
   <img src="ui/img/jobs.jpg" alt="ASync Job Queues" width="720">
 </p>
+
+The Jobs page runs work in the background, on a timetable or in reaction to
+other work, while the app is open. It has four parts.
+
+**Job kinds** say what a job does. Three are built in:
+
+- **Command:** a bash script in any folder (cmd on Windows). Its output is
+  kept, and it can be killed with everything it started. The exit code is
+  its result, unless the script reports one of its own by writing JSON to
+  the file `$JOB_RESULT`, for example
+  `{"label": "disk_high", "value": {"percent": 92}, "message": "92% full"}`.
+  Progress written to `$JOB_PROGRESS` (`40/100` or `40%`) fills the bar.
+- **AI prompt:** a prompt to Claude Code, Codex or GrokBuild (their command
+  line tools, read-only), or to a local Ollama or llama.cpp server. Local
+  models run one at a time, so two never fill the graphics card at once.
+- **Notification:** a desktop notification with a title, text, urgency and
+  an optional sound.
+
+New kinds are added in Rust (`src-tauri/src/job_kinds.rs`); each must
+declare what it touches (network, GPU, files, programs, paid services).
+
+**Schedules** say when a job runs: manually, once at a date and time, every
+interval (`30s`, `10m`, `2h`), daily, weekly or monthly, with limits (a
+number of runs, an end date), retries with waits, and catching up a run
+missed while the app was closed. A schedule that keeps failing pauses
+itself.
+
+**Rules** react to results. When a schedule's job ends (succeeds, fails,
+times out, or any), optionally with a given result label, a value test
+(`percent` above 90) or only when the output changed since the last
+success, a given number of times in a row, a rule starts, turns on or turns
+off another schedule. A chain of rules stops after 10 links.
+
+**Pipelines** pass a result on. A job started by a rule gets the result of
+the job before it: as environment variables in a script (`$PREVIOUS_OUTPUT`,
+`$PREVIOUS_VALUE` and others, never pasted into the script, so text from an
+AI cannot run as code), and as placeholders in a prompt or notification
+(`{previous_output}`, `{previous_value.percent}`, `{previous_message}`).
+
+Put together: a script checks the disk every hour and reports
+`{"percent": 92}`. When it is over 90 twice in a row, a rule asks a local AI
+model what to do about it, and when the model answers, a second rule shows
+its answer as a desktop notification. That chain ships as a demo in
+`jobs.json` (switched off). Other uses: watching a file or web page for
+changes, nightly backups with a check that they worked, price or log
+watchers, batch work for a local model, reminders and timers.
+
+Everything is shown on the page: a queue with inspect and kill, the
+schedules with their history, the rules with how far each is towards
+firing, a preview of the next 24 hours, and a Pause everything switch.
+Schedules and rules are kept in `jobs.json` in the settings folder and can
+be edited on the page or by hand. How it all works: [docs/usage.md](docs/usage.md).
+
+### Compared with cron and Task Scheduler
+
+cron (Linux) and Task Scheduler (Windows) run a program at set times. They
+are the right tool for work that must run while no app is open, and they
+need nothing from this project. For work that belongs to an app, the Jobs
+page does more:
+
+- **It reacts to results.** cron knows only the time. Here a job's result
+  (done or failed, a label, a value such as a percentage, or a changed
+  output) can start, turn on or turn off other jobs, after a number of
+  results in a row. With cron, every script has to do that bookkeeping
+  itself.
+- **Results flow on.** One job's output reaches the next job, an AI model or
+  a notification, safely, without temporary files and glue scripts.
+- **You can see it.** Live progress, output, history, the reason each run
+  started, what will run next, and errors on the Errors page. cron writes to
+  mail or a log file, if anywhere.
+- **It is controlled.** Kill a job and everything it started, time limits,
+  retries with waits, pausing after repeated failures, one GPU job at a time,
+  a loop guard on rules, and one switch that pauses everything.
+- **It travels with the app.** Schedules live in the app's own settings
+  folder and are edited in the app, not in a system table, and the same file
+  is meant to work on Windows (written, not yet tested there).
+
+The limit, by design: jobs run only while the app is open (it can sit in
+the tray). A run missed while it was closed can be caught up once at the
+next start.
 
 ## GPU rendering
 

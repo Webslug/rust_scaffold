@@ -52,6 +52,8 @@
   var r = {
     name: $("rule-name"), source: $("rule-source"), ended: $("rule-ended"), label: $("rule-label"),
     times: $("rule-times"), action: $("rule-action"), target: $("rule-target"),
+    field: $("rule-value-field"), above: $("rule-value-above"), below: $("rule-value-below"), equals: $("rule-value-equals"),
+    changed: $("rule-changed"),
     enabled: $("rule-enabled"), note: $("rule-note"), error: $("rule-editor-error"), title: $("rule-editor-title")
   };
 
@@ -276,6 +278,9 @@
       tr.appendChild(el("td", "jobs-number", when(h.at_ms)));
       var res = el("td");
       res.appendChild(resultBadge(h.state, h.label));
+      if (h.value !== undefined && h.value !== null) {
+        res.appendChild(el("div", "jobs-subtle jobs-history-value", JSON.stringify(h.value)));
+      }
       tr.appendChild(res);
       tr.appendChild(el("td", "", h.by));
       tr.appendChild(el("td", "jobs-number", h.job ? "#" + h.job : "not started"));
@@ -525,6 +530,12 @@
     r.ended.value = w.ended || "failed";
     r.label.value = w.label || "";
     r.times.value = w.times || 1;
+    var v = w.value || {};
+    r.field.value = v.field || "";
+    r.above.value = v.above === undefined ? "" : String(v.above);
+    r.below.value = v.below === undefined ? "" : String(v.below);
+    r.equals.value = v.equals === undefined ? "" : (typeof v.equals === "string" ? v.equals : JSON.stringify(v.equals));
+    r.changed.checked = !!w.changed;
     r.action.value = t.action || "start";
     r.enabled.checked = d.enabled !== false;
     r.note.value = d.note || "";
@@ -532,6 +543,14 @@
     rEditor.classList.remove("d-none");
     r.name.focus();
     rEditor.scrollIntoView({ block: "nearest" });
+  }
+
+  // "92" is the number 92, true and false are yes and no, anything else
+  // is text.
+  function equalsValue(text) {
+    if (text === "true" || text === "false") { return text === "true"; }
+    var n = Number(text);
+    return isFinite(n) ? n : text;
   }
 
   function closeRuleEditor() {
@@ -545,6 +564,23 @@
     if (r.label.value.trim() !== "") { w.label = r.label.value.trim(); }
     var times = Number(r.times.value || 1);
     if (times !== 1) { w.times = times; }
+    var field = r.field.value.trim();
+    if (field !== "") {
+      var test = { field: field };
+      var bad = null;
+      [["above", r.above], ["below", r.below]].forEach(function (pair) {
+        var text = pair[1].value.trim();
+        if (text === "") { return; }
+        var n = Number(text);
+        if (!isFinite(n)) { bad = pair[0] + " must be a number"; return; }
+        test[pair[0]] = n;
+      });
+      var eq = r.equals.value.trim();
+      if (eq !== "") { test.equals = equalsValue(eq); }
+      if (bad) { r.error.textContent = "Not saved: " + bad + "."; return; }
+      w.value = test;
+    }
+    if (r.changed.checked) { w.changed = true; }
     var d = { name: r.name.value.trim(), when: w, then: { action: r.action.value, schedule: r.target.value }, enabled: r.enabled.checked };
     if (r.note.value.trim() !== "") { d.note = r.note.value.trim(); }
     invoke("rules_save", { oldName: editingRule, definition: d }).then(function (r2) {

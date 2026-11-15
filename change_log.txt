@@ -8,6 +8,11 @@ AGENTS.md and docs/AGENTS_OLD.bak.
 
 15 November 2026
 ----------------
+- Jobs: a script can report its own result (label, value, message) by writing JSON to $JOB_RESULT, and progress to $JOB_PROGRESS. Rules can test a value (above, below, equals) or react only when the output changed. New Notification job (desktop notifications). Prompts and notifications can quote the earlier result ({previous_value.percent}, {previous_message}), so an AI can react to a job's outcome. New demos (all off): disk check, AI advice, notification; /etc/hosts watcher.
+- Errors and warnings are saved in errors.jsonl in the settings folder and still listed after a restart (greyed), with DEBUG_MODE on or off.
+- README: Jobs section, and how it compares with cron and Task Scheduler.
+- Kim's jobs.json (identical to the old default) and empty jobs_state.json deleted so the new demos appear.
+- New docs/jobs_advisory.md: advice on what to add, trim and tweak in the Jobs framework for future apps. Nothing built.
 - Version 0.2.5. Pipelines: a job started by a rule is given the earlier job's result ({previous_output} in an AI prompt; $PREVIOUS_OUTPUT, $PREVIOUS_OUTPUT_FILE, $PREVIOUS_LABEL, $PREVIOUS_STATE, $PREVIOUS_SCHEDULE in a script). The Ollama model box lists the installed text models (image models left out).
 - AI form: each AI keeps its own model name, so switching from Ollama to Claude Code no longer sends qwen3:1.7b to Claude Code. Old counting demos removed from the real jobs.json (recreated with the new demos).
 - Jobs: the counting demo is gone. New job kinds: Command (a bash script in any folder, output kept, exit code as the result) and AI prompt (Claude Code, Codex, GrokBuild, or local Ollama and llama.cpp). Inspect shows the output with a Copy button; schedule history keeps the end of each output. OpenRouter left out on purpose (would need extra crates). Tested with the local qwen3:1.7b. Built into dist/.

@@ -2,14 +2,18 @@
 //!
 //! Code reports events with `tracing::error!`, `warn!`, `info!` or `debug!`.
 //! One layer receives every event:
-//! - Warnings and errors go into an in-memory list shown on the Errors tab.
-//!   The newest `error_log_max` entries (config.json) are kept. Each new entry
-//!   is pushed to the window at once as a `log:entry` event, so the tab needs
-//!   no polling.
+//! - Warnings and errors go into a list shown on the Errors tab. The newest
+//!   `error_log_max` entries (config.json) are kept. Each new entry is pushed
+//!   to the window at once as a `log:entry` event, so the tab needs no
+//!   polling. The list is also saved to `errors.jsonl` in the settings
+//!   folder (one JSON line per entry, whatever `DEBUG_MODE` says), so the
+//!   Errors tab still shows them after a restart, marked as earlier. The
+//!   file is rewritten with the kept entries when it grows to twice the
+//!   limit, so it never holds more than about 2 x `error_log_max` lines.
 //! - When `DEBUG_MODE` is true, every event from debug level up is also
 //!   appended to `debug.log` in the settings folder. When the file passes
 //!   `LOG_FILE_MAX` bytes, its older half is removed. With `DEBUG_MODE` false
-//!   nothing is written to disk.
+//!   no debug.log is written.
 //!
 //! Tauri's own libraries report through the older `log` crate; the
 //! `tracing-log` feature forwards those messages into the same stream.
@@ -42,6 +46,11 @@ pub const MIN_ENTRIES: u32 = 10;
 pub const MAX_ENTRIES: u32 = 1000;
 
 const LOG_FILE: &str = "debug.log";
+/// Warnings and errors kept across restarts, one JSON object per line.
+const SAVED_FILE: &str = "errors.jsonl";
+/// A larger errors.jsonl is not read (something else wrote it) and is
+/// replaced.
+const SAVED_FILE_MAX: u64 = 4 * 1024 * 1024;
 /// debug.log is cut to its newest half when it grows past this size.
 pub const LOG_FILE_MAX: u64 = 1024 * 1024;
 /// Longer messages are shortened, so one runaway message cannot fill memory.
@@ -61,7 +70,53 @@ pub struct LogEntry {
     /// Where the event came from: a Rust module, a library, or "ui".
     pub source: String,
     pub message: String,
+    /// Recorded before this start of the app (read from errors.jsonl).
+    pub earlier: bool,
 }
+
+/// One line of errors.jsonl.
+#[derive(Serialize, serde::Deserialize)]
+struct SavedLine {
+    id: u64,
+    unix_ms: i64,
+    time: String,
+    level: String,
+    source: String,
+    message: String,
+}
+
+impl SavedLine {
+    fn of(e: &LogEntry) -> Self {
+        SavedLine {
+            id: e.id,
+            unix_ms: e.unix_ms,
+            time: e.time.clone(),
+            level: e.level.to_string(),
+            source: e.source.clone(),
+            message: e.message.clone(),
+        }
+    }
+
+    fn into_entry(self) -> LogEntry {
+        LogEntry {
+            id: self.id,
+            unix_ms: self.unix_ms,
+            time: self.time,
+            level: if self.level == "warn" { "warn" } else { "error" },
+            source: self.source,
+            message: shorten(self.message),
+            earlier: true,
+        }
+    }
+}
+
+/// errors.jsonl once `restore` has run, and how many lines it holds.
+struct SavedFile {
+    path: PathBuf,
+    lines: usize,
+}
+
+static SAVED: Mutex<Option<SavedFile>> = Mutex::new(None);
 
 struct ErrorList {
     entries: VecDeque<LogEntry>,
@@ -100,7 +155,81 @@ thread_local! {
 
 /// Installs the layer. Call once, first thing in `run()`.
 pub fn init() {
+    // Ids start from the time in microseconds, so entries from a later
+    // start of the app always have higher ids than saved ones.
+    let micros = (OffsetDateTime::now_utc().unix_timestamp_nanos() / 1000).max(1) as u64;
+    NEXT_ID.fetch_max(micros, Ordering::Relaxed);
     let _ = tracing_subscriber::registry().with(AppLayer).try_init();
+}
+
+/// Loads the warnings and errors saved by earlier runs from `dir` and
+/// starts saving new ones there. Call once the settings folder and
+/// `error_log_max` are known. Entries recorded before this are kept too.
+pub fn restore(dir: &Path) {
+    let path = dir.join(SAVED_FILE);
+    let mut list = LIST.lock().unwrap_or_else(|e| e.into_inner());
+    let earlier = read_saved(&path, list.max);
+    if let Some(newest) = earlier.iter().map(|e| e.id).max() {
+        NEXT_ID.fetch_max(newest + 1, Ordering::Relaxed);
+    }
+    let now: Vec<LogEntry> = list.entries.drain(..).collect();
+    list.entries.extend(earlier);
+    list.entries.extend(now);
+    list.prune();
+    let _ = write_saved(&path, list.entries.iter());
+    *SAVED.lock().unwrap_or_else(|e| e.into_inner()) = Some(SavedFile { path, lines: list.entries.len() });
+}
+
+/// The newest `max` entries of errors.jsonl, oldest first. A missing,
+/// oversized or unreadable file gives none; bad lines are skipped.
+fn read_saved(path: &Path, max: usize) -> Vec<LogEntry> {
+    if fs::metadata(path).map_or(true, |m| m.len() > SAVED_FILE_MAX) {
+        return Vec::new();
+    }
+    let Ok(text) = fs::read_to_string(path) else { return Vec::new() };
+    let mut entries: Vec<LogEntry> = text
+        .lines()
+        .filter_map(|line| serde_json::from_str::<SavedLine>(line).ok())
+        .map(SavedLine::into_entry)
+        .collect();
+    let extra = entries.len().saturating_sub(max);
+    entries.drain(..extra);
+    entries
+}
+
+/// Replaces errors.jsonl with `entries` (through a temporary file, so a
+/// crash cannot leave half a file).
+fn write_saved<'a>(path: &Path, entries: impl Iterator<Item = &'a LogEntry>) -> io::Result<()> {
+    let mut text = String::new();
+    for e in entries {
+        text.push_str(&serde_json::to_string(&SavedLine::of(e)).unwrap_or_default());
+        text.push('\n');
+    }
+    if let Some(dir) = path.parent() {
+        fs::create_dir_all(dir)?;
+    }
+    let tmp = path.with_extension("jsonl.tmp");
+    fs::write(&tmp, text)?;
+    fs::rename(&tmp, path)
+}
+
+/// Adds one entry to errors.jsonl, rewriting the file with the kept list
+/// when it has grown to twice the limit.
+fn save_entry(list: &ErrorList, entry: &LogEntry) {
+    let mut saved = SAVED.lock().unwrap_or_else(|e| e.into_inner());
+    let Some(file) = saved.as_mut() else { return };
+    if file.lines + 1 > list.max * 2 {
+        if write_saved(&file.path, list.entries.iter()).is_ok() {
+            file.lines = list.entries.len();
+        }
+        return;
+    }
+    let line = serde_json::to_string(&SavedLine::of(entry)).unwrap_or_default();
+    if let Ok(mut f) = OpenOptions::new().create(true).append(true).open(&file.path) {
+        if writeln!(f, "{line}").is_ok() {
+            file.lines += 1;
+        }
+    }
 }
 
 /// Lets new entries be pushed to the window. Entries recorded before this
@@ -122,8 +251,15 @@ pub fn entries() -> (Vec<LogEntry>, usize) {
     (list.entries.iter().cloned().collect(), list.max)
 }
 
+/// Empties the list and errors.jsonl.
 pub fn clear() {
-    LIST.lock().unwrap_or_else(|e| e.into_inner()).entries.clear();
+    let mut list = LIST.lock().unwrap_or_else(|e| e.into_inner());
+    list.entries.clear();
+    if let Some(file) = SAVED.lock().unwrap_or_else(|e| e.into_inner()).as_mut() {
+        if write_saved(&file.path, list.entries.iter()).is_ok() {
+            file.lines = 0;
+        }
+    }
 }
 
 /// Where debug.log is written, or None when DEBUG_MODE is false.
@@ -222,8 +358,13 @@ fn handle(event: &Event<'_>) {
         level: name,
         source,
         message,
+        earlier: false,
     };
-    LIST.lock().unwrap_or_else(|e| e.into_inner()).push(entry.clone());
+    {
+        let mut list = LIST.lock().unwrap_or_else(|e| e.into_inner());
+        list.push(entry.clone());
+        save_entry(&list, &entry);
+    }
     if let Some(app) = APP.get() {
         let _ = app.emit(ENTRY_EVENT, &entry);
     }
@@ -278,7 +419,28 @@ mod tests {
             level: "error",
             source: "test".into(),
             message: format!("entry {id}"),
+            earlier: false,
         }
+    }
+
+    #[test]
+    fn saved_entries_come_back_marked_earlier() {
+        let path = std::env::temp_dir().join(format!("rust-scaffold-errors-{}.jsonl", std::process::id()));
+        let written: Vec<LogEntry> = (1..=5).map(entry).collect();
+        write_saved(&path, written.iter()).unwrap();
+        // A damaged line is skipped, the rest still load.
+        let mut f = OpenOptions::new().append(true).open(&path).unwrap();
+        writeln!(f, "{{not json").unwrap();
+        writeln!(f, "{}", serde_json::to_string(&SavedLine::of(&entry(6))).unwrap()).unwrap();
+        let back = read_saved(&path, 3);
+        let ids: Vec<u64> = back.iter().map(|e| e.id).collect();
+        assert_eq!(ids, [4, 5, 6], "only the newest `max` are read");
+        assert!(back.iter().all(|e| e.earlier && e.level == "error" && e.message.starts_with("entry ")));
+        // Oversized: not read.
+        fs::write(&path, "x".repeat(SAVED_FILE_MAX as usize + 1)).unwrap();
+        assert!(read_saved(&path, 100).is_empty());
+        let _ = fs::remove_file(&path);
+        assert!(read_saved(&path, 100).is_empty(), "missing file: nothing");
     }
 
     #[test]

@@ -361,3 +361,9 @@
     display: none;
   }
 }
+
+/* Result value under the result badge in a schedule's history. */
+.jobs-history-value {
+  font-family: var(--font-mono);
+  overflow-wrap: anywhere;
+}

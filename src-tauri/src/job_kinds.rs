@@ -7,15 +7,20 @@
 //!
 //! - `command`: runs a shell script (bash on Linux, cmd on Windows) in any
 //!   folder, capturing what it prints. The exit code is the result label
-//!   (`exit_0`, `exit_1` ...), so rules can react to it.
+//!   (`exit_0`, `exit_1` ...), so rules can react to it, unless the script
+//!   reports its own label, value and message as JSON in the file
+//!   `$JOB_RESULT`. Progress written to `$JOB_PROGRESS` fills the bar.
+//! - `notify`: a desktop notification (Linux, over D-Bus).
 //!
 //! Pipelines: when a rule starts a job, the job is given the result of the
 //! job that fired the rule (`JobCtx::previous`). A command gets it as
 //! environment variables (`PREVIOUS_OUTPUT`, `PREVIOUS_OUTPUT_FILE`,
 //! `PREVIOUS_LABEL`, `PREVIOUS_STATE`, `PREVIOUS_SCHEDULE`, `PREVIOUS_JOB`),
 //! never pasted into the script, so text an AI wrote can never run as
-//! code. An AI prompt gets it where it says `{previous_output}` (and
-//! `{previous_label}`, `{previous_state}`, `{previous_schedule}`).
+//! code. An AI prompt or a notification gets it through placeholders:
+//! `{previous_output}`, `{previous_value}`, `{previous_value.FIELD}`,
+//! `{previous_message}`, `{previous_label}`, `{previous_state}`,
+//! `{previous_schedule}` (see `fill_text`).
 //! - `ai`: sends a prompt to Claude Code, Codex or GrokBuild (their command
 //!   line tools, read-only) or to a local Ollama or llama.cpp server. The
 //!   answer is the job's output. OpenRouter is left out on purpose: it needs
@@ -37,12 +42,13 @@ use tokio::time::Instant;
 use crate::jobs::{kind, tail_start, Capability, JobCtx, JobKind, JobResult, JobState, KindEntry, Outcome, Previous};
 
 /// Every kind that may be started, by name.
-pub static KINDS: &[KindEntry] = &[kind::<CommandJob>(), kind::<AiJob>()];
+pub static KINDS: &[KindEntry] = &[kind::<CommandJob>(), kind::<AiJob>(), kind::<NotifyJob>()];
 
 /// The app's kinds plus `count`, a kind kept only for the queue and
 /// scheduler tests (it needs no programs and runs on the paused clock).
 #[cfg(test)]
-pub static TEST_KINDS: &[KindEntry] = &[kind::<CommandJob>(), kind::<AiJob>(), kind::<test_kind::CountJob>()];
+pub static TEST_KINDS: &[KindEntry] =
+    &[kind::<CommandJob>(), kind::<AiJob>(), kind::<NotifyJob>(), kind::<test_kind::CountJob>()];
 
 /// Longest script or prompt.
 const MAX_TEXT_BYTES: usize = 60 * 1024;
@@ -55,6 +61,10 @@ const ENV_PREVIOUS_BYTES: usize = 100 * 1024;
 /// a longer prompt, instructions included; 12,000 bytes is about 3,000
 /// tokens, leaving room for the instructions.
 pub const PROMPT_PREVIOUS_BYTES: usize = 12_000;
+/// Largest `$JOB_RESULT` file a script may write.
+const MAX_RESULT_BYTES: u64 = 16 * 1024;
+/// How often `$JOB_PROGRESS` is read while a script runs.
+const PROGRESS_EVERY: Duration = Duration::from_millis(500);
 /// How often a running job's last output line is sent to the window.
 const NOTE_EVERY: Duration = Duration::from_millis(250);
 
@@ -277,35 +287,73 @@ fn previous_env(p: &Previous, dir: &Path) -> Result<Vec<(&'static str, OsString)
     std::fs::write(&file, &p.output).map_err(|e| Outcome::from(format!("could not write the previous output: {e}")))?;
     // A NUL byte cannot be in an environment variable.
     let tail = p.output[tail_start(&p.output, ENV_PREVIOUS_BYTES)..].replace('\0', "");
+    let value = p.value.as_ref().map(Value::to_string).unwrap_or_default();
     Ok(vec![
         ("PREVIOUS_OUTPUT", tail.into()),
         ("PREVIOUS_OUTPUT_FILE", file.into()),
         ("PREVIOUS_LABEL", p.label.clone().unwrap_or_default().into()),
+        ("PREVIOUS_VALUE", value.into()),
+        ("PREVIOUS_MESSAGE", p.message.clone().unwrap_or_default().replace('\0', "").into()),
         ("PREVIOUS_STATE", state_name(p.state).into()),
         ("PREVIOUS_SCHEDULE", p.schedule.clone().into()),
         ("PREVIOUS_JOB", p.job.to_string().into()),
     ])
 }
 
-/// Fills `{previous_output}`, `{previous_label}`, `{previous_state}` and
-/// `{previous_schedule}` in a prompt. With no previous job (started by a
-/// person or a timetable) they become empty. The output is cut to its last
-/// `PROMPT_PREVIOUS_BYTES`.
-fn fill_prompt(prompt: &str, previous: Option<&Previous>) -> String {
-    let (output, label, state, schedule) = match previous {
-        Some(p) => {
-            let output = &p.output[tail_start(&p.output, PROMPT_PREVIOUS_BYTES)..];
-            (output.trim().to_string(), p.label.clone().unwrap_or_default(), state_name(p.state), p.schedule.clone())
+/// Fills the `{previous_...}` placeholders in a prompt or notification:
+/// `{previous_output}` (its last `output_max` bytes), `{previous_label}`,
+/// `{previous_value}` (as JSON), `{previous_value.FIELD}` (one field; text
+/// without quotes), `{previous_message}`, `{previous_state}` and
+/// `{previous_schedule}`. With no previous job (started by a person or a
+/// timetable) they become empty. Done in one pass, so text inside the
+/// previous job's result that looks like a placeholder is left as it is.
+fn fill_text(text: &str, previous: Option<&Previous>, output_max: usize) -> String {
+    const OPEN: &str = "{previous_";
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some(at) = rest.find(OPEN) {
+        out.push_str(&rest[..at]);
+        let after = &rest[at + OPEN.len()..];
+        let name = after.find('}').map(|end| &after[..end]).filter(|n| n.len() <= 80);
+        match name.and_then(|n| previous_part(n, previous, output_max)) {
+            Some(filled) => {
+                out.push_str(&filled);
+                rest = &after[name.unwrap_or_default().len() + 1..];
+            }
+            None => {
+                out.push_str(OPEN);
+                rest = after;
+            }
         }
-        None => Default::default(),
-    };
-    prompt
-        .replace("{previous_label}", &label)
-        .replace("{previous_state}", &state)
-        .replace("{previous_schedule}", &schedule)
-        // Last, so text inside the output that looks like a placeholder is
-        // left as it is.
-        .replace("{previous_output}", &output)
+    }
+    out.push_str(rest);
+    out
+}
+
+/// One placeholder's text, or None when `name` is not a placeholder.
+fn previous_part(name: &str, previous: Option<&Previous>, output_max: usize) -> Option<String> {
+    let known = matches!(name, "output" | "label" | "value" | "message" | "state" | "schedule") || name.starts_with("value.");
+    if !known {
+        return None;
+    }
+    let Some(p) = previous else { return Some(String::new()) };
+    Some(match name {
+        "output" => p.output[tail_start(&p.output, output_max)..].trim().to_string(),
+        "label" => p.label.clone().unwrap_or_default(),
+        "value" => p.value.as_ref().map(Value::to_string).unwrap_or_default(),
+        "message" => p.message.clone().unwrap_or_default(),
+        "state" => state_name(p.state),
+        "schedule" => p.schedule.clone(),
+        _ => match p.value.as_ref().and_then(|v| crate::jobs::value_field(v, &name["value.".len()..])) {
+            Some(Value::String(text)) => text.clone(),
+            Some(other) => other.to_string(),
+            None => String::new(),
+        },
+    })
+}
+
+fn fill_prompt(prompt: &str, previous: Option<&Previous>) -> String {
+    fill_text(prompt, previous, PROMPT_PREVIOUS_BYTES)
 }
 
 // ---- command: run a shell script ------------------------------------------------
@@ -343,30 +391,111 @@ impl JobKind for CommandJob {
             #[cfg(windows)]
             let (shell, args) = (PathBuf::from("cmd"), vec![OsString::from("/C"), OsString::from(&input.script)]);
             ctx.progress(0, 0);
-            let previous = ctx.previous();
-            let scratch = match &previous {
-                Some(_) => Some(TempFolder::new(ctx.id(), "previous")?),
-                None => None,
+            // The job's own temporary folder: the result and progress files
+            // the script may write, and the previous output.
+            let scratch = TempFolder::new(ctx.id(), "job")?;
+            let result_file = scratch.0.join("result.json");
+            let progress_file = scratch.0.join("progress");
+            let mut env = vec![("JOB_RESULT", OsString::from(&result_file)), ("JOB_PROGRESS", OsString::from(&progress_file))];
+            if let Some(p) = ctx.previous() {
+                env.extend(previous_env(&p, &scratch.0)?);
+            }
+            let run = run_program(&ctx, &shell, &args, &folder, None, true, &env);
+            tokio::pin!(run);
+            let mut tick = tokio::time::interval(PROGRESS_EVERY);
+            let mut shown = String::new();
+            let (finished, _) = loop {
+                tokio::select! {
+                    done = &mut run => break done?,
+                    _ = tick.tick() => show_progress(&ctx, &progress_file, &mut shown),
+                }
             };
-            let env = match (&previous, &scratch) {
-                (Some(p), Some(dir)) => previous_env(p, &dir.0)?,
-                _ => Vec::new(),
-            };
-            let (finished, _) = run_program(&ctx, &shell, &args, &folder, None, true, &env).await?;
-            match finished.code {
-                Some(0) => Ok(Outcome::new().with_label("exit_0").with_value(json!({ "exit_code": 0 })).with_message("exit code 0")),
-                Some(code) if code < 0 => Err(Outcome::new()
+            show_progress(&ctx, &progress_file, &mut shown);
+            let reported = read_result(&result_file)?;
+            let mut outcome = match finished.code {
+                Some(0) => Outcome::new().with_label("exit_0").with_value(json!({ "exit_code": 0 })).with_message("exit code 0"),
+                Some(code) if code < 0 => Outcome::new()
                     .with_label("signal")
                     .with_value(json!({ "signal": -code }))
-                    .with_message(format!("stopped by signal {}", -code))),
+                    .with_message(format!("stopped by signal {}", -code)),
                 Some(code) => {
                     let tail = last_lines(&finished.stderr, 3);
                     let message = if tail.is_empty() { format!("exit code {code}") } else { format!("exit code {code}: {tail}") };
-                    Err(Outcome::new().with_label(&format!("exit_{code}")).with_value(json!({ "exit_code": code })).with_message(message))
+                    Outcome::new().with_label(&format!("exit_{code}")).with_value(json!({ "exit_code": code })).with_message(message)
                 }
-                None => Err("the script ended without an exit code".into()),
-            }
+                None => return Err("the script ended without an exit code".into()),
+            };
+            // What the script reported replaces the exit code's version,
+            // part by part; the exit code still decides done or failed.
+            outcome.label = reported.label.or(outcome.label);
+            outcome.value = reported.value.or(outcome.value);
+            outcome.message = reported.message.or(outcome.message);
+            if finished.code == Some(0) { Ok(outcome) } else { Err(outcome) }
         }
+    }
+}
+
+/// What a script may write to `$JOB_RESULT`, all parts optional.
+#[derive(Deserialize, Default)]
+#[serde(deny_unknown_fields)]
+struct Reported {
+    #[serde(default)]
+    label: Option<String>,
+    #[serde(default)]
+    value: Option<Value>,
+    #[serde(default)]
+    message: Option<String>,
+}
+
+/// Reads `$JOB_RESULT`. No file or an empty one: nothing reported. A file
+/// that is not valid fails the job with the reason, so a typo shows.
+fn read_result(path: &Path) -> Result<Reported, Outcome> {
+    let bad = |why: String| Outcome::new().with_label("bad_result").with_message(format!("$JOB_RESULT: {why}"));
+    let Ok(meta) = std::fs::metadata(path) else { return Ok(Reported::default()) };
+    if meta.len() > MAX_RESULT_BYTES {
+        return Err(bad(format!("{} bytes (at most {MAX_RESULT_BYTES})", meta.len())));
+    }
+    let text = std::fs::read_to_string(path).map_err(|e| bad(e.to_string()))?;
+    if text.trim().is_empty() {
+        return Ok(Reported::default());
+    }
+    let reported: Reported = serde_json::from_str(&text).map_err(|e| bad(format!("not valid ({e})")))?;
+    if let Some(label) = &reported.label {
+        let valid = !label.is_empty()
+            && label.chars().count() <= 32
+            && label.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_');
+        if !valid {
+            return Err(bad(format!("label \"{label}\" must be lower-case letters, digits and _, at most 32")));
+        }
+    }
+    Ok(reported)
+}
+
+/// Shows the last line of `$JOB_PROGRESS` as the bar: `40/100`, `40%` or
+/// a plain number of steps done. Other text is ignored.
+fn show_progress(ctx: &JobCtx, path: &Path, shown: &mut String) {
+    let Ok(text) = std::fs::read_to_string(path) else { return };
+    let Some(line) = text.lines().rev().map(str::trim).find(|l| !l.is_empty()) else { return };
+    if line == shown {
+        return;
+    }
+    if let Some((done, total)) = parse_progress(line) {
+        ctx.progress(done, total);
+        *shown = line.to_string();
+    }
+}
+
+fn parse_progress(line: &str) -> Option<(u64, u64)> {
+    if let Some(pct) = line.strip_suffix('%') {
+        let pct: u64 = pct.trim().parse().ok()?;
+        return Some((pct.min(100), 100));
+    }
+    match line.split_once('/') {
+        Some((done, total)) => {
+            let (done, total): (u64, u64) = (done.trim().parse().ok()?, total.trim().parse().ok()?);
+            Some((done.min(total), total))
+        }
+        None => Some((line.parse().ok()?, 0)),
     }
 }
 
@@ -498,7 +627,11 @@ struct TempFolder(PathBuf);
 
 impl TempFolder {
     fn new(job: u64, what: &str) -> Result<Self, String> {
-        let path = std::env::temp_dir().join(format!("rust_scaffold_{what}_{}_{job}", std::process::id()));
+        // Unique within the process even when two queues (tests) both have
+        // a job 1.
+        static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+        let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let path = std::env::temp_dir().join(format!("rust_scaffold_{what}_{}_{job}_{n}", std::process::id()));
         let _ = std::fs::remove_dir_all(&path);
         std::fs::create_dir_all(&path).map_err(|e| format!("could not make a temporary folder: {e}"))?;
         Ok(TempFolder(path))
@@ -613,6 +746,265 @@ async fn ask_server(input: &AiInput) -> Result<String, Outcome> {
         let why = reply.pointer("/error/message").or_else(|| reply.get("error")).map(|e| e.to_string());
         Outcome::new().with_label("error").with_message(why.unwrap_or_else(|| "the answer had no message in it".into()))
     })
+}
+
+// ---- notify: a desktop notification -----------------------------------------------
+
+/// Shows a desktop notification. Started by a rule, its title and text can
+/// quote the job before it (`{previous_value.percent}`, `{previous_output}`
+/// and the rest, as in an AI prompt). On Linux it uses the desktop's
+/// notification service over D-Bus (the `zbus` crate, already compiled for
+/// the tray); elsewhere, or without one, it fails with `unavailable`.
+pub struct NotifyJob;
+
+#[derive(Deserialize, Serialize, Clone, Copy, PartialEq, Eq, Debug, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum Urgency {
+    Low,
+    #[default]
+    Normal,
+    /// Stays on screen until dismissed, on most desktops.
+    Critical,
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct NotifyInput {
+    pub title: String,
+    #[serde(default)]
+    pub text: String,
+    #[serde(default)]
+    pub urgency: Urgency,
+    /// Asks the desktop to play its message sound (if it plays sounds).
+    #[serde(default)]
+    pub sound: bool,
+}
+
+/// Longest title and text after the placeholders are filled; notification
+/// windows are small.
+const NOTIFY_TITLE_CHARS: usize = 200;
+const NOTIFY_TEXT_CHARS: usize = 2000;
+/// How much of the previous output `{previous_output}` brings in.
+const NOTIFY_PREVIOUS_BYTES: usize = 2000;
+
+impl JobKind for NotifyJob {
+    const NAME: &'static str = "notify";
+    const CAPABILITIES: &'static [Capability] = &[];
+    const RESOURCES: &'static [&'static str] = &[];
+    const TIMEOUT: Duration = Duration::from_secs(30);
+    const EXAMPLE: &'static str = r#"{"title": "Disk check", "text": "{previous_message}", "urgency": "normal", "sound": false}"#;
+    type Input = NotifyInput;
+
+    fn check(input: &NotifyInput) -> Result<(), String> {
+        check_text("title", &input.title)?;
+        if input.text.len() > MAX_TEXT_BYTES {
+            return Err(format!("the text is {} bytes (at most {MAX_TEXT_BYTES})", input.text.len()));
+        }
+        Ok(())
+    }
+
+    fn run(ctx: JobCtx, input: NotifyInput) -> impl Future<Output = JobResult> + Send + 'static {
+        async move {
+            let previous = ctx.previous();
+            let title = cut_chars(fill_text(&input.title, previous.as_deref(), NOTIFY_PREVIOUS_BYTES).trim(), NOTIFY_TITLE_CHARS);
+            let text = cut_chars(fill_text(&input.text, previous.as_deref(), NOTIFY_PREVIOUS_BYTES).trim(), NOTIFY_TEXT_CHARS);
+            ctx.output(&format!("{title}\n{text}\n"));
+            let note = Notification { title: &title, text: &text, urgency: input.urgency, sound: input.sound };
+            match send_notification(&note).await {
+                Ok(id) => Ok(Outcome::new().with_label("shown").with_value(json!({ "id": id })).with_message(format!("shown: {title}"))),
+                Err(why) => Err(Outcome::new().with_label("unavailable").with_message(format!("no notification shown: {why}"))),
+            }
+        }
+    }
+}
+
+fn cut_chars(text: &str, max: usize) -> String {
+    match text.char_indices().nth(max) {
+        Some((at, _)) => format!("{}...", &text[..at]),
+        None => text.to_string(),
+    }
+}
+
+struct Notification<'a> {
+    title: &'a str,
+    text: &'a str,
+    urgency: Urgency,
+    sound: bool,
+}
+
+/// The D-Bus address to send to. Test builds never use the real session
+/// bus, so a test cannot put a notification on the desktop: they use the
+/// address set by `use_test_bus`, or none.
+#[cfg(all(target_os = "linux", feature = "desktop-notifications"))]
+fn notify_bus() -> Option<String> {
+    #[cfg(test)]
+    return TEST_BUS.with(|b| b.borrow().clone()).or_else(|| Some("unix:path=/nonexistent/rust_scaffold_test_bus".into()));
+    #[cfg(not(test))]
+    None
+}
+
+#[cfg(test)]
+thread_local! {
+    static TEST_BUS: std::cell::RefCell<Option<String>> = const { std::cell::RefCell::new(None) };
+}
+
+/// Test builds: send notifications from jobs on this thread to `address`
+/// (a private bus from `test_bus::start`) instead of nowhere.
+#[cfg(test)]
+pub(crate) fn use_test_bus(address: Option<String>) {
+    TEST_BUS.with(|b| *b.borrow_mut() = address);
+}
+
+/// A private D-Bus session bus with a stand-in notification service, so
+/// tests can check what a notify job sends without touching the desktop.
+#[cfg(all(test, target_os = "linux", feature = "desktop-notifications"))]
+pub(crate) mod test_bus {
+    use std::collections::HashMap;
+    use std::path::PathBuf;
+    use std::sync::{Arc, Mutex};
+
+    use zbus::zvariant::OwnedValue;
+
+    /// One notification the stand-in received.
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct Shown {
+        pub app: String,
+        pub title: String,
+        pub text: String,
+        pub urgency: Option<u8>,
+        pub sound: Option<String>,
+    }
+
+    pub struct Bus {
+        pub address: String,
+        pid: i32,
+        dir: PathBuf,
+        _service: Option<zbus::Connection>,
+    }
+
+    impl Drop for Bus {
+        fn drop(&mut self) {
+            unsafe {
+                libc::kill(self.pid, libc::SIGTERM);
+            }
+            let _ = std::fs::remove_dir_all(&self.dir);
+        }
+    }
+
+    struct Service(Arc<Mutex<Vec<Shown>>>);
+
+    #[zbus::interface(name = "org.freedesktop.Notifications")]
+    impl Service {
+        #[allow(clippy::too_many_arguments)]
+        async fn notify(
+            &self,
+            app_name: String,
+            _replaces_id: u32,
+            _app_icon: String,
+            summary: String,
+            body: String,
+            _actions: Vec<String>,
+            hints: HashMap<String, OwnedValue>,
+            _expire_timeout: i32,
+        ) -> u32 {
+            let urgency = hints.get("urgency").and_then(|v| v.downcast_ref::<u8>().ok());
+            let sound = hints.get("sound-name").and_then(|v| v.downcast_ref::<String>().ok());
+            let mut list = self.0.lock().unwrap();
+            list.push(Shown { app: app_name, title: summary, text: body, urgency, sound });
+            list.len() as u32
+        }
+    }
+
+    /// Starts a private bus (nothing auto-started on it), with the stand-in
+    /// service when `with_service` is true.
+    pub async fn start(name: &str, with_service: bool) -> (Bus, Arc<Mutex<Vec<Shown>>>) {
+        let dir = std::env::temp_dir().join(format!("rust_scaffold_bus_{name}_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let conf = dir.join("bus.conf");
+        std::fs::write(
+            &conf,
+            format!(
+                // The same as tools/xvfb_check.sh uses (known to work).
+                "<!DOCTYPE busconfig PUBLIC \"-//freedesktop//DTD D-Bus Bus Configuration 1.0//EN\"\n \"http://www.freedesktop.org/standards/dbus/1.0/busconfig.dtd\">\n\
+                 <busconfig>\n  <type>session</type>\n  <listen>unix:dir={}</listen>\n  <auth>EXTERNAL</auth>\n  <policy context=\"default\">\n    \
+                 <allow send_destination=\"*\" eavesdrop=\"true\"/>\n    <allow eavesdrop=\"true\"/>\n    <allow own=\"*\"/>\n  </policy>\n</busconfig>\n",
+                dir.display()
+            ),
+        )
+        .unwrap();
+        let out = std::process::Command::new("dbus-daemon")
+            .arg(format!("--config-file={}", conf.display()))
+            .args(["--fork", "--print-address=1", "--print-pid=1"])
+            .output()
+            .expect("dbus-daemon is needed for the notify tests");
+        let text = String::from_utf8_lossy(&out.stdout).to_string();
+        let mut lines = text.lines();
+        let address = lines.next().unwrap().trim().to_string();
+        let pid: i32 = lines.next().unwrap().trim().parse().unwrap();
+        let shown = Arc::new(Mutex::new(Vec::new()));
+        let service = if with_service {
+            let build = zbus::connection::Builder::address(address.as_str())
+                .unwrap()
+                .name("org.freedesktop.Notifications")
+                .unwrap()
+                .serve_at("/org/freedesktop/Notifications", Service(shown.clone()))
+                .unwrap()
+                .build();
+            Some(tokio::time::timeout(std::time::Duration::from_secs(10), build).await.expect("the test bus did not answer").unwrap())
+        } else {
+            None
+        };
+        (Bus { address, pid, dir, _service: service }, shown)
+    }
+}
+
+/// Sends a notification through org.freedesktop.Notifications (the
+/// freedesktop.org notification specification) and returns its id.
+#[cfg(all(target_os = "linux", feature = "desktop-notifications"))]
+async fn send_notification(note: &Notification<'_>) -> Result<u32, String> {
+    use std::collections::HashMap;
+    use zbus::zvariant::Value as Variant;
+
+    let connection = match notify_bus() {
+        Some(address) => zbus::connection::Builder::address(address.as_str()).map_err(|e| e.to_string())?.build().await,
+        None => zbus::Connection::session().await,
+    }
+    .map_err(|e| format!("no session bus ({e})"))?;
+    let mut hints: HashMap<&str, Variant> = HashMap::new();
+    let urgency: u8 = match note.urgency {
+        Urgency::Low => 0,
+        Urgency::Normal => 1,
+        Urgency::Critical => 2,
+    };
+    hints.insert("urgency", Variant::from(urgency));
+    if note.sound {
+        hints.insert("sound-name", Variant::from("message-new-instant"));
+    }
+    let actions: Vec<&str> = Vec::new();
+    // -1: the desktop decides how long it stays.
+    let body = ("Rust Scaffold", 0u32, "", note.title, note.text, actions, hints, -1i32);
+    let reply = connection
+        .call_method(
+            Some("org.freedesktop.Notifications"),
+            "/org/freedesktop/Notifications",
+            Some("org.freedesktop.Notifications"),
+            "Notify",
+            &body,
+        )
+        .await
+        .map_err(|e| match e {
+            zbus::Error::MethodError(name, _, _) if name.as_str() == "org.freedesktop.DBus.Error.ServiceUnknown" => {
+                "the desktop has no notification service running".to_string()
+            }
+            other => other.to_string(),
+        })?;
+    reply.body().deserialize::<u32>().map_err(|e| e.to_string())
+}
+
+#[cfg(not(all(target_os = "linux", feature = "desktop-notifications")))]
+async fn send_notification(_note: &Notification<'_>) -> Result<u32, String> {
+    Err("desktop notifications are only built for Linux (feature desktop-notifications)".into())
 }
 
 // ---- The models a local Ollama has ------------------------------------------------
@@ -859,6 +1251,7 @@ mod tests {
             let queue_free_check = match entry.name {
                 "command" => serde_json::from_value::<CommandInput>(example).map_err(|e| e.to_string()).and_then(|i| CommandJob::check(&i)),
                 "ai" => serde_json::from_value::<AiInput>(example).map_err(|e| e.to_string()).and_then(|i| AiJob::check(&i)),
+                "notify" => serde_json::from_value::<NotifyInput>(example).map_err(|e| e.to_string()).and_then(|i| NotifyJob::check(&i)),
                 other => panic!("no example test for {other}"),
             };
             assert!(queue_free_check.is_ok(), "{}: {queue_free_check:?}", entry.name);
@@ -963,11 +1356,154 @@ mod tests {
         assert_eq!(info["output_cut"], json!(true));
     }
 
+    fn outcome(q: &Queue, id: u64) -> Outcome {
+        q.outcome(id).unwrap().1
+    }
+
+    #[tokio::test]
+    async fn a_command_can_report_its_own_result() {
+        let q = queue();
+        // Label, value and message from $JOB_RESULT; the exit code decides
+        // done or failed.
+        let id = command(
+            &q,
+            r#"printf '{"label":"disk_high","value":{"percent":92},"message":"92%% full"}' > "$JOB_RESULT""#,
+            None,
+        );
+        assert_eq!(finish(&q, id).await, (JobState::Done, Some("disk_high".into())));
+        let o = outcome(&q, id);
+        assert_eq!((o.value, o.message.as_deref()), (Some(json!({ "percent": 92 })), Some("92% full")));
+        let failed = command(&q, r#"echo '{"label":"no_network"}' > "$JOB_RESULT"; exit 4"#, None);
+        assert_eq!(finish(&q, failed).await, (JobState::Failed, Some("no_network".into())));
+        assert_eq!(outcome(&q, failed).value, Some(json!({ "exit_code": 4 })), "parts not reported keep the exit code's");
+        // Only a value: the label stays exit_0.
+        let value_only = command(&q, r#"echo '{"value":{"n":3}}' > "$JOB_RESULT""#, None);
+        assert_eq!(finish(&q, value_only).await, (JobState::Done, Some("exit_0".into())));
+        assert_eq!(outcome(&q, value_only).value, Some(json!({ "n": 3 })));
+        // Printing result-like text changes nothing: only the file counts.
+        let printed = command(&q, r#"echo '{"label":"faked"}'"#, None);
+        assert_eq!(finish(&q, printed).await, (JobState::Done, Some("exit_0".into())));
+        // A broken file fails the job with the reason.
+        for bad in [r#"echo '{"label": oops' > "$JOB_RESULT""#, r#"echo '{"label":"Bad Label"}' > "$JOB_RESULT""#, r#"echo '{"lable":"x"}' > "$JOB_RESULT""#] {
+            let id = command(&q, bad, None);
+            assert_eq!(finish(&q, id).await, (JobState::Failed, Some("bad_result".into())), "{bad}");
+            assert!(outcome(&q, id).message.unwrap().starts_with("$JOB_RESULT:"));
+        }
+    }
+
+    #[tokio::test]
+    async fn a_command_can_report_progress() {
+        let q = queue();
+        let id = command(&q, r#"echo 3/10 > "$JOB_PROGRESS"; echo started; sleep 2; echo 10/10 >> "$JOB_PROGRESS""#, None);
+        let view = |q: &Queue| serde_json::to_value(q.inspect(id).unwrap()).unwrap()["job"].clone();
+        let mut seen = false;
+        for _ in 0..150 {
+            let v = view(&q);
+            if (v["done"].as_u64(), v["total"].as_u64()) == (Some(3), Some(10)) {
+                seen = true;
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+        assert!(seen, "3 of 10 shown while running");
+        finish(&q, id).await;
+        let v = view(&q);
+        assert_eq!((v["done"].as_u64(), v["total"].as_u64()), (Some(10), Some(10)), "read once more at the end");
+        assert_eq!(parse_progress("40%"), Some((40, 100)));
+        assert_eq!(parse_progress("7 / 5"), Some((5, 5)));
+        assert_eq!(parse_progress("12"), Some((12, 0)));
+        assert_eq!(parse_progress("half"), None);
+    }
+
+    #[test]
+    fn placeholders_bring_in_the_value_and_message() {
+        let p = Previous {
+            schedule: "disk".into(),
+            job: 3,
+            state: JobState::Done,
+            label: Some("disk_high".into()),
+            value: Some(json!({ "percent": 92, "mount": "/", "disk": { "free_gb": 4.5 } })),
+            message: Some("says {previous_label}".into()),
+            output: "Filesystem ... {previous_value}".into(),
+        };
+        let filled = fill_text(
+            "{previous_value.percent}% of {previous_value.mount}, {previous_value.disk.free_gb} GB free, \
+             [{previous_value.nothing}] {previous_value} | {previous_message} | {previous_output} | {previous_other} {previous_",
+            Some(&p),
+            100,
+        );
+        assert_eq!(
+            filled,
+            "92% of /, 4.5 GB free, [] {\"disk\":{\"free_gb\":4.5},\"mount\":\"/\",\"percent\":92} | says {previous_label} | \
+             Filesystem ... {previous_value} | {previous_other} {previous_",
+            "one pass: placeholders inside the result stay as text; unknown ones are left"
+        );
+        assert_eq!(fill_text("[{previous_value.percent}]", None, 100), "[]");
+    }
+
+    #[tokio::test]
+    async fn notify_sends_the_filled_text_to_the_notification_service() {
+        let (bus, shown) = test_bus::start("notify", true).await;
+        use_test_bus(Some(bus.address.clone()));
+        let q = queue();
+        let id = q
+            .start_after(
+                "notify",
+                json!({ "title": "Disk {previous_value.percent}% full", "text": "{previous_message}", "urgency": "critical", "sound": true }),
+                Origin::User,
+                None,
+                Some(Arc::new(Previous {
+                    schedule: "disk".into(),
+                    job: 1,
+                    state: JobState::Done,
+                    label: Some("disk_high".into()),
+                    value: Some(json!({ "percent": 92 })),
+                    message: Some("Clear the cache.".into()),
+                    output: String::new(),
+                })),
+            )
+            .unwrap();
+        assert_eq!(finish(&q, id).await, (JobState::Done, Some("shown".into())));
+        let got = shown.lock().unwrap().clone();
+        assert_eq!(
+            got,
+            [test_bus::Shown {
+                app: "Rust Scaffold".into(),
+                title: "Disk 92% full".into(),
+                text: "Clear the cache.".into(),
+                urgency: Some(2),
+                sound: Some("message-new-instant".into()),
+            }]
+        );
+        // Plain: normal urgency, no sound hint.
+        let plain = q.start("notify", json!({ "title": "Hello" }), Origin::User, None).unwrap();
+        finish(&q, plain).await;
+        let last = shown.lock().unwrap().last().cloned().unwrap();
+        assert_eq!((last.urgency, last.sound, last.text.as_str()), (Some(1), None, ""));
+        use_test_bus(None);
+    }
+
+    #[tokio::test]
+    async fn notify_without_a_notification_service_is_unavailable() {
+        // A bus with nothing answering for notifications.
+        let (bus, _) = test_bus::start("no_service", false).await;
+        use_test_bus(Some(bus.address.clone()));
+        let q = queue();
+        let id = q.start("notify", json!({ "title": "Hello" }), Origin::User, None).unwrap();
+        assert_eq!(finish(&q, id).await, (JobState::Failed, Some("unavailable".into())));
+        assert!(outcome(&q, id).message.unwrap().contains("no notification service"), "{:?}", outcome(&q, id));
+        // No test bus: test builds never reach the real desktop.
+        use_test_bus(None);
+        let id = q.start("notify", json!({ "title": "Hello" }), Origin::User, None).unwrap();
+        assert_eq!(finish(&q, id).await, (JobState::Failed, Some("unavailable".into())));
+        assert!(q.start("notify", json!({ "title": " " }), Origin::User, None).is_err(), "empty title refused");
+    }
+
     #[test]
     fn prompts_are_filled_and_a_long_output_is_cut_to_its_end() {
         assert_eq!(fill_prompt("A {previous_output} B {previous_label}", None), "A  B ", "nothing before: empty");
         let long = format!("{}THE END", "x".repeat(PROMPT_PREVIOUS_BYTES * 2));
-        let p = Previous { schedule: "s".into(), job: 7, state: JobState::TimedOut, label: None, output: long };
+        let p = Previous { schedule: "s".into(), job: 7, state: JobState::TimedOut, label: None, value: None, message: None, output: long };
         let filled = fill_prompt("[{previous_state}] {previous_output}", Some(&p));
         assert!(filled.starts_with("[timed_out] x") && filled.ends_with("THE END"));
         assert_eq!(filled.len(), "[timed_out] ".len() + PROMPT_PREVIOUS_BYTES);

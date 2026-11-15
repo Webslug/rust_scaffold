@@ -1,6 +1,7 @@
 # Jobs page, Queue view: runs jobs through the real window (Rust queue, job
 # kinds, job_forms.js, jobs.js): the example command (df -h /), then a
-# command that prints and fails with exit code 3, then an AI prompt to the
+# command that prints and fails with exit code 3, a notification (which
+# fails as unavailable: no notification service on the test bus), then an AI prompt to the
 # local Ollama model (only when Ollama answers on 127.0.0.1:11434; it must
 # already be running, and the check does not start it). Screenshots of the
 # table and the Inspect card with each output, to check by eye.
@@ -21,6 +22,18 @@ type_text 'echo before; echo broke >&2; exit 3'
 key Tab Return
 sleep 2
 shot jobs_commands
+# Notification form: Down Down picks "Notification". Submitted with Enter in
+# the title; on the private test bus nothing shows notifications, so the job
+# must fail as unavailable. Then back to the command form for the AI step.
+click 655 336
+key shift+Tab Down Down
+sleep 1
+shot jobs_notify_form
+key Tab Return
+sleep 2
+shot jobs_notify_ran
+key shift+Tab Up Up
+sleep 1
 if curl -s --max-time 2 http://127.0.0.1:11434/api/tags >/dev/null; then
     # Job select by keyboard: back from the script box, Down picks "AI prompt".
     # Tab: AI, the model list (installed text models), the server address,

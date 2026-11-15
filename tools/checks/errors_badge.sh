@@ -1,7 +1,10 @@
 # Four warnings logged while the app starts (oversized settings files) must
 # all be counted by the Errors badge, then listed on the Errors page.
-# Checked by eye: the badge in errors_badge.png should read 4, and the page
-# in errors_page.png should say "4 kept". Sourced by tools/xvfb_check.sh.
+# Checked by eye: the badge in errors_badge.png should read 5 (the four, plus
+# the tray warning on the private test bus; entries kept from earlier runs
+# are not counted), and the page
+# in errors_page.png lists them (with earlier runs' entries greyed). Sourced by
+# tools/xvfb_check.sh.
 
 app_start
 app_stop

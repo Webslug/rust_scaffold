@@ -20,9 +20,11 @@ use std::sync::{Mutex, OnceLock};
 use tauri::{Emitter, LogicalSize, Manager, PhysicalPosition};
 use tracing::{info, warn};
 
-/// When true, program events from debug level up are appended to
-/// `debug.log` in the settings folder (see `logging.rs`). Warnings and errors
-/// reach the Errors tab either way.
+/// When true, program events from debug level up are also appended to
+/// `debug.log` in the settings folder, cut to its newest half past 1 MiB
+/// (see `logging.rs`). Either way, warnings and errors reach the Errors tab
+/// and are kept in `errors.jsonl` there (newest `error_log_max`), so they
+/// are still listed after a restart.
 pub const DEBUG_MODE: bool = false;
 
 /// Name of the per-user settings folder, for example `~/.config/rust_scaffold`
@@ -122,6 +124,8 @@ pub fn run() {
     info!("app starting, version {}", env!("CARGO_PKG_VERSION"));
     let state = config::load(config::config_path());
     logging::set_max(state.config.error_log_max);
+    // Warnings and errors from earlier runs, for the Errors tab.
+    logging::restore(settings_dir());
     // Must run before WebKit starts: it may set environment variables.
     gpu::apply(state.config.hardware_acceleration);
     let (width, height) = (state.config.width, state.config.height);

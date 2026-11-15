@@ -20,6 +20,9 @@ tokio = { version = "1", features = ["rt", "macros", "test-util"] }
 # feature to Tauri's copy. A different version would be a second, unused copy.
 [target.'cfg(target_os = "linux")'.dependencies]
 tray-icon = { version = "0.25", default-features = false, features = ["ksni"], optional = true }
+# D-Bus, for desktop notifications (feature desktop-notifications). The same
+# version ksni uses for the tray; check `cargo tree -i zbus` after updates.
+zbus = { version = "5", default-features = false, features = ["async-io"], optional = true }
 
 # killpg, to stop a command job's whole process group (already compiled for
 # Tauri and Tokio; listed to call it directly).
@@ -56,7 +59,7 @@ tracing-subscriber = { version = "0.3", default-features = false, features = ["s
 # Builds with plain cargo (no Tauri CLI, no Node). With no devUrl the
 # frontend in ../ui is always embedded, so custom-protocol stays on.
 [features]
-default = ["custom-protocol", "linux-tray-clicks"]
+default = ["custom-protocol", "linux-tray-clicks", "desktop-notifications"]
 custom-protocol = ["tauri/custom-protocol"]
 # Linux only: switches Tauri's tray to the KSNI backend (a StatusNotifierItem
 # over D-Bus), the only Linux backend that reports clicks, so a double-click
@@ -64,6 +67,11 @@ custom-protocol = ["tauri/custom-protocol"]
 # and helpers) and about 1.3 MB. Remove it from `default` if an app does not
 # need tray clicks; the tray then still works, with its menu only.
 linux-tray-clicks = ["dep:tray-icon"]
+# Linux only: the notify job kind talks to the desktop's notification
+# service over D-Bus with zbus, which the tray feature above already
+# compiles, so it adds no crates while that feature is on. Without it the
+# notify kind fails with "unavailable".
+desktop-notifications = ["dep:zbus"]
 
 # Size-focused release build. Cuts the binary substantially at the cost of a
 # slower full rebuild (a few minutes). panic = "abort" drops the unwinding code.

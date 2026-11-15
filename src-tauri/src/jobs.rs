@@ -103,14 +103,23 @@ pub enum Origin {
 
 /// The result of the job that led to this one (a rule fired on it): what it
 /// printed or answered, and how it ended. A command job gets it as
-/// environment variables, an AI job in its prompt (`{previous_output}`).
+/// environment variables, an AI or notify job in its text
+/// (`{previous_output}`, `{previous_value}` and so on).
 #[derive(Debug, Clone, PartialEq)]
 pub struct Previous {
     pub schedule: String,
     pub job: u64,
     pub state: JobState,
     pub label: Option<String>,
+    pub value: Option<Value>,
+    pub message: Option<String>,
     pub output: String,
+}
+
+/// A field of a job's value: `percent`, or `disk.percent` for a field
+/// inside an object. None when the value has no such field.
+pub fn value_field<'a>(value: &'a Value, path: &str) -> Option<&'a Value> {
+    path.split('.').try_fold(value, |v, name| v.get(name))
 }
 
 /// What the window sees of `Previous`: everything but the output, which can
@@ -121,6 +130,8 @@ pub struct PreviousView {
     pub job: u64,
     pub state: JobState,
     pub label: Option<String>,
+    pub value: Option<Value>,
+    pub message: Option<String>,
     pub output_bytes: usize,
 }
 
@@ -588,6 +599,14 @@ impl Queue {
         self.lock().jobs.get(&id).map(|job| (job.view.state, job.view.label.clone()))
     }
 
+    /// A job's state and its whole outcome (label, value, message).
+    pub fn outcome(&self, id: u64) -> Option<(JobState, Outcome)> {
+        self.lock().jobs.get(&id).map(|job| {
+            let v = &job.view;
+            (v.state, Outcome { label: v.label.clone(), value: v.value.clone(), message: v.message.clone() })
+        })
+    }
+
     /// Queues a job of the named kind and starts it at once if a slot is
     /// free. `timeout_ms` replaces the kind's time limit. Bad kinds, input
     /// and limits are refused before anything is queued.
@@ -641,6 +660,8 @@ impl Queue {
                     job: p.job,
                     state: p.state,
                     label: p.label.clone(),
+                    value: p.value.clone(),
+                    message: p.message.clone(),
                     output_bytes: p.output.len(),
                 }),
             },
