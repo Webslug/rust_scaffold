@@ -61,17 +61,30 @@
   --space-6: 4rem;
   /* Right padding of a select: room for the chevron plus a gap. */
   --select-chevron-space: 2.5rem;
-  /* Jobs tab: narrowest form field, and the size of a progress bar. */
-  --jobs-field-min: 8rem;
-  --jobs-bar-width: 6rem;
-  --jobs-bar-height: 0.6rem;
+  /* Themed select lists: tallest list, and above tooltips and menus. */
+  --select-menu-max: 18rem;
+  --select-menu-z: 1090;
+  /* Date and time picker width. */
+  --dtp-width: 17rem;
+  /* Jobs tab: narrowest form field, a number beside its unit, the narrowest
+     wrapping column, the button column, the output box and a long note. */
+  --jobs-field-min: 9rem;
   --jobs-pair-number: 4rem;
-  --jobs-wrap-min: 12rem;
-  --jobs-wrap-min-narrow: 8rem;
-  --jobs-buttons-min: 6rem;
+  --jobs-unit-min: 7.5rem;
+  --jobs-on-width: 4.5rem;
+  /* The editors' Enabled / Disabled toggle. */
+  --jobs-toggle-width: 3.5rem;
+  --jobs-toggle-height: 1.75rem;
+  --jobs-toggle-label: 6rem;
+  /* The On switch in the lists. */
+  --jobs-list-toggle-width: 2.75rem;
+  --jobs-list-toggle-height: 1.4rem;
+  --jobs-buttons-width: 11rem;
   --jobs-output-max: 24rem;
-  --jobs-output-small-max: 5rem;
-  --jobs-note-max: 11rem;
+  --jobs-note-max: 16rem;
+  /* Overview: widest filter box and hover summary. */
+  --jobs-filter-max: 22rem;
+  --jobs-tooltip-max: 22rem;
 
   /* Shadow */
 

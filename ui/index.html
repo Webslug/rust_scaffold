@@ -360,102 +360,275 @@
           <div id="options-groups" class="options-groups"></div>
         </div>
         <div class="tab-pane" id="page-jobs" role="tabpanel" aria-labelledby="tab-jobs" tabindex="0">
-          <div class="btn-group jobs-views" role="group" aria-label="Jobs views">
-            <button type="button" class="btn btn-secondary btn-sm active" data-jobs-view="queue" aria-pressed="true"><i class="bi bi-list-task me-1" aria-hidden="true"></i>Queue</button>
-            <button type="button" class="btn btn-secondary btn-sm" data-jobs-view="schedules" aria-pressed="false"><i class="bi bi-calendar-event me-1" aria-hidden="true"></i>Schedules</button>
-            <button type="button" class="btn btn-secondary btn-sm" data-jobs-view="rules" aria-pressed="false"><i class="bi bi-signpost-split me-1" aria-hidden="true"></i>Rules</button>
-            <button type="button" class="btn btn-secondary btn-sm" data-jobs-view="upcoming" aria-pressed="false"><i class="bi bi-clock me-1" aria-hidden="true"></i>Next 24 hours</button>
+          <div id="jobs-running" class="card card-custom jobs-running d-none" aria-live="polite">
+            <div class="card-header"><h2 class="h6 card-header-title mb-0"><i class="bi bi-activity me-1" aria-hidden="true"></i>Running now</h2></div>
+            <div class="table-responsive jobs-table-wrap">
+              <table class="table table-custom mb-0 jobs-table">
+                <caption class="visually-hidden">Jobs queued or running</caption>
+                <tbody id="jobs-running-rows"></tbody>
+              </table>
+            </div>
           </div>
-          <p id="sched-paused-banner" class="alert alert-warning jobs-banner d-none" role="status">Everything is paused: no schedule or rule starts a job. Run now still works.</p>
-          <div data-jobs-pane="queue">
-            <form id="jobs-form" class="card card-custom jobs-form" novalidate>
-              <div class="card-body">
-                <div id="jobs-run-fields"></div>
-                <div class="jobs-actions">
-                  <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-play-fill me-1"></i>Run now</button>
-                  <button type="button" id="btn-jobs-cancel-all" class="btn btn-secondary btn-sm"><i class="bi bi-x-octagon me-1"></i>Kill all</button>
-                  <button type="button" id="btn-jobs-clear" class="btn btn-secondary btn-sm"><i class="bi bi-eraser me-1"></i>Clear finished</button>
-                  <span class="jobs-limit-box">
-                    <label class="form-label mb-0" for="jobs-limit">At once</label>
-                    <select id="jobs-limit" class="form-select form-select-sm">
-                      <option value="1">1</option>
-                      <option value="2">2</option>
-                      <option value="3">3</option>
-                    </select>
-                  </span>
-                </div>
-                <p id="jobs-status" class="jobs-status" role="status" aria-live="polite"></p>
+
+          <div class="jobs-topbar">
+            <div class="btn-group jobs-views" role="group" aria-label="Jobs sections">
+              <button type="button" class="btn btn-secondary btn-sm active" data-jobs-view="overview" aria-pressed="true"><i class="bi bi-grid-1x2 me-1" aria-hidden="true"></i>Overview</button>
+              <button type="button" class="btn btn-secondary btn-sm" data-jobs-view="trigger" aria-pressed="false"><i class="bi bi-lightning-charge me-1" aria-hidden="true"></i>Triggers</button>
+              <button type="button" class="btn btn-secondary btn-sm" data-jobs-view="schedule" aria-pressed="false"><i class="bi bi-calendar-event me-1" aria-hidden="true"></i>Schedules</button>
+              <button type="button" class="btn btn-secondary btn-sm" data-jobs-view="action" aria-pressed="false"><i class="bi bi-play-circle me-1" aria-hidden="true"></i>Actions</button>
+            </div>
+            <button type="button" id="btn-auto-reload" class="btn btn-secondary btn-sm" title="Read jobs.json again after editing it by hand"><i class="bi bi-arrow-clockwise me-1"></i>Reload</button>
+          </div>
+          <p id="auto-status" class="jobs-status" role="status" aria-live="polite"></p>
+          <div id="auto-skipped" class="alert alert-warning d-none" role="alert"></div>
+
+          <!-- Overview -->
+          <div data-jobs-pane="overview">
+            <div class="overview-toolbar">
+              <label class="visually-hidden" for="overview-filter">Filter</label>
+              <input type="search" id="overview-filter" class="form-control form-control-sm overview-filter" placeholder="Filter by name or what it does" autocomplete="off">
+              <div class="overview-quick">
+                <button type="button" class="btn btn-secondary btn-sm" data-bulk="enable_all" title="Switch every trigger and schedule on"><i class="bi bi-toggle-on me-1"></i>Enable all</button>
+                <button type="button" class="btn btn-secondary btn-sm" data-bulk="disable_all" title="Switch every trigger and schedule off"><i class="bi bi-toggle-off me-1"></i>Disable all</button>
+                <button type="button" class="btn btn-secondary btn-sm" data-bulk="restore_demos" title="Add back the demonstration entries that are missing"><i class="bi bi-arrow-counterclockwise me-1"></i>Restore demos</button>
+                <button type="button" class="btn btn-secondary btn-sm" data-bulk="delete_all" title="Delete every trigger, schedule and action (press twice)"><i class="bi bi-trash me-1"></i>Delete all</button>
+                <button type="button" class="btn btn-secondary btn-sm" data-reset-sortable="jobs-overview" title="Put the sections back in their first order"><i class="bi bi-arrow-down-up me-1"></i>Reset order</button>
               </div>
-            </form>
+            </div>
+            <div class="accordion accordion-custom sortable-list overview-accordion" id="jobs-overview" data-sortable="jobs-overview">
+            <div class="accordion-item sortable-item" data-sortable-id="triggers">
+              <h2 class="accordion-header">
+                <span class="sort-handle" role="button" tabindex="0" aria-label="Reorder the Triggers section" title="Drag to reorder, or press Up and Down"><i class="bi bi-grip-vertical"></i></span>
+                <button type="button" class="accordion-button" data-bs-toggle="collapse" data-bs-target="#overview-triggers" aria-expanded="true" aria-controls="overview-triggers"><i class="bi bi-lightning-charge me-2" aria-hidden="true"></i>Triggers<span class="overview-count" id="overview-triggers-count"></span></button>
+              </h2>
+              <div id="overview-triggers" class="accordion-collapse collapse show" data-panel-id="jobs-overview-triggers">
+                <div class="accordion-body overview-body">
+                  <div class="table-responsive jobs-table-wrap">
+                    <table class="table table-custom table-hover mb-0 jobs-table overview-table" data-overview="triggers">
+                      <caption class="visually-hidden">Triggers</caption>
+                      <thead><tr><th scope="col" class="jobs-col-on"><button type="button" class="overview-sort" data-sort="enabled">On<i class="bi bi-arrow-down-up ms-1" aria-hidden="true"></i></button></th><th scope="col"><button type="button" class="overview-sort" data-sort="name">Trigger<i class="bi bi-arrow-down-up ms-1" aria-hidden="true"></i></button></th><th scope="col"><button type="button" class="overview-sort" data-sort="due">Next check<i class="bi bi-arrow-down-up ms-1" aria-hidden="true"></i></button></th><th scope="col">Last value</th></tr></thead>
+                      <tbody id="overview-triggers-rows"></tbody>
+                    </table>
+                  </div>
+                  <div class="overview-pager" id="overview-triggers-pager"></div>
+                </div>
+              </div>
+            </div>
+            <div class="accordion-item sortable-item" data-sortable-id="schedules">
+              <h2 class="accordion-header">
+                <span class="sort-handle" role="button" tabindex="0" aria-label="Reorder the Schedules section" title="Drag to reorder, or press Up and Down"><i class="bi bi-grip-vertical"></i></span>
+                <button type="button" class="accordion-button" data-bs-toggle="collapse" data-bs-target="#overview-schedules" aria-expanded="true" aria-controls="overview-schedules"><i class="bi bi-calendar-event me-2" aria-hidden="true"></i>Schedules<span class="overview-count" id="overview-schedules-count"></span></button>
+              </h2>
+              <div id="overview-schedules" class="accordion-collapse collapse show" data-panel-id="jobs-overview-schedules">
+                <div class="accordion-body overview-body">
+                  <div class="table-responsive jobs-table-wrap">
+                    <table class="table table-custom table-hover mb-0 jobs-table overview-table" data-overview="schedules">
+                      <caption class="visually-hidden">Schedules</caption>
+                      <thead><tr><th scope="col" class="jobs-col-on"><button type="button" class="overview-sort" data-sort="enabled">On<i class="bi bi-arrow-down-up ms-1" aria-hidden="true"></i></button></th><th scope="col"><button type="button" class="overview-sort" data-sort="name">Schedule<i class="bi bi-arrow-down-up ms-1" aria-hidden="true"></i></button></th><th scope="col"><button type="button" class="overview-sort" data-sort="due">Next run<i class="bi bi-arrow-down-up ms-1" aria-hidden="true"></i></button></th><th scope="col">Runs</th></tr></thead>
+                      <tbody id="overview-schedules-rows"></tbody>
+                    </table>
+                  </div>
+                  <div class="overview-pager" id="overview-schedules-pager"></div>
+                </div>
+              </div>
+            </div>
+            <div class="accordion-item sortable-item" data-sortable-id="actions">
+              <h2 class="accordion-header">
+                <span class="sort-handle" role="button" tabindex="0" aria-label="Reorder the Actions section" title="Drag to reorder, or press Up and Down"><i class="bi bi-grip-vertical"></i></span>
+                <button type="button" class="accordion-button" data-bs-toggle="collapse" data-bs-target="#overview-actions" aria-expanded="true" aria-controls="overview-actions"><i class="bi bi-play-circle me-2" aria-hidden="true"></i>Actions<span class="overview-count" id="overview-actions-count"></span></button>
+              </h2>
+              <div id="overview-actions" class="accordion-collapse collapse show" data-panel-id="jobs-overview-actions">
+                <div class="accordion-body overview-body">
+                  <div class="table-responsive jobs-table-wrap">
+                    <table class="table table-custom table-hover mb-0 jobs-table overview-table" data-overview="actions">
+                      <caption class="visually-hidden">Actions</caption>
+                      <thead><tr><th scope="col" class="jobs-col-on"><button type="button" class="overview-sort" data-sort="enabled">On<i class="bi bi-arrow-down-up ms-1" aria-hidden="true"></i></button></th><th scope="col"><button type="button" class="overview-sort" data-sort="name">Action<i class="bi bi-arrow-down-up ms-1" aria-hidden="true"></i></button></th><th scope="col"><button type="button" class="overview-sort" data-sort="due">Last run<i class="bi bi-arrow-down-up ms-1" aria-hidden="true"></i></button></th><th scope="col">Last result</th></tr></thead>
+                      <tbody id="overview-actions-rows"></tbody>
+                    </table>
+                  </div>
+                  <div class="overview-pager" id="overview-actions-pager"></div>
+                </div>
+              </div>
+            </div>
+            </div>
+            <p class="jobs-note">Click a row to open it. Drag a section by its handle to reorder; the order and which sections are open are saved. Enable all and Disable all switch triggers and schedules; actions only run when one of those, another action or Run starts them.</p>
+          </div>
+
+          <!-- Triggers -->
+          <div data-jobs-pane="trigger" class="d-none">
+            <div class="jobs-toolbar">
+              <button type="button" id="btn-trigger-new" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>New trigger</button>
+            </div>
+            <div id="trigger-editor" class="card card-custom jobs-editor d-none">
+              <div class="card-header"><h2 class="h6 card-header-title mb-0" id="trigger-editor-title">New trigger</h2></div>
+              <div class="card-body">
+                <div class="jobs-fields">
+                  <div>
+                    <label class="form-label" for="trigger-name">Name</label>
+                    <input type="text" id="trigger-name" class="form-control" maxlength="60" placeholder="GBP price" autocomplete="off">
+                  </div>
+                  <div>
+                    <label class="form-label" for="trigger-watch-type">Watch</label>
+                    <select id="trigger-watch-type" class="form-select">
+                      <option value="web_watch">A value on a web page</option>
+                      <option value="cpu">CPU load (%)</option>
+                      <option value="memory">Memory used (%)</option>
+                      <option value="disk">Disk space</option>
+                      <option value="vram">Graphics card memory used (%)</option>
+                      <option value="file">A file or folder</option>
+                    </select>
+                  </div>
+                </div>
+                <div data-watch="web_watch">
+                  <div class="jobs-wide">
+                    <label class="form-label" for="trigger-url">Page</label>
+                    <input type="text" id="trigger-url" class="form-control" placeholder="https://bitmods.com/probe" autocomplete="off" spellcheck="false">
+                  </div>
+                  <div class="jobs-fields">
+                    <div>
+                      <label class="form-label" for="trigger-find">Find by</label>
+                      <select id="trigger-find" class="form-select">
+                        <option value="id">id</option>
+                        <option value="class">class</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label class="form-label" for="trigger-element">Id or class name</label>
+                      <input type="text" id="trigger-element" class="form-control" placeholder="probe-gbp" autocomplete="off" spellcheck="false">
+                    </div>
+                    <div>
+                      <label class="form-label" for="trigger-read">Read as</label>
+                      <select id="trigger-read" class="form-select">
+                        <option value="text">Text</option>
+                        <option value="number">Number</option>
+                      </select>
+                    </div>
+                  </div>
+                  <p class="jobs-subtle jobs-form-note">Reads the text of the first element with this id or class. As a number it takes the first number in that text, ignoring £ $ € ¥ and thousands commas: £5,212.66 reads as 5212.66. A web page is checked no more often than every 30 seconds.</p>
+                </div>
+                <div data-watch="disk" class="jobs-fields">
+                  <div>
+                    <label class="form-label" for="trigger-disk-path">Any folder on the disk</label>
+                    <input type="text" id="trigger-disk-path" class="form-control" placeholder="/ or ~" autocomplete="off" spellcheck="false">
+                  </div>
+                  <div>
+                    <label class="form-label" for="trigger-disk-measure">Number to watch</label>
+                    <select id="trigger-disk-measure" class="form-select">
+                      <option value="used_percent">Used (%)</option>
+                      <option value="free_gb">Free (GB)</option>
+                    </select>
+                  </div>
+                </div>
+                <div data-watch="file" class="jobs-fields">
+                  <div>
+                    <label class="form-label" for="trigger-file-path">File or folder</label>
+                    <input type="text" id="trigger-file-path" class="form-control" placeholder="~/notes.txt" autocomplete="off" spellcheck="false">
+                  </div>
+                  <div>
+                    <label class="form-label" for="trigger-file-for">Watch for</label>
+                    <select id="trigger-file-for" class="form-select">
+                      <option value="contents">Changes to it (size or time)</option>
+                      <option value="permissions">Changes to its permissions</option>
+                    </select>
+                  </div>
+                </div>
+                <p data-watch="cpu memory vram disk file" class="jobs-subtle jobs-form-note">Read from this computer (Linux), as often as every 5 seconds. A file that appears or disappears counts as a change.</p>
+                <div class="jobs-fields">
+                  <div>
+                    <label class="form-label" for="trigger-every">Check every</label>
+                    <div class="jobs-pair">
+                      <input type="number" id="trigger-every" class="form-control" min="1" step="1" value="5">
+                      <select id="trigger-every-unit" class="form-select" aria-label="Unit">
+                        <option value="1">seconds</option>
+                        <option value="60" selected>minutes</option>
+                        <option value="3600">hours</option>
+                        <option value="86400">days</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+                <div class="jobs-fields">
+                  <div>
+                    <label class="form-label" for="trigger-when">When the value</label>
+                    <select id="trigger-when" class="form-select">
+                      <option value="changes">changes</option>
+                      <option value="above">is above</option>
+                      <option value="below">is below</option>
+                      <option value="equals">equals</option>
+                    </select>
+                  </div>
+                  <div id="trigger-value-box">
+                    <label class="form-label" for="trigger-value">Value</label>
+                    <input type="text" id="trigger-value" class="form-control" placeholder="5000" autocomplete="off">
+                  </div>
+                  <div>
+                    <label class="form-label" for="trigger-max">Fire at most</label>
+                    <input type="number" id="trigger-max" class="form-control" min="1" max="999999" step="1" placeholder="No limit">
+                  </div>
+                </div>
+                <div class="jobs-test">
+                  <button type="button" id="btn-trigger-test" class="btn btn-secondary btn-sm"><i class="bi bi-eye me-1"></i>Test now</button>
+                  <span id="trigger-test-result" class="jobs-test-result" role="status" aria-live="polite"></span>
+                </div>
+                <div id="trigger-then" class="jobs-then"></div>
+                <div class="jobs-toggle form-check form-switch">
+                  <input class="form-check-input" type="checkbox" role="switch" id="trigger-enabled" checked>
+                  <label class="form-check-label" for="trigger-enabled">Enabled</label>
+                </div>
+                <hr class="jobs-divider">
+                <div class="jobs-actions">
+                  <button type="button" id="btn-trigger-save" class="btn btn-primary btn-sm"><i class="bi bi-check-lg me-1"></i>Save</button>
+                  <button type="button" id="btn-trigger-cancel" class="btn btn-secondary btn-sm"><i class="bi bi-x-lg me-1"></i>Cancel</button>
+                </div>
+                <p id="trigger-error" class="jobs-error" role="alert"></p>
+              </div>
+            </div>
             <div class="card card-custom">
               <div class="table-responsive jobs-table-wrap">
-                <table class="table table-custom table-hover mb-0 jobs-table jobs-queue-table">
-                  <caption class="visually-hidden">Jobs in the queue, running and finished</caption>
+                <table class="table table-custom table-hover mb-0 jobs-table auto-table">
+                  <caption class="visually-hidden">Triggers</caption>
                   <thead>
-                    <tr><th scope="col">Job</th><th scope="col">State</th><th scope="col">Progress</th><th scope="col" class="jobs-extra">Waited</th><th scope="col" class="jobs-narrow-hide">Ran</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr>
+                    <tr><th scope="col" class="jobs-col-on">On</th><th scope="col">Trigger</th><th scope="col">Last value</th><th scope="col" class="jobs-col-buttons"><span class="visually-hidden">Buttons</span></th></tr>
                   </thead>
-                  <tbody id="jobs-rows"></tbody>
+                  <tbody id="trigger-rows"></tbody>
                 </table>
               </div>
             </div>
-            <div id="jobs-inspect" class="card card-custom jobs-inspect d-none" aria-live="polite">
-              <div class="card-header">
-                <h2 class="h6 card-header-title mb-0" id="jobs-inspect-title">Job</h2>
-                <button type="button" id="btn-jobs-inspect-close" class="btn btn-secondary btn-sm jobs-inspect-close" aria-label="Close the details" title="Close"><i class="bi bi-x-lg"></i></button>
-              </div>
-              <div class="card-body">
-                <dl id="jobs-inspect-list" class="jobs-inspect-list mb-0"></dl>
-                <div id="jobs-output-box" class="jobs-output-box d-none">
-                  <div class="jobs-output-head">
-                    <span class="form-label mb-0" id="jobs-output-title">Output</span>
-                    <button type="button" id="btn-jobs-output-copy" class="btn btn-secondary btn-sm"><i class="bi bi-clipboard me-1"></i>Copy</button>
-                  </div>
-                  <pre id="jobs-output" class="jobs-output" tabindex="0" aria-labelledby="jobs-output-title"></pre>
-                </div>
-              </div>
-            </div>
-            <p class="jobs-note">Each job runs in Rust as a Tokio task. A command job runs a bash script in any folder; an AI job sends a prompt to a local model or to Claude Code, Codex or GrokBuild. Jobs beyond the "At once" limit wait in the queue, and local AI jobs run one at a time (they share the graphics card). Kill stops a job and everything it started. Inspect shows what a job printed or answered.</p>
+            <p class="jobs-note">A trigger reads a value every so often (on a web page, or from this computer: CPU, memory, disk, graphics card memory or a file) and starts its actions when the value changes, or when it goes above, below or equal to the value you set: once each time that becomes true, not on every check. The first check after saving or switching it on only records the value. Fire now reads the page at once and starts its actions whatever the condition, so you can test without waiting.</p>
           </div>
 
-          <div data-jobs-pane="schedules" class="d-none">
+          <!-- Schedules -->
+          <div data-jobs-pane="schedule" class="d-none">
             <div class="jobs-toolbar">
-              <button type="button" id="btn-sched-add" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>Add schedule</button>
-              <button type="button" id="btn-sched-reload" class="btn btn-secondary btn-sm" title="Read jobs.json again after editing it by hand"><i class="bi bi-arrow-clockwise me-1"></i>Reload</button>
-              <button type="button" id="btn-sched-pause-all" class="btn btn-secondary btn-sm" aria-pressed="false"><i class="bi bi-pause-circle me-1"></i><span>Pause everything</span></button>
+              <button type="button" id="btn-schedule-new" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>New schedule</button>
             </div>
-            <p id="sched-status" class="jobs-status" role="status" aria-live="polite"></p>
-            <div id="sched-skipped" class="alert alert-warning d-none" role="alert"></div>
-
-            <form id="sched-editor" class="card card-custom jobs-editor d-none" novalidate>
-              <div class="card-header"><h2 class="h6 card-header-title mb-0" id="sched-editor-title">New schedule</h2></div>
+            <div id="schedule-editor" class="card card-custom jobs-editor d-none">
+              <div class="card-header"><h2 class="h6 card-header-title mb-0" id="schedule-editor-title">New schedule</h2></div>
               <div class="card-body">
-                <div id="sched-job-fields" class="jobs-section"></div>
-                <div class="jobs-fields jobs-section">
+                <div class="jobs-fields">
                   <div>
-                    <label class="form-label" for="sched-name">Name</label>
-                    <input type="text" id="sched-name" class="form-control" maxlength="32" placeholder="backup_logs" autocomplete="off" required>
+                    <label class="form-label" for="schedule-name">Name</label>
+                    <input type="text" id="schedule-name" class="form-control" maxlength="60" placeholder="Morning check" autocomplete="off">
                   </div>
                   <div>
-                    <label class="form-label" for="sched-when">When</label>
-                    <select id="sched-when" class="form-select">
-                      <option value="once">Once</option>
-                      <option value="every">Every so often</option>
-                      <option value="daily">Daily</option>
-                      <option value="weekly">Weekly</option>
-                      <option value="monthly">Monthly</option>
-                      <option value="manual">Manual (Run now or a rule)</option>
+                    <label class="form-label" for="schedule-when">Run</label>
+                    <select id="schedule-when" class="form-select">
+                      <option value="once">once, at</option>
+                      <option value="every">every</option>
+                      <option value="daily">daily</option>
+                      <option value="weekly">weekly</option>
+                      <option value="monthly">monthly</option>
                     </select>
                   </div>
                   <div data-when="once">
-                    <label class="form-label" for="sched-at">Date and time</label>
-                    <input type="text" id="sched-at" class="form-control" placeholder="2026-12-01 09:00" autocomplete="off">
+                    <label class="form-label" for="schedule-at">Date and time</label>
+                    <input type="text" id="schedule-at" class="form-control" placeholder="2026-12-01 09:00" autocomplete="off" data-picker="datetime">
                   </div>
                   <div data-when="every">
-                    <label class="form-label" for="sched-every">Every</label>
+                    <label class="form-label" for="schedule-every">Every</label>
                     <div class="jobs-pair">
-                      <input type="number" id="sched-every" class="form-control" min="1" step="1" value="1">
-                      <select id="sched-every-unit" class="form-select" aria-label="Unit">
-                        <option value="s">seconds</option>
+                      <input type="number" id="schedule-every" class="form-control" min="1" step="1" value="1">
+                      <select id="schedule-every-unit" class="form-select" aria-label="Unit">
                         <option value="m">minutes</option>
                         <option value="h" selected>hours</option>
                         <option value="d">days</option>
@@ -463,8 +636,8 @@
                     </div>
                   </div>
                   <div data-when="weekly">
-                    <label class="form-label" for="sched-weekday">Day</label>
-                    <select id="sched-weekday" class="form-select">
+                    <label class="form-label" for="schedule-weekday">Day</label>
+                    <select id="schedule-weekday" class="form-select">
                       <option value="monday">Monday</option>
                       <option value="tuesday">Tuesday</option>
                       <option value="wednesday">Wednesday</option>
@@ -475,197 +648,107 @@
                     </select>
                   </div>
                   <div data-when="monthly">
-                    <label class="form-label" for="sched-monthday">Day of the month</label>
-                    <input type="number" id="sched-monthday" class="form-control" min="1" max="31" step="1" value="1" title="31 in a shorter month means its last day">
+                    <label class="form-label" for="schedule-monthday">Day of the month</label>
+                    <input type="number" id="schedule-monthday" class="form-control" min="1" max="31" step="1" value="1" title="31 in a shorter month means its last day">
                   </div>
                   <div data-when="daily weekly monthly">
-                    <label class="form-label" for="sched-time">Time</label>
-                    <input type="text" id="sched-time" class="form-control" placeholder="08:00" autocomplete="off">
-                  </div>
-                </div>
-                <div class="jobs-fields">
-                  <div>
-                    <label class="form-label" for="sched-max-runs">Run at most</label>
-                    <input type="number" id="sched-max-runs" class="form-control" min="1" step="1" placeholder="No limit">
+                    <label class="form-label" for="schedule-time">Time</label>
+                    <input type="text" id="schedule-time" class="form-control" placeholder="08:00" autocomplete="off" data-picker="time">
                   </div>
                   <div>
-                    <label class="form-label" for="sched-until">Stop after</label>
-                    <input type="text" id="sched-until" class="form-control" placeholder="Never" title="A date and time, for example 2027-06-30 23:59" autocomplete="off">
-                  </div>
-                  <div>
-                    <label class="form-label" for="sched-timeout">Time limit (s)</label>
-                    <input type="number" id="sched-timeout" class="form-control" min="1" max="86400" step="1" placeholder="Kind's own">
-                  </div>
-                  <div>
-                    <label class="form-label" for="sched-retries">Retries if it fails</label>
-                    <input type="number" id="sched-retries" class="form-control" min="0" max="10" step="1" value="0">
-                  </div>
-                  <div class="jobs-span2">
-                    <label class="form-label" for="sched-retry-wait">First retry after</label>
-                    <div class="jobs-pair">
-                      <input type="number" id="sched-retry-wait" class="form-control" min="1" step="1" value="1">
-                      <select id="sched-retry-unit" class="form-select" aria-label="Unit">
-                        <option value="s">seconds</option>
-                        <option value="m" selected>minutes</option>
-                        <option value="h">hours</option>
-                        <option value="d">days</option>
-                      </select>
-                    </div>
+                    <label class="form-label" for="schedule-max">Run at most</label>
+                    <input type="number" id="schedule-max" class="form-control" min="1" max="999999" step="1" placeholder="No limit">
                   </div>
                 </div>
-                <div class="jobs-switches">
-                  <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="sched-enabled" checked><label class="form-check-label" for="sched-enabled">On</label></div>
-                  <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="sched-catch-up" checked><label class="form-check-label" for="sched-catch-up">Make up a run missed while the app was closed</label></div>
-                  <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="sched-doubling" checked><label class="form-check-label" for="sched-doubling">Double the wait before each retry</label></div>
+                <div id="schedule-then" class="jobs-then"></div>
+                <div class="jobs-toggle form-check form-switch">
+                  <input class="form-check-input" type="checkbox" role="switch" id="schedule-enabled" checked>
+                  <label class="form-check-label" for="schedule-enabled">Enabled</label>
                 </div>
-                <div class="jobs-wide">
-                  <label class="form-label" for="sched-note">Note</label>
-                  <input type="text" id="sched-note" class="form-control" maxlength="500" autocomplete="off">
-                </div>
+                <hr class="jobs-divider">
                 <div class="jobs-actions">
-                  <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-check-lg me-1"></i>Save</button>
-                  <button type="button" id="btn-sched-cancel" class="btn btn-secondary btn-sm"><i class="bi bi-x-lg me-1"></i>Cancel</button>
-                  <button type="button" id="btn-sched-delete" class="btn btn-secondary btn-sm d-none" aria-label="Delete this schedule"><i class="bi bi-trash me-1"></i>Delete</button>
+                  <button type="button" id="btn-schedule-save" class="btn btn-primary btn-sm"><i class="bi bi-check-lg me-1"></i>Save</button>
+                  <button type="button" id="btn-schedule-cancel" class="btn btn-secondary btn-sm"><i class="bi bi-x-lg me-1"></i>Cancel</button>
                 </div>
-                <p id="sched-editor-error" class="jobs-error" role="alert"></p>
+                <p id="schedule-error" class="jobs-error" role="alert"></p>
               </div>
-            </form>
-
+            </div>
             <div class="card card-custom">
               <div class="table-responsive jobs-table-wrap">
-                <table class="table table-custom table-hover mb-0 jobs-table sched-table">
+                <table class="table table-custom table-hover mb-0 jobs-table auto-table">
                   <caption class="visually-hidden">Schedules</caption>
                   <thead>
-                    <tr><th scope="col">Schedule</th><th scope="col">When and next</th><th scope="col" class="jobs-narrow-hide">Runs</th><th scope="col" class="jobs-extra">Last result</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr>
+                    <tr><th scope="col" class="jobs-col-on">On</th><th scope="col">Schedule</th><th scope="col">Next run</th><th scope="col" class="jobs-col-buttons"><span class="visually-hidden">Buttons</span></th></tr>
                   </thead>
-                  <tbody id="sched-rows"></tbody>
+                  <tbody id="schedule-rows"></tbody>
                 </table>
               </div>
             </div>
-
-            <div id="sched-history" class="card card-custom jobs-inspect d-none" aria-live="polite">
-              <div class="card-header">
-                <h2 class="h6 card-header-title mb-0" id="sched-history-title">History</h2>
-                <button type="button" id="btn-sched-history-close" class="btn btn-secondary btn-sm jobs-inspect-close" aria-label="Close the history" title="Close"><i class="bi bi-x-lg"></i></button>
-              </div>
-              <div class="table-responsive">
-                <table class="table table-custom mb-0 jobs-table">
-                  <thead><tr><th scope="col">Finished</th><th scope="col">Result</th><th scope="col">Started by</th><th scope="col">Job</th><th scope="col">Output (the end)</th></tr></thead>
-                  <tbody id="sched-history-rows"></tbody>
-                </table>
-              </div>
-            </div>
-            <p class="jobs-note">Schedules start jobs while the app is open. They are kept in <span id="sched-path">jobs.json</span>, which can also be edited by hand (then press Reload). A schedule that fails several times in a row is paused (see Options); Resume starts it again. Retries happen before a failure counts.</p>
+            <p class="jobs-note">A schedule starts its actions at set times while the app is open. If the app was closed when a run was due, it runs once when the app starts, however many were missed. Runs missed while a schedule was off are not made up. Run now starts its actions at once without changing its timetable.</p>
           </div>
 
-          <div data-jobs-pane="rules" class="d-none">
+          <!-- Actions -->
+          <div data-jobs-pane="action" class="d-none">
             <div class="jobs-toolbar">
-              <button type="button" id="btn-rule-add" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>Add rule</button>
+              <button type="button" id="btn-action-new" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>New action</button>
             </div>
-            <p id="rule-status" class="jobs-status" role="status" aria-live="polite"></p>
-
-            <form id="rule-editor" class="card card-custom jobs-editor d-none" novalidate>
-              <div class="card-header"><h2 class="h6 card-header-title mb-0" id="rule-editor-title">New rule</h2></div>
-              <div class="card-body">
-                <div class="jobs-fields">
-                  <div>
-                    <label class="form-label" for="rule-name">Name</label>
-                    <input type="text" id="rule-name" class="form-control" maxlength="32" placeholder="on_failure_alert" autocomplete="off">
-                  </div>
-                  <div>
-                    <label class="form-label" for="rule-source">When schedule</label>
-                    <select id="rule-source" class="form-select"></select>
-                  </div>
-                  <div>
-                    <label class="form-label" for="rule-ended">Ends</label>
-                    <select id="rule-ended" class="form-select">
-                      <option value="done">succeeds</option>
-                      <option value="failed">fails</option>
-                      <option value="timed_out">times out</option>
-                      <option value="killed">is killed</option>
-                      <option value="not_done">does not succeed</option>
-                      <option value="any">finishes in any way</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label class="form-label" for="rule-label">With result</label>
-                    <input type="text" id="rule-label" class="form-control" maxlength="32" placeholder="Any" autocomplete="off">
-                  </div>
-                  <div>
-                    <label class="form-label" for="rule-value-field">Value field</label>
-                    <input type="text" id="rule-value-field" class="form-control" maxlength="100" placeholder="Any, or for example percent" autocomplete="off">
-                  </div>
-                  <div>
-                    <label class="form-label" for="rule-value-above">Is above</label>
-                    <input type="text" id="rule-value-above" class="form-control" inputmode="decimal" placeholder="Number" autocomplete="off">
-                  </div>
-                  <div>
-                    <label class="form-label" for="rule-value-below">Is below</label>
-                    <input type="text" id="rule-value-below" class="form-control" inputmode="decimal" placeholder="Number" autocomplete="off">
-                  </div>
-                  <div>
-                    <label class="form-label" for="rule-value-equals">Equals</label>
-                    <input type="text" id="rule-value-equals" class="form-control" maxlength="200" placeholder="Number or text" autocomplete="off">
-                  </div>
-                  <div>
-                    <label class="form-label" for="rule-times">Times in a row</label>
-                    <input type="number" id="rule-times" class="form-control" min="1" max="1000" step="1" value="1">
-                  </div>
-                  <div>
-                    <label class="form-label" for="rule-action">Then</label>
-                    <select id="rule-action" class="form-select">
-                      <option value="start">start</option>
-                      <option value="enable">turn on</option>
-                      <option value="disable">turn off</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label class="form-label" for="rule-target">Schedule</label>
-                    <select id="rule-target" class="form-select"></select>
-                  </div>
-                </div>
-                <div class="jobs-switches">
-                  <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="rule-enabled" checked><label class="form-check-label" for="rule-enabled">On</label></div>
-                  <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="rule-changed"><label class="form-check-label" for="rule-changed">Only when the output or value changed since the last success</label></div>
-                </div>
-                <div class="jobs-wide">
-                  <label class="form-label" for="rule-note">Note</label>
-                  <input type="text" id="rule-note" class="form-control" maxlength="500" autocomplete="off">
-                </div>
-                <div class="jobs-actions">
-                  <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-check-lg me-1"></i>Save</button>
-                  <button type="button" id="btn-rule-cancel" class="btn btn-secondary btn-sm"><i class="bi bi-x-lg me-1"></i>Cancel</button>
-                </div>
-                <p id="rule-editor-error" class="jobs-error" role="alert"></p>
-              </div>
-            </form>
-
+            <div id="action-home"></div>
             <div class="card card-custom">
               <div class="table-responsive jobs-table-wrap">
-                <table class="table table-custom table-hover mb-0 jobs-table sched-table">
-                  <caption class="visually-hidden">Rules</caption>
+                <table class="table table-custom table-hover mb-0 jobs-table auto-table">
+                  <caption class="visually-hidden">Actions</caption>
                   <thead>
-                    <tr><th scope="col">Rule</th><th scope="col">What it does</th><th scope="col" class="jobs-narrow-hide">In a row</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr>
+                    <tr><th scope="col" class="jobs-col-on">On</th><th scope="col">Action</th><th scope="col">Last result</th><th scope="col" class="jobs-col-buttons"><span class="visually-hidden">Buttons</span></th></tr>
                   </thead>
-                  <tbody id="rule-rows"></tbody>
+                  <tbody id="action-rows"></tbody>
                 </table>
               </div>
             </div>
-            <p class="jobs-note">A rule watches one schedule's results. When they match the given number of times in a row, it starts, turns on or turns off another schedule (or the same one). A result that does not match starts the count again. "Turn on" and "turn off" by a rule last until the schedule is saved or switched here. A chain of rules stops after <span id="rule-max-chain">10</span> links, so rules cannot start each other for ever. Value tests look at the result value a job returns (a script writes it to $JOB_RESULT, for example {"value": {"percent": 92}}); a missing field or text where a number is needed does not match. The first successful run is never a change.</p>
+            <p class="jobs-note">An action does the work: shows a notification, runs a command, asks an AI, or switches a trigger, schedule or action on or off. Triggers and schedules start actions; Run starts one now. When an action succeeds it can start more actions. A chain stops after <span id="auto-max-chain">10</span> actions, so actions cannot start each other for ever. An action that is off only runs with its Run button.</p>
           </div>
 
-          <div data-jobs-pane="upcoming" class="d-none">
-            <div class="card card-custom">
-              <div class="table-responsive">
-                <table class="table table-custom mb-0 jobs-table">
-                  <caption class="visually-hidden">Runs in the next 24 hours</caption>
-                  <thead><tr><th scope="col">When</th><th scope="col">Schedule</th><th scope="col">Why</th></tr></thead>
-                  <tbody id="upcoming-rows"></tbody>
-                </table>
+          <!-- The action editor. It lives here and moves into a trigger or schedule editor when "New action" is pressed there. -->
+          <div id="action-editor" class="card card-custom jobs-editor d-none">
+            <div class="card-header"><h2 class="h6 card-header-title mb-0" id="action-editor-title">New action</h2></div>
+            <div class="card-body">
+              <div class="jobs-fields">
+                <div>
+                  <label class="form-label" for="action-name">Name</label>
+                  <input type="text" id="action-name" class="form-control" maxlength="60" placeholder="Notify GBP price" autocomplete="off">
+                </div>
+              </div>
+              <div id="action-kind-fields" class="jobs-section"></div>
+              <div id="action-then" class="jobs-then"></div>
+              <div class="jobs-toggle form-check form-switch">
+                <input class="form-check-input" type="checkbox" role="switch" id="action-enabled" checked>
+                <label class="form-check-label" for="action-enabled">Enabled</label>
+              </div>
+              <hr class="jobs-divider">
+              <div class="jobs-actions">
+                <button type="button" id="btn-action-save" class="btn btn-primary btn-sm"><i class="bi bi-check-lg me-1"></i>Save action</button>
+                <button type="button" id="btn-action-cancel" class="btn btn-secondary btn-sm"><i class="bi bi-x-lg me-1"></i>Cancel</button>
+              </div>
+              <p id="action-error" class="jobs-error" role="alert"></p>
+            </div>
+          </div>
+
+          <div id="jobs-inspect" class="card card-custom jobs-inspect d-none" aria-live="polite">
+            <div class="card-header">
+              <h2 class="h6 card-header-title mb-0" id="jobs-inspect-title">Job</h2>
+              <button type="button" id="btn-jobs-inspect-close" class="btn btn-secondary btn-sm jobs-inspect-close" aria-label="Close the details" title="Close"><i class="bi bi-x-lg"></i></button>
+            </div>
+            <div class="card-body">
+              <dl id="jobs-inspect-list" class="jobs-inspect-list mb-0"></dl>
+              <div id="jobs-output-box" class="jobs-output-box d-none">
+                <div class="jobs-output-head">
+                  <span class="form-label mb-0" id="jobs-output-title">Output</span>
+                  <button type="button" id="btn-jobs-output-copy" class="btn btn-secondary btn-sm"><i class="bi bi-clipboard me-1"></i>Copy</button>
+                </div>
+                <pre id="jobs-output" class="jobs-output" tabindex="0" aria-labelledby="jobs-output-title"></pre>
               </div>
             </div>
-            <p class="jobs-note">Runs the timetables will start in the next 24 hours, soonest first. Jobs that rules will start depend on results, so they are not listed.</p>
           </div>
+          <p class="jobs-note">Everything here is kept in <span id="auto-path">jobs.json</span> in the settings folder, which can also be edited by hand (then press Reload).</p>
         </div>
         <div class="tab-pane" id="page-errors" role="tabpanel" aria-labelledby="tab-errors" tabindex="0">
           <div class="errors-toolbar">
@@ -704,7 +787,7 @@
                   <dt>Moving between pages</dt>
                   <dd>Choose a page from the menu. On the Options tab, Menu layout switches between tabs across the top (Horizontal) and a menu down the left side (Vertical). In the vertical menu, the button at the top left contracts the menu to icons and expands it again. The app remembers your choice.</dd>
                   <dt>Jobs</dt>
-                  <dd>The Jobs page starts mock jobs that run in Rust as Tokio tasks and count up to a number, pausing between counts. "At once" sets how many run at the same time (1 to 3, also on the Options tab); the rest wait in the queue. Each row shows progress, time spent waiting and running, and how late the pauses ended. Inspect shows a job's details, including its Tokio task, and Kill stops it: before it starts if it is still queued, or at its next pause if it is running. "Fail at step" makes a job fail on purpose, to test error handling.</dd>
+                  <dd>The Jobs page opens on the Overview: every trigger, schedule and action in three sections you can reorder by dragging, with sorting, a filter, 30 rows a page, a summary on hover, and buttons to switch everything on or off, delete everything or restore the demonstration entries; click a row to open it. Triggers watch a value on a web page (by id or class, as text or a number) or on this computer (CPU, memory, disk, graphics card memory, a file) and start their actions when it changes or goes above, below or equal to a value you set, once each time that becomes true. Schedules start their actions at set times: once, every so often, daily, weekly or monthly. Actions do the work: a notification, a command, an AI prompt, or managing the jobs and the app itself; when one succeeds it can start more. Notifications and prompts can quote the reading with {value.text} or {value.number}, the reading before with {previous.text}, and what the action before printed with {output}. Fire now, Run now and Run start things at once, so nothing needs waiting for. Running now lists what is running, with Kill. Ctrl+K finds any trigger, schedule or action by name. Everything is kept in jobs.json in the settings folder.</dd>
                   <dt>Errors</dt>
                   <dd>The Errors page lists errors and warnings, newest first, including errors in the page's own scripts. They are saved in errors.jsonl in the settings folder, so after a restart the earlier ones are still listed, greyed. New ones appear at once; while another page is open, a red count on the Errors menu entry shows how many arrived. Copy puts the list on the clipboard, Clear empties it (and the file), and Test records a test error. Options, Errors kept, sets how many are kept (10 to 1000, default 100).</dd>
                   <dt>Searching</dt>
@@ -746,6 +829,7 @@
               <div class="card-header"><h2 class="h6 card-header-title mb-0" id="help-changelog-title"><i class="bi bi-journal-text me-2" aria-hidden="true"></i>Change log</h2></div>
               <div class="card-body">
                 <ul class="help-changelog">
+                  <li><strong>0.2.6, 16 November 2026.</strong> Jobs rebuilt as Triggers, Schedules and Actions. Triggers watch a value on a web page (by id or class, as text or a number; HTTPS now built in) or on this computer (CPU load, memory, disk space, graphics card memory, a file or its permissions) and start their actions when it changes or goes above, below or equal to a value you set, once each time. Schedules start actions once, every so often, daily, weekly or monthly. Actions show a notification, run a command, ask an AI, switch an entry on or off, fire a trigger, delay a schedule, change a count, delete an entry, write to the log, clear the Errors list, or show, hide, quit or restart the app, and can start more actions in a chain. Fire now, Run now and Run test everything without waiting. The page opens on an Overview with sorting, a filter, hover summaries and buttons to switch everything on or off; Ctrl+K finds any job by name; Running now shows what runs, with Kill. Everything is kept in jobs.json and survives a restart. Select lists and a new date and time picker follow the theme's colours.</li>
                   <li><strong>0.2.5, 15 November 2026.</strong> The Jobs page has schedules and rules. Schedules run a job once, every so often, daily, weekly or monthly, with run limits, end dates, retries and catch-up; rules start, turn on or turn off a schedule when another ends a given way, a number of times in a row. Two job kinds: Command (a bash script in any folder) and AI prompt (Claude Code, Codex, GrokBuild, or a local Ollama or llama.cpp server). A job started by a rule is given the result of the job before it ({previous_output} in a prompt, $PREVIOUS_OUTPUT in a script), so jobs form pipelines. Inspect shows what a job printed or answered. The Ollama model list leaves out image models. Pause everything stops all schedules and rules. The counting demo is gone. Later the same day: a script can report its own result (label, value such as a percentage, message) by writing JSON to $JOB_RESULT, and progress to $JOB_PROGRESS; rules can test a value (above, below, equals) or react only when the output changed; a new Notification job shows a desktop notification; prompts and notifications can quote the earlier result ({previous_value.percent}, {previous_message}), so an AI can react to a job's outcome. Errors and warnings are kept in errors.jsonl and still listed after a restart.</li>
                   <li><strong>0.2.4, 14 November 2026.</strong> Double-click the tray icon to hide or show the window, now on Linux too. New option "Hide to the tray" (on by default): hiding takes the window off the taskbar; turn it off to minimise to the taskbar instead. A hidden window comes back centred on the main screen. Options now sits with Help at the end of the menu. Racing Green is the default theme, and Alt+1 to Alt+9 follow the menu order. Settings files are recreated when missing, and a file over its size limit is set aside as .corrupt and replaced with defaults. If the start-up script fails, the window still appears after 5 seconds and the Errors page says why. The Errors badge now counts every warning from start-up.</li>
                   <li><strong>0.2.3, 13 November 2026.</strong> The Jobs table fits narrow windows: it hides Waited and Late by, then Ran and the bar, as space runs out (Inspect still shows them). Select boxes no longer draw their arrow over the text. New shortcut keys, set in keys.json in the settings folder: / or Ctrl+K for search, Alt+1 to Alt+9 for the pages, Escape to leave a text box. They are listed on this page.</li>
@@ -792,6 +876,8 @@
   <script src="js/errors.js"></script>
   <script src="js/bootstrap.bundle.min.js"></script>
   <script src="js/window.js"></script>
+  <script src="js/select_menu.js"></script>
+  <script src="js/datetime_picker.js"></script>
   <script src="js/tabs_fit.js"></script>
   <script src="js/sortable.js"></script>
   <script src="js/table_search.js"></script>
@@ -805,7 +891,8 @@
   <script src="js/keys.js"></script>
   <script src="js/job_forms.js"></script>
   <script src="js/jobs.js"></script>
-  <script src="js/schedules.js"></script>
+  <script src="js/automation.js"></script>
+  <script src="js/jobs_overview.js"></script>
 </body>
 </html>
   

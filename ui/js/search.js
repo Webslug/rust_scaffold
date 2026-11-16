@@ -3,7 +3,13 @@
    the chosen one: selects its tab, opens a closed accordion panel, scrolls
    the element into view, focuses it and outlines it briefly. Matching starts
    at three characters. The library is re-read each time the box gets focus,
-   so edits to search.json need no restart. */
+   so edits to search.json need no restart.
+
+   Pages with entries that change while the app runs (the Jobs page's
+   triggers, schedules and actions) add them with
+   window.AppSearch.addSource(fn): fn() returns entries like the library's,
+   each with a run() that is called, after its tab is shown, instead of
+   jumping to an element. */
 (function () {
   "use strict";
 
@@ -21,7 +27,8 @@
   var helpStatus = document.getElementById("help-search-status");
   var helpProblems = document.getElementById("help-search-problems");
 
-  var entries = [];      // usable entries, library first, then tabs
+  var entries = [];      // usable entries, library first, then live, then tabs
+  var sources = [];      // functions returning live entries (addSource)
   var shown = [];        // entries currently in the list
   var active = -1;       // index into shown, or -1
   var highlighted = null;
@@ -88,14 +95,32 @@
         }
         return true;
       });
-      entries = library.concat(tabEntries().filter(function (tab) {
+      entries = library.concat(liveEntries(), tabEntries().filter(function (tab) {
         return !library.some(function (e) { return e.page === tab.page && !e.target; });
       }));
       showLibraryState(reply, problems);
     }).catch(function (err) {
-      entries = tabEntries();
+      entries = liveEntries().concat(tabEntries());
       if (helpStatus) { helpStatus.textContent = "Could not load search.json: " + err; }
     });
+  }
+
+  function liveEntries() {
+    var live = [];
+    sources.forEach(function (fn) {
+      try {
+        (fn() || []).forEach(function (entry) {
+          if (document.getElementById("tab-" + entry.page)) {
+            live.push({ label: entry.label, page: entry.page, keywords: entry.keywords || [], icon: entry.icon, run: entry.run });
+          }
+        });
+      } catch (e) {
+        // A broken source must not break the search; the error reaches the
+        // Errors page through errors.js.
+        setTimeout(function () { throw e; });
+      }
+    });
+    return live;
   }
 
   /* ---- matching. Every word typed must match something; the best entries
@@ -267,6 +292,7 @@
       return;
     }
     bootstrap.Tab.getOrCreateInstance(tab).show();
+    if (entry.run) { entry.run(); return; }
     reveal(entry);
   }
 
@@ -304,7 +330,7 @@
   openButton.addEventListener("click", openSearch);
 
   // Shortcut keys (keys.js) open the search through this.
-  window.AppSearch = { open: openSearch };
+  window.AppSearch = { open: openSearch, addSource: function (fn) { sources.push(fn); } };
 
   load();
 })();

@@ -1,13 +1,15 @@
-/* Input fields for each job kind, shared by the Queue view ("Run a job
-   now") and the schedule editor (js/schedules.js). The kinds themselves are
-   defined in src-tauri/src/job_kinds.rs; Rust checks every input again
-   before a job is queued or a schedule saved, so these forms only help to
-   fill it in.
+/* Input fields for each kind of Action, used by the Action editor
+   (js/automation.js). The job kinds are defined in
+   src-tauri/src/job_kinds.rs, "switch" in src-tauri/src/automation.rs;
+   Rust checks every input again before an Action is saved, so these forms
+   only help to fill it in.
 
    window.JobForms.mount(container, prefix) returns an object with
    set(kind, input) and read() -> { kind, input } (read throws an Error with
    a message for people when a field cannot be read). A kind without a form
-   here gets a plain JSON box, so new kinds work before they get a form. */
+   here gets a plain JSON box, so new kinds work before they get a form.
+   window.JobForms.names is set by js/automation.js: names(section) lists
+   the Triggers, Schedules or Actions a "switch" can choose from. */
 (function () {
   "use strict";
 
@@ -19,10 +21,17 @@
     { value: "grok_build", label: "GrokBuild", model: "optional, the tool's default" }
   ];
 
-  var KIND_LABELS = { command: "Command (bash)", ai: "AI prompt", notify: "Notification" };
+  var KIND_LABELS = {
+    notify: "Notification", command: "Command (bash)", ai: "AI prompt", "switch": "Switch on or off",
+    delay: "Delay a schedule", set_count: "Change a count", "delete": "Delete an entry", fire: "Fire a trigger",
+    log: "Write to the log", clear_errors: "Clear the Errors list", app: "Show, hide, quit or restart the app"
+  };
+  // The order of the Kind list.
+  var KIND_ORDER = ["notify", "command", "ai", "switch", "fire", "delay", "set_count", "delete", "log", "clear_errors", "app"];
 
-  var PLACEHOLDERS = "{previous_output}, {previous_value}, {previous_value.FIELD} (one field, for example {previous_value.percent}), " +
-    "{previous_message}, {previous_label}, {previous_state} and {previous_schedule}";
+  var PLACEHOLDERS = "{value.text} and {value.number} (the trigger's reading), {previous.text} and {previous.number} " +
+    "(its reading before the last change), {output} (what the action before this one printed or answered) and {from} (what started it). " +
+    "Run gives them the latest reading of the trigger that starts this action; a schedule gives none";
 
   var ENDPOINTS = {
     ollama: "http://127.0.0.1:11434/api/chat",
@@ -80,12 +89,9 @@
       row.appendChild(field(p + "folder", "Run in folder", folder));
       box.appendChild(row);
       box.appendChild(el("p", "jobs-subtle jobs-form-note",
-        "Result: the exit code, unless the script writes JSON to the file $JOB_RESULT, for example " +
-        "{\"label\": \"disk_high\", \"value\": {\"percent\": 92}, \"message\": \"92% full\"} (each part optional). " +
-        "Rules can test the label and value. Progress: write 40/100 or 40% to the file $JOB_PROGRESS."));
-      box.appendChild(el("p", "jobs-subtle jobs-form-note",
-        "When a rule starts this job, the job before it is in $PREVIOUS_OUTPUT (its output; the whole of it in the file $PREVIOUS_OUTPUT_FILE), " +
-        "$PREVIOUS_VALUE (JSON), $PREVIOUS_MESSAGE, $PREVIOUS_LABEL, $PREVIOUS_STATE and $PREVIOUS_SCHEDULE. Use them in quotes, for example \"$PREVIOUS_OUTPUT\"."));
+        "It succeeds when the exit code is 0. What it prints is its output, which the next action gets. " +
+        "It is given $JOB_VALUE and $JOB_PREVIOUS (the trigger's reading now and before, as JSON), $JOB_OUTPUT " +
+        "(what the action before printed; all of it in the file $JOB_OUTPUT_FILE) and $JOB_FROM. Use them in quotes, for example \"$JOB_OUTPUT\"."));
       return {
         set: function (v) {
           script.value = v.script || "";
@@ -127,8 +133,7 @@
       var note = el("p", "jobs-subtle jobs-form-note");
       box.appendChild(note);
       box.appendChild(el("p", "jobs-subtle jobs-form-note",
-        "When a rule starts this job, the prompt can quote the job before it: " + PLACEHOLDERS +
-        ". {previous_output} brings in its last 12,000 characters."));
+        "The prompt can quote " + PLACEHOLDERS + ". {output} brings in its last 12,000 characters. The answer is this action's output."));
 
       var OTHER = "__other";
       var listed = null; // names from Ollama, or null when not listed
@@ -228,8 +233,8 @@
   };
 
   FORMS.notify = function (box, p) {
-    var title = input("Disk {previous_value.percent}% full");
-    var text = textarea(3, "{previous_message}");
+    var title = input("GBP now {value.text}");
+    var text = textarea(3, "It was {previous.text}");
     var urgency = el("select", "form-select");
     [["low", "Low"], ["normal", "Normal"], ["critical", "Critical (stays until closed)"]].forEach(function (u) {
       var o = el("option", "", u[1]);
@@ -251,7 +256,7 @@
     check.appendChild(soundLabel);
     box.appendChild(check);
     box.appendChild(el("p", "jobs-subtle jobs-form-note",
-      "Shows a desktop notification. When a rule starts it, the title and text can quote the job before it: " + PLACEHOLDERS +
+      "Shows a desktop notification. The title and text can quote " + PLACEHOLDERS +
       ". Whether a sound plays depends on the desktop."));
     return {
       set: function (v) {
@@ -266,6 +271,213 @@
         if (sound.checked) { v.sound = true; }
         return v;
       }
+    };
+  };
+
+  FORMS["switch"] = function (box, p) {
+    var section = el("select", "form-select");
+    [["trigger", "Trigger"], ["schedule", "Schedule"], ["action", "Action"]].forEach(function (x) {
+      var o = el("option", "", x[1]);
+      o.value = x[0];
+      section.appendChild(o);
+    });
+    var name = el("select", "form-select");
+    var state = el("select", "form-select");
+    [["off", "Switch it off"], ["on", "Switch it on"]].forEach(function (x) {
+      var o = el("option", "", x[1]);
+      o.value = x[0];
+      state.appendChild(o);
+    });
+    var row = el("div", "jobs-fields");
+    row.appendChild(field(p + "section", "What", section));
+    row.appendChild(field(p + "name", "Which", name));
+    row.appendChild(field(p + "state", "Do", state));
+    box.appendChild(row);
+    box.appendChild(el("p", "jobs-subtle jobs-form-note",
+      "Switching a trigger on starts it afresh: its next reading only records the value. A schedule switched on makes up no runs from while it was off."));
+
+    function fillNames(keep) {
+      var names = window.JobForms.names ? window.JobForms.names(section.value) : [];
+      name.textContent = "";
+      names.forEach(function (n) {
+        var o = el("option", "", n);
+        o.value = n;
+        name.appendChild(o);
+      });
+      if (keep && names.indexOf(keep) < 0) {
+        var o = el("option", "", keep + " (missing)");
+        o.value = keep;
+        name.appendChild(o);
+      }
+      if (keep) { name.value = keep; }
+    }
+    section.addEventListener("change", function () { fillNames(null); });
+
+    return {
+      set: function (v) {
+        section.value = v.section || "trigger";
+        fillNames(v.name || null);
+        state.value = v.enabled ? "on" : "off";
+      },
+      read: function () {
+        if (!name.value) { throw new Error("there is no " + section.value + " to switch yet"); }
+        return { section: section.value, name: name.value, enabled: state.value === "on" };
+      }
+    };
+  };
+
+  function options(select, pairs) {
+    select.textContent = "";
+    pairs.forEach(function (p) {
+      var o = el("option", "", p[1]);
+      o.value = p[0];
+      select.appendChild(o);
+    });
+  }
+
+  // A list of the entries in one section; keeps a missing name visible.
+  function namePicker(select, section, keep) {
+    var names = window.JobForms.names ? window.JobForms.names(section) : [];
+    options(select, names.map(function (n) { return [n, n]; }));
+    if (keep && names.indexOf(keep) < 0) {
+      var o = el("option", "", keep + " (missing)");
+      o.value = keep;
+      select.appendChild(o);
+    }
+    if (keep) { select.value = keep; }
+  }
+
+  function note(box, text) {
+    box.appendChild(el("p", "jobs-subtle jobs-form-note", text));
+  }
+
+  // Section and name, for set_count and delete.
+  function targetForm(box, p, sections, extra) {
+    var section = el("select", "form-select");
+    options(section, sections);
+    var name = el("select", "form-select");
+    var row = el("div", "jobs-fields");
+    row.appendChild(field(p + "section", "What", section));
+    row.appendChild(field(p + "name", "Which", name));
+    if (extra) { row.appendChild(extra.box); }
+    box.appendChild(row);
+    section.addEventListener("change", function () { namePicker(name, section.value, null); });
+    return {
+      set: function (v) {
+        section.value = v.section || sections[0][0];
+        namePicker(name, section.value, v.name || null);
+      },
+      read: function () {
+        if (!name.value) { throw new Error("there is no " + section.value + " to choose yet"); }
+        return { section: section.value, name: name.value };
+      }
+    };
+  }
+
+  FORMS.delay = function (box, p) {
+    var schedule = el("select", "form-select");
+    var amount = input("2");
+    amount.type = "number";
+    amount.min = "1";
+    var unit = el("select", "form-select");
+    options(unit, [["m", "minutes"], ["h", "hours"], ["d", "days"]]);
+    var row = el("div", "jobs-fields");
+    row.appendChild(field(p + "schedule", "Schedule", schedule));
+    var pair = el("div", "jobs-pair");
+    pair.appendChild(amount);
+    pair.appendChild(unit);
+    unit.setAttribute("aria-label", "Unit");
+    row.appendChild(field(p + "by", "Delay its next run by", pair));
+    box.appendChild(row);
+    note(box, "Moves the schedule's next run later; the runs after it follow its timetable again.");
+    return {
+      set: function (v) {
+        namePicker(schedule, "schedule", v.schedule || null);
+        var m = /^(\d+)\s*([smhd])$/.exec(v.by || "");
+        amount.value = m ? m[1] : "1";
+        unit.value = m && m[2] !== "s" ? m[2] : "h";
+      },
+      read: function () {
+        if (!schedule.value) { throw new Error("there is no schedule to delay yet"); }
+        var n = Number(amount.value);
+        if (!(n >= 1)) { throw new Error("the delay needs a number"); }
+        return { schedule: schedule.value, by: n + unit.value };
+      }
+    };
+  };
+
+  FORMS.set_count = function (box, p) {
+    var count = input("No limit");
+    count.type = "number";
+    count.min = "1";
+    count.max = "999999";
+    var target = targetForm(box, p, [["trigger", "Trigger (fire at most)"], ["schedule", "Schedule (run at most)"]],
+      { box: field(p + "count", "Set to", count) });
+    note(box, "Sets how many more times a trigger may fire or a schedule may run; empty means no limit.");
+    return {
+      set: function (v) { target.set(v); count.value = v.count ? String(v.count) : ""; },
+      read: function () {
+        var v = target.read();
+        v.count = count.value.trim() ? Number(count.value) : null;
+        return v;
+      }
+    };
+  };
+
+  FORMS["delete"] = function (box, p) {
+    var target = targetForm(box, p, [["trigger", "Trigger"], ["schedule", "Schedule"], ["action", "Action"]]);
+    note(box, "Deletes the entry for good. This action goes with it once it has done its work.");
+    return target;
+  };
+
+  FORMS.fire = function (box, p) {
+    var trigger = el("select", "form-select");
+    var row = el("div", "jobs-fields");
+    row.appendChild(field(p + "trigger", "Trigger", trigger));
+    box.appendChild(row);
+    note(box, "Reads the trigger's value at once and starts its actions, as its Fire now button does.");
+    return {
+      set: function (v) { namePicker(trigger, "trigger", v.trigger || null); },
+      read: function () {
+        if (!trigger.value) { throw new Error("there is no trigger to fire yet"); }
+        return { trigger: trigger.value };
+      }
+    };
+  };
+
+  FORMS.log = function (box, p) {
+    var level = el("select", "form-select");
+    options(level, [["info", "Information"], ["warn", "Warning (Errors page)"], ["error", "Error (Errors page)"]]);
+    var text = input("Price now {value.text}");
+    var row = el("div", "jobs-fields");
+    row.appendChild(field(p + "level", "Level", level));
+    box.appendChild(row);
+    box.appendChild(field(p + "text", "Text", text, true));
+    note(box, "Warnings and errors appear on the Errors page; information goes to debug.log when DEBUG_MODE is on. The text can quote " + PLACEHOLDERS + ".");
+    return {
+      set: function (v) { level.value = v.level || "warn"; text.value = v.text || ""; },
+      read: function () {
+        if (!text.value.trim()) { throw new Error("the text is empty"); }
+        return { level: level.value, text: text.value };
+      }
+    };
+  };
+
+  FORMS.clear_errors = function (box) {
+    note(box, "Empties the Errors page list (and errors.jsonl).");
+    return { set: function () {}, read: function () { return {}; } };
+  };
+
+  FORMS.app = function (box, p) {
+    var what = el("select", "form-select");
+    options(what, [["show", "Show the window"], ["hide", "Hide the window"], ["quit", "Quit the app"], ["restart", "Restart the app"]]);
+    var row = el("div", "jobs-fields");
+    row.appendChild(field(p + "do", "Do", what));
+    box.appendChild(row);
+    note(box, "Hide works as the tray does (Options: Hide to the tray). Quit and restart are never done for a schedule run made up after the app was closed.");
+    return {
+      set: function (v) { what.value = v["do"] || "show"; },
+      read: function () { return { "do": what.value }; }
     };
   };
 
@@ -299,7 +511,7 @@
   function mount(container, prefix) {
     var kindSelect = el("select", "form-select");
     var top = el("div", "jobs-fields");
-    top.appendChild(field(prefix + "kind", "Job", kindSelect));
+    top.appendChild(field(prefix + "kind", "Kind", kindSelect));
     var body = el("div", "jobs-kind-fields");
     container.textContent = "";
     container.appendChild(top);
@@ -314,11 +526,17 @@
       current.set(value === undefined ? exampleOf(kind) : value);
     }
 
+    // Rust's kinds (job kinds and built-in ones) in KIND_ORDER, any others after.
     function fillKinds() {
       kindSelect.textContent = "";
-      kinds.forEach(function (k) {
-        var o = el("option", "", KIND_LABELS[k.name] || k.name);
-        o.value = k.name;
+      var names = kinds.map(function (k) { return k.name; });
+      names.sort(function (a, b) {
+        var ia = KIND_ORDER.indexOf(a), ib = KIND_ORDER.indexOf(b);
+        return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+      });
+      names.forEach(function (name) {
+        var o = el("option", "", KIND_LABELS[name] || name);
+        o.value = name;
         kindSelect.appendChild(o);
       });
     }
@@ -328,7 +546,7 @@
     var api = {
       set: function (kind, value) {
         if (!loaded) { waiting.push(function () { api.set(kind, value); }); return; }
-        kindSelect.value = kind || (kinds[0] && kinds[0].name);
+        kindSelect.value = kind || KIND_ORDER[0];
         show(kindSelect.value, value);
       },
       read: function () {
@@ -337,7 +555,7 @@
       },
       ready: function () {
         fillKinds();
-        if (!current && kinds.length) { show(kinds[0].name); }
+        if (!current) { show(kindSelect.value); }
       }
     };
     if (loaded) { api.ready(); } else { waiting.push(api.ready); }
@@ -352,5 +570,5 @@
     queue.forEach(function (fn) { fn(); });
   });
 
-  window.JobForms = { mount: mount, label: function (kind) { return KIND_LABELS[kind] || kind; } };
+  window.JobForms = { mount: mount, label: function (kind) { return KIND_LABELS[kind] || kind; }, names: null };
 })();

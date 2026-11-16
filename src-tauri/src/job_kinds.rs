@@ -7,20 +7,20 @@
 //!
 //! - `command`: runs a shell script (bash on Linux, cmd on Windows) in any
 //!   folder, capturing what it prints. The exit code is the result label
-//!   (`exit_0`, `exit_1` ...), so rules can react to it, unless the script
+//!   (`exit_0`, `exit_1` ...), unless the script
 //!   reports its own label, value and message as JSON in the file
 //!   `$JOB_RESULT`. Progress written to `$JOB_PROGRESS` fills the bar.
 //! - `notify`: a desktop notification (Linux, over D-Bus).
 //!
-//! Pipelines: when a rule starts a job, the job is given the result of the
-//! job that fired the rule (`JobCtx::previous`). A command gets it as
-//! environment variables (`PREVIOUS_OUTPUT`, `PREVIOUS_OUTPUT_FILE`,
-//! `PREVIOUS_LABEL`, `PREVIOUS_STATE`, `PREVIOUS_SCHEDULE`, `PREVIOUS_JOB`),
-//! never pasted into the script, so text an AI wrote can never run as
-//! code. An AI prompt or a notification gets it through placeholders:
-//! `{previous_output}`, `{previous_value}`, `{previous_value.FIELD}`,
-//! `{previous_message}`, `{previous_label}`, `{previous_state}`,
-//! `{previous_schedule}` (see `fill_text`).
+//! Passing values on: a job started by a Trigger, a Schedule or another
+//! Action is given the Trigger's reading and the output of the Action before
+//! it (`JobCtx::given`, see `jobs::Given`). A command gets them as
+//! environment variables (`JOB_FROM`, `JOB_VALUE`, `JOB_PREVIOUS`,
+//! `JOB_OUTPUT`, `JOB_OUTPUT_FILE`), never pasted into the script, so text
+//! from a web page or an AI can never run as code. An AI prompt or a
+//! notification gets them through placeholders: `{value}`, `{value.FIELD}`,
+//! `{previous}`, `{previous.FIELD}`, `{output}` and `{from}` (see
+//! `fill_text`).
 //! - `ai`: sends a prompt to Claude Code, Codex or GrokBuild (their command
 //!   line tools, read-only) or to a local Ollama or llama.cpp server. The
 //!   answer is the job's output. OpenRouter is left out on purpose: it needs
@@ -39,28 +39,28 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
 use tokio::process::Command;
 use tokio::time::Instant;
 
-use crate::jobs::{kind, tail_start, Capability, JobCtx, JobKind, JobResult, JobState, KindEntry, Outcome, Previous};
+use crate::jobs::{kind, tail_start, Capability, Given, JobCtx, JobKind, JobResult, KindEntry, Outcome};
 
 /// Every kind that may be started, by name.
 pub static KINDS: &[KindEntry] = &[kind::<CommandJob>(), kind::<AiJob>(), kind::<NotifyJob>()];
 
 /// The app's kinds plus `count`, a kind kept only for the queue and
-/// scheduler tests (it needs no programs and runs on the paused clock).
+/// automation tests (it needs no programs and runs on the paused clock).
 #[cfg(test)]
 pub static TEST_KINDS: &[KindEntry] =
     &[kind::<CommandJob>(), kind::<AiJob>(), kind::<NotifyJob>(), kind::<test_kind::CountJob>()];
 
 /// Longest script or prompt.
 const MAX_TEXT_BYTES: usize = 60 * 1024;
-/// The end of the previous output a command gets in `PREVIOUS_OUTPUT`
-/// (Linux refuses a single environment variable over 128 KiB; the whole
-/// output is in the file `PREVIOUS_OUTPUT_FILE`).
-const ENV_PREVIOUS_BYTES: usize = 100 * 1024;
-/// The end of the previous output put into an AI prompt. Small local models
+/// The end of the earlier output a command gets in `JOB_OUTPUT` (Linux
+/// refuses a single environment variable over 128 KiB; the whole output is
+/// in the file `JOB_OUTPUT_FILE`).
+const ENV_OUTPUT_BYTES: usize = 100 * 1024;
+/// The end of the earlier output put into an AI prompt. Small local models
 /// read about 4,000 tokens (Ollama's default context) and drop the start of
 /// a longer prompt, instructions included; 12,000 bytes is about 3,000
 /// tokens, leaving room for the instructions.
-pub const PROMPT_PREVIOUS_BYTES: usize = 12_000;
+pub const PROMPT_OUTPUT_BYTES: usize = 12_000;
 /// Largest `$JOB_RESULT` file a script may write.
 const MAX_RESULT_BYTES: u64 = 16 * 1024;
 /// How often `$JOB_PROGRESS` is read while a script runs.
@@ -204,7 +204,9 @@ async fn run_program(
     }
     let stdout = child.stdout.take();
     let stderr = child.stderr.take();
-    let last_note = std::sync::Mutex::new(Instant::now());
+    // None until the first line, which is sent at once; later lines at most
+    // every NOTE_EVERY.
+    let last_note = std::sync::Mutex::new(None::<Instant>);
     let (out, err, status) = tokio::join!(
         pump(stdout, ctx, stream_stdout, &last_note),
         pump(stderr, ctx, stream_stdout, &last_note),
@@ -229,7 +231,7 @@ async fn pump(
     pipe: Option<impl AsyncRead + Unpin>,
     ctx: &JobCtx,
     stream: bool,
-    last_note: &std::sync::Mutex<Instant>,
+    last_note: &std::sync::Mutex<Option<Instant>>,
 ) -> String {
     let Some(mut pipe) = pipe else { return String::new() };
     let mut kept = String::new();
@@ -245,9 +247,11 @@ async fn pump(
             if let Some(line) = text.lines().rev().find(|l| !l.trim().is_empty()) {
                 ctx.note(line.trim());
                 let mut last = last_note.lock().unwrap_or_else(|e| e.into_inner());
-                if last.elapsed() >= NOTE_EVERY {
-                    *last = Instant::now();
-                    ctx.progress(0, 0);
+                if last.is_none_or(|at| at.elapsed() >= NOTE_EVERY) {
+                    *last = Some(Instant::now());
+                    // Not progress(0, 0): that would wipe a count the
+                    // script reported through $JOB_PROGRESS.
+                    ctx.send();
                 }
             }
         }
@@ -273,55 +277,49 @@ fn check_text(what: &str, text: &str) -> Result<(), String> {
     Ok(())
 }
 
-// ---- Passing a result on (pipelines) ---------------------------------------------
+// ---- Passing values on ----------------------------------------------------------
 
-fn state_name(state: JobState) -> String {
-    serde_json::to_value(state).ok().and_then(|v| v.as_str().map(str::to_string)).unwrap_or_default()
-}
-
-/// The environment variables a command started by a rule gets. The whole
-/// output is also written to a file in `dir`, for outputs over the
-/// variable's limit or with characters a variable cannot hold.
-fn previous_env(p: &Previous, dir: &Path) -> Result<Vec<(&'static str, OsString)>, Outcome> {
-    let file = dir.join("previous_output.txt");
-    std::fs::write(&file, &p.output).map_err(|e| Outcome::from(format!("could not write the previous output: {e}")))?;
+/// The environment variables a command gets from whatever started it. The
+/// whole earlier output is also written to a file in `dir`, for outputs over
+/// the variable's limit or with characters a variable cannot hold.
+fn given_env(g: &Given, dir: &Path) -> Result<Vec<(&'static str, OsString)>, Outcome> {
+    let file = dir.join("output.txt");
+    std::fs::write(&file, &g.output).map_err(|e| Outcome::from(format!("could not write the earlier output: {e}")))?;
     // A NUL byte cannot be in an environment variable.
-    let tail = p.output[tail_start(&p.output, ENV_PREVIOUS_BYTES)..].replace('\0', "");
-    let value = p.value.as_ref().map(Value::to_string).unwrap_or_default();
+    let tail = g.output[tail_start(&g.output, ENV_OUTPUT_BYTES)..].replace('\0', "");
+    let json = |v: &Option<Value>| v.as_ref().map(Value::to_string).unwrap_or_default().replace('\0', "");
     Ok(vec![
-        ("PREVIOUS_OUTPUT", tail.into()),
-        ("PREVIOUS_OUTPUT_FILE", file.into()),
-        ("PREVIOUS_LABEL", p.label.clone().unwrap_or_default().into()),
-        ("PREVIOUS_VALUE", value.into()),
-        ("PREVIOUS_MESSAGE", p.message.clone().unwrap_or_default().replace('\0', "").into()),
-        ("PREVIOUS_STATE", state_name(p.state).into()),
-        ("PREVIOUS_SCHEDULE", p.schedule.clone().into()),
-        ("PREVIOUS_JOB", p.job.to_string().into()),
+        ("JOB_FROM", g.from.clone().into()),
+        ("JOB_VALUE", json(&g.value).into()),
+        ("JOB_PREVIOUS", json(&g.previous).into()),
+        ("JOB_OUTPUT", tail.into()),
+        ("JOB_OUTPUT_FILE", file.into()),
     ])
 }
 
-/// Fills the `{previous_...}` placeholders in a prompt or notification:
-/// `{previous_output}` (its last `output_max` bytes), `{previous_label}`,
-/// `{previous_value}` (as JSON), `{previous_value.FIELD}` (one field; text
-/// without quotes), `{previous_message}`, `{previous_state}` and
-/// `{previous_schedule}`. With no previous job (started by a person or a
-/// timetable) they become empty. Done in one pass, so text inside the
-/// previous job's result that looks like a placeholder is left as it is.
-fn fill_text(text: &str, previous: Option<&Previous>, output_max: usize) -> String {
-    const OPEN: &str = "{previous_";
+/// Fills the placeholders in a prompt or notification: `{value}` (the
+/// Trigger's reading, as JSON), `{value.FIELD}` (one field, such as
+/// `{value.text}` or `{value.number}`; text without quotes), `{previous}`
+/// and `{previous.FIELD}` (the Trigger's reading before), `{output}` (the
+/// last `output_max` bytes of what the Action before printed or answered)
+/// and `{from}` (what started the job). With nothing given they are empty.
+/// Unknown placeholders are left as written, and one pass is made, so text
+/// from a web page or an earlier answer that looks like a placeholder is
+/// left as it is.
+pub(crate) fn fill_text(text: &str, given: Option<&Given>, output_max: usize) -> String {
     let mut out = String::with_capacity(text.len());
     let mut rest = text;
-    while let Some(at) = rest.find(OPEN) {
+    while let Some(at) = rest.find('{') {
         out.push_str(&rest[..at]);
-        let after = &rest[at + OPEN.len()..];
+        let after = &rest[at + 1..];
         let name = after.find('}').map(|end| &after[..end]).filter(|n| n.len() <= 80);
-        match name.and_then(|n| previous_part(n, previous, output_max)) {
+        match name.and_then(|n| given_part(n, given, output_max)) {
             Some(filled) => {
                 out.push_str(&filled);
                 rest = &after[name.unwrap_or_default().len() + 1..];
             }
             None => {
-                out.push_str(OPEN);
+                out.push('{');
                 rest = after;
             }
         }
@@ -331,29 +329,40 @@ fn fill_text(text: &str, previous: Option<&Previous>, output_max: usize) -> Stri
 }
 
 /// One placeholder's text, or None when `name` is not a placeholder.
-fn previous_part(name: &str, previous: Option<&Previous>, output_max: usize) -> Option<String> {
-    let known = matches!(name, "output" | "label" | "value" | "message" | "state" | "schedule") || name.starts_with("value.");
+fn given_part(name: &str, given: Option<&Given>, output_max: usize) -> Option<String> {
+    let (head, field) = match name.split_once('.') {
+        Some((head, field)) => (head, Some(field)),
+        None => (name, None),
+    };
+    let field_ok = |f: &str| f.split('.').all(|part| !part.is_empty() && part.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-'));
+    let known = match head {
+        "value" | "previous" => field.is_none_or(field_ok),
+        "output" | "from" => field.is_none(),
+        _ => false,
+    };
     if !known {
         return None;
     }
-    let Some(p) = previous else { return Some(String::new()) };
-    Some(match name {
-        "output" => p.output[tail_start(&p.output, output_max)..].trim().to_string(),
-        "label" => p.label.clone().unwrap_or_default(),
-        "value" => p.value.as_ref().map(Value::to_string).unwrap_or_default(),
-        "message" => p.message.clone().unwrap_or_default(),
-        "state" => state_name(p.state),
-        "schedule" => p.schedule.clone(),
-        _ => match p.value.as_ref().and_then(|v| crate::jobs::value_field(v, &name["value.".len()..])) {
+    let Some(g) = given else { return Some(String::new()) };
+    let json = |v: &Option<Value>| match (v, field) {
+        (None, _) => String::new(),
+        (Some(v), None) => v.to_string(),
+        (Some(v), Some(f)) => match crate::jobs::value_field(v, f) {
             Some(Value::String(text)) => text.clone(),
             Some(other) => other.to_string(),
             None => String::new(),
         },
+    };
+    Some(match head {
+        "value" => json(&g.value),
+        "previous" => json(&g.previous),
+        "output" => g.output[tail_start(&g.output, output_max)..].trim().to_string(),
+        _ => g.from.clone(),
     })
 }
 
-fn fill_prompt(prompt: &str, previous: Option<&Previous>) -> String {
-    fill_text(prompt, previous, PROMPT_PREVIOUS_BYTES)
+fn fill_prompt(prompt: &str, given: Option<&Given>) -> String {
+    fill_text(prompt, given, PROMPT_OUTPUT_BYTES)
 }
 
 // ---- command: run a shell script ------------------------------------------------
@@ -392,13 +401,13 @@ impl JobKind for CommandJob {
             let (shell, args) = (PathBuf::from("cmd"), vec![OsString::from("/C"), OsString::from(&input.script)]);
             ctx.progress(0, 0);
             // The job's own temporary folder: the result and progress files
-            // the script may write, and the previous output.
+            // the script may write, and the earlier output.
             let scratch = TempFolder::new(ctx.id(), "job")?;
             let result_file = scratch.0.join("result.json");
             let progress_file = scratch.0.join("progress");
             let mut env = vec![("JOB_RESULT", OsString::from(&result_file)), ("JOB_PROGRESS", OsString::from(&progress_file))];
-            if let Some(p) = ctx.previous() {
-                env.extend(previous_env(&p, &scratch.0)?);
+            if let Some(g) = ctx.given() {
+                env.extend(given_env(&g, &scratch.0)?);
             }
             let run = run_program(&ctx, &shell, &args, &folder, None, true, &env);
             tokio::pin!(run);
@@ -591,7 +600,7 @@ impl JobKind for AiJob {
 
     fn run(ctx: JobCtx, input: AiInput) -> impl Future<Output = JobResult> + Send + 'static {
         async move {
-            let prompt = fill_prompt(&input.prompt, ctx.previous().as_deref());
+            let prompt = fill_prompt(&input.prompt, ctx.given().as_deref());
             let input = AiInput { prompt, ..input };
             ctx.note(&format!("asking {}", provider_name(input.provider)));
             ctx.progress(0, 0);
@@ -750,11 +759,12 @@ async fn ask_server(input: &AiInput) -> Result<String, Outcome> {
 
 // ---- notify: a desktop notification -----------------------------------------------
 
-/// Shows a desktop notification. Started by a rule, its title and text can
-/// quote the job before it (`{previous_value.percent}`, `{previous_output}`
-/// and the rest, as in an AI prompt). On Linux it uses the desktop's
-/// notification service over D-Bus (the `zbus` crate, already compiled for
-/// the tray); elsewhere, or without one, it fails with `unavailable`.
+/// Shows a desktop notification. Its title and text can quote the Trigger's
+/// reading and the Action before it (`{value.text}`, `{previous.text}`,
+/// `{output}` and the rest, as in an AI prompt). On Linux it uses the
+/// desktop's notification service over D-Bus (the `zbus` crate, already
+/// compiled for the tray); elsewhere, or without one, it fails with
+/// `unavailable`.
 pub struct NotifyJob;
 
 #[derive(Deserialize, Serialize, Clone, Copy, PartialEq, Eq, Debug, Default)]
@@ -784,15 +794,23 @@ pub struct NotifyInput {
 /// windows are small.
 const NOTIFY_TITLE_CHARS: usize = 200;
 const NOTIFY_TEXT_CHARS: usize = 2000;
-/// How much of the previous output `{previous_output}` brings in.
-const NOTIFY_PREVIOUS_BYTES: usize = 2000;
+/// How much of the earlier output `{output}` brings in.
+const NOTIFY_OUTPUT_BYTES: usize = 2000;
+/// How long to wait for the notification service to answer. A desktop whose
+/// own service is not running may have another one that the bus starts and
+/// that never answers (on Kim's LXQt, KDE's placeholder waits for a real
+/// service for ever), so the job gives up with a reason instead.
+#[cfg(not(test))]
+const NOTIFY_WAIT: Duration = Duration::from_secs(10);
+#[cfg(test)]
+const NOTIFY_WAIT: Duration = Duration::from_secs(1);
 
 impl JobKind for NotifyJob {
     const NAME: &'static str = "notify";
     const CAPABILITIES: &'static [Capability] = &[];
     const RESOURCES: &'static [&'static str] = &[];
     const TIMEOUT: Duration = Duration::from_secs(30);
-    const EXAMPLE: &'static str = r#"{"title": "Disk check", "text": "{previous_message}", "urgency": "normal", "sound": false}"#;
+    const EXAMPLE: &'static str = r#"{"title": "Now {value.text}", "text": "Was {previous.text}", "urgency": "normal", "sound": false}"#;
     type Input = NotifyInput;
 
     fn check(input: &NotifyInput) -> Result<(), String> {
@@ -805,9 +823,9 @@ impl JobKind for NotifyJob {
 
     fn run(ctx: JobCtx, input: NotifyInput) -> impl Future<Output = JobResult> + Send + 'static {
         async move {
-            let previous = ctx.previous();
-            let title = cut_chars(fill_text(&input.title, previous.as_deref(), NOTIFY_PREVIOUS_BYTES).trim(), NOTIFY_TITLE_CHARS);
-            let text = cut_chars(fill_text(&input.text, previous.as_deref(), NOTIFY_PREVIOUS_BYTES).trim(), NOTIFY_TEXT_CHARS);
+            let given = ctx.given();
+            let title = cut_chars(fill_text(&input.title, given.as_deref(), NOTIFY_OUTPUT_BYTES).trim(), NOTIFY_TITLE_CHARS);
+            let text = cut_chars(fill_text(&input.text, given.as_deref(), NOTIFY_OUTPUT_BYTES).trim(), NOTIFY_TEXT_CHARS);
             ctx.output(&format!("{title}\n{text}\n"));
             let note = Notification { title: &title, text: &text, urgency: input.urgency, sound: input.sound };
             match send_notification(&note).await {
@@ -891,7 +909,7 @@ pub(crate) mod test_bus {
         }
     }
 
-    struct Service(Arc<Mutex<Vec<Shown>>>);
+    struct Service(Arc<Mutex<Vec<Shown>>>, bool);
 
     #[zbus::interface(name = "org.freedesktop.Notifications")]
     impl Service {
@@ -907,6 +925,11 @@ pub(crate) mod test_bus {
             hints: HashMap<String, OwnedValue>,
             _expire_timeout: i32,
         ) -> u32 {
+            if self.1 {
+                // A service that takes far too long, like a placeholder
+                // waiting for a real one.
+                async_io_sleep().await;
+            }
             let urgency = hints.get("urgency").and_then(|v| v.downcast_ref::<u8>().ok());
             let sound = hints.get("sound-name").and_then(|v| v.downcast_ref::<String>().ok());
             let mut list = self.0.lock().unwrap();
@@ -915,9 +938,48 @@ pub(crate) mod test_bus {
         }
     }
 
+    async fn async_io_sleep() {
+        // The service runs on zbus's own executor, not Tokio's.
+        let (tx, rx) = std::sync::mpsc::channel::<()>();
+        let _ = std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_secs(5));
+            let _ = tx.send(());
+        });
+        blocking_wait(rx).await;
+    }
+
+    async fn blocking_wait(rx: std::sync::mpsc::Receiver<()>) {
+        loop {
+            if rx.try_recv().is_ok() {
+                return;
+            }
+            futures_lite_yield().await;
+        }
+    }
+
+    /// Yields once to the executor (no extra crate needed).
+    async fn futures_lite_yield() {
+        let mut yielded = false;
+        std::future::poll_fn(|cx| {
+            if yielded {
+                std::task::Poll::Ready(())
+            } else {
+                yielded = true;
+                cx.waker().wake_by_ref();
+                std::task::Poll::Pending
+            }
+        })
+        .await
+    }
+
     /// Starts a private bus (nothing auto-started on it), with the stand-in
-    /// service when `with_service` is true.
+    /// service when `with_service` is true; `slow` makes it answer only
+    /// after 5 s.
     pub async fn start(name: &str, with_service: bool) -> (Bus, Arc<Mutex<Vec<Shown>>>) {
+        start_with(name, with_service, false).await
+    }
+
+    pub async fn start_with(name: &str, with_service: bool, slow: bool) -> (Bus, Arc<Mutex<Vec<Shown>>>) {
         let dir = std::env::temp_dir().join(format!("rust_scaffold_bus_{name}_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
@@ -948,7 +1010,7 @@ pub(crate) mod test_bus {
                 .unwrap()
                 .name("org.freedesktop.Notifications")
                 .unwrap()
-                .serve_at("/org/freedesktop/Notifications", Service(shown.clone()))
+                .serve_at("/org/freedesktop/Notifications", Service(shown.clone(), slow))
                 .unwrap()
                 .build();
             Some(tokio::time::timeout(std::time::Duration::from_secs(10), build).await.expect("the test bus did not answer").unwrap())
@@ -984,15 +1046,22 @@ async fn send_notification(note: &Notification<'_>) -> Result<u32, String> {
     let actions: Vec<&str> = Vec::new();
     // -1: the desktop decides how long it stays.
     let body = ("Rust Scaffold", 0u32, "", note.title, note.text, actions, hints, -1i32);
-    let reply = connection
-        .call_method(
-            Some("org.freedesktop.Notifications"),
-            "/org/freedesktop/Notifications",
-            Some("org.freedesktop.Notifications"),
-            "Notify",
-            &body,
-        )
+    let call = connection.call_method(
+        Some("org.freedesktop.Notifications"),
+        "/org/freedesktop/Notifications",
+        Some("org.freedesktop.Notifications"),
+        "Notify",
+        &body,
+    );
+    let reply = tokio::time::timeout(NOTIFY_WAIT, call)
         .await
+        .map_err(|_| {
+            format!(
+                "the desktop's notification service did not answer within {} s; is its notification daemon running \
+                 (on LXQt: lxqt-notificationd, under Configuration Center, Session Settings, Basic Settings)?",
+                NOTIFY_WAIT.as_secs()
+            )
+        })?
         .map_err(|e| match e {
             zbus::Error::MethodError(name, _, _) if name.as_str() == "org.freedesktop.DBus.Error.ServiceUnknown" => {
                 "the desktop has no notification service running".to_string()
@@ -1026,7 +1095,7 @@ pub struct ModelInfo {
 pub async fn ollama_models(endpoint: Option<&str>) -> Result<Vec<ModelInfo>, String> {
     let given = endpoint.map(str::trim).filter(|e| !e.is_empty()).unwrap_or(Provider::Ollama.default_endpoint());
     let url = Url::parse(given)?;
-    let base = format!("http://{}:{}", url.host, url.port);
+    let base = url.origin();
     let unreachable = |e: HttpError| match e {
         HttpError::Unreachable(why) => format!("Ollama is not answering at {base} ({why})"),
         HttpError::Other(why) => why,
@@ -1043,46 +1112,154 @@ pub async fn ollama_models(endpoint: Option<&str>) -> Result<Vec<ModelInfo>, Str
     Ok(models)
 }
 
-// ---- A minimal HTTP/1.1 client for local servers ----------------------------------
+// ---- A minimal HTTP/1.1 client ---------------------------------------------------
+//
+// Plain http for local AI servers; https as well when built with the
+// web-watch feature (TLS by rustls, see the `tls` module below).
 
 /// Largest reply read from a server.
 const MAX_REPLY_BYTES: usize = 8 * 1024 * 1024;
 
+/// Most redirects `http_get` follows.
+#[cfg_attr(not(feature = "web-watch"), allow(dead_code))] // used by the web watch
+const MAX_REDIRECTS: usize = 5;
+
 #[derive(Debug)]
-enum HttpError {
+pub(crate) enum HttpError {
     /// Nothing listening, or the host is unknown: the server is not running.
     Unreachable(String),
     Other(String),
 }
 
-/// `http://host[:port]/path`. Plain HTTP only.
-#[derive(Debug, PartialEq)]
-struct Url {
+/// `http://host[:port]/path`, or `https://` with the web-watch feature.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct Url {
+    tls: bool,
     host: String,
     port: u16,
     path: String,
 }
 
 impl Url {
-    fn parse(text: &str) -> Result<Url, String> {
+    pub(crate) fn parse(text: &str) -> Result<Url, String> {
         let text = text.trim();
-        let rest = text.strip_prefix("http://").ok_or_else(|| {
-            if text.starts_with("https://") {
-                format!("{text}: https is not supported (local servers use http)")
-            } else {
-                format!("{text}: the address must start with http://")
+        let (tls, rest) = if let Some(rest) = text.strip_prefix("http://") {
+            (false, rest)
+        } else if let Some(rest) = text.strip_prefix("https://") {
+            if !cfg!(feature = "web-watch") {
+                return Err(format!("{text}: https needs the web-watch feature"));
             }
-        })?;
+            (true, rest)
+        } else {
+            return Err(format!("{text}: the address must start with http:// or https://"));
+        };
         let (authority, path) = rest.split_once('/').map(|(a, p)| (a, format!("/{p}"))).unwrap_or((rest, "/".into()));
+        // The part after # never goes to the server.
+        let path = path.split('#').next().unwrap_or("/").to_string();
         let (host, port) = match authority.rsplit_once(':') {
             Some((h, p)) => (h, p.parse::<u16>().map_err(|_| format!("{text}: the port is not a number"))?),
-            None => (authority, 80),
+            None => (authority, if tls { 443 } else { 80 }),
         };
         if host.is_empty() || host.contains(['@', ' ']) {
             return Err(format!("{text}: no host name"));
         }
-        Ok(Url { host: host.to_string(), port, path })
+        Ok(Url { tls, host: host.to_string(), port, path })
     }
+
+    fn default_port(&self) -> bool {
+        self.port == if self.tls { 443 } else { 80 }
+    }
+
+    /// `host`, or `host:port` when the port is not the scheme's default.
+    fn host_port(&self) -> String {
+        if self.default_port() {
+            self.host.clone()
+        } else {
+            format!("{}:{}", self.host, self.port)
+        }
+    }
+
+    /// `scheme://host[:port]`, without the path.
+    fn origin(&self) -> String {
+        format!("{}://{}", if self.tls { "https" } else { "http" }, self.host_port())
+    }
+
+    /// Where a redirect's Location header points: a full address, an
+    /// address without the scheme (//host/path), a path on this server, or a
+    /// path relative to the current one.
+    #[cfg_attr(not(feature = "web-watch"), allow(dead_code))] // used by the web watch
+    fn join(&self, location: &str) -> Result<Url, String> {
+        let location = location.trim();
+        if location.starts_with("http://") || location.starts_with("https://") {
+            Url::parse(location)
+        } else if location.starts_with("//") {
+            Url::parse(&format!("{}:{location}", if self.tls { "https" } else { "http" }))
+        } else if location.starts_with('/') {
+            Ok(Url { path: location.to_string(), ..self.clone() })
+        } else {
+            let dir = &self.path[..self.path.rfind('/').map(|i| i + 1).unwrap_or(0)];
+            Ok(Url { path: format!("{dir}{location}"), ..self.clone() })
+        }
+    }
+}
+
+/// The parts of an HTTP response the client uses.
+#[derive(Debug, PartialEq)]
+pub(crate) struct Response {
+    pub status: u16,
+    location: Option<String>,
+    pub body: Vec<u8>,
+}
+
+fn request_text(method: &str, url: &Url, accept: &str, body: Option<&str>) -> String {
+    let mut text = format!(
+        "{method} {} HTTP/1.1\r\nHost: {}\r\nUser-Agent: {}/{}\r\nAccept: {accept}\r\nConnection: close\r\n",
+        url.path,
+        url.host_port(),
+        env!("CARGO_PKG_NAME"),
+        env!("CARGO_PKG_VERSION")
+    );
+    match body {
+        Some(body) => {
+            text.push_str(&format!("Content-Type: application/json\r\nContent-Length: {}\r\n\r\n", body.len()));
+            text.push_str(body);
+        }
+        None => text.push_str("\r\n"),
+    }
+    text
+}
+
+/// Sends one request and returns the parsed response, over TLS for https.
+async fn send(url: &Url, request: &str, max_bytes: usize) -> Result<Response, HttpError> {
+    let tcp = tokio::net::TcpStream::connect((url.host.as_str(), url.port))
+        .await
+        .map_err(|e| HttpError::Unreachable(e.to_string()))?;
+    #[cfg(feature = "web-watch")]
+    if url.tls {
+        let stream = tls::connect(&url.host, tcp).await.map_err(HttpError::Other)?;
+        return exchange(stream, request, max_bytes).await;
+    }
+    exchange(tcp, request, max_bytes).await
+}
+
+async fn exchange<S>(mut stream: S, request: &str, max_bytes: usize) -> Result<Response, HttpError>
+where
+    S: AsyncRead + tokio::io::AsyncWrite + Unpin,
+{
+    stream.write_all(request.as_bytes()).await.map_err(|e| HttpError::Other(e.to_string()))?;
+    let mut raw = Vec::new();
+    match (&mut stream).take(max_bytes as u64 + 1).read_to_end(&mut raw).await {
+        Ok(_) => {}
+        // Many servers close a TLS connection without the closing message.
+        // A reply cut short is still caught: Content-Length and chunked
+        // replies are checked for completeness in parse_response.
+        Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof && !raw.is_empty() => {}
+        Err(e) => return Err(HttpError::Other(e.to_string())),
+    }
+    if raw.len() > max_bytes {
+        return Err(HttpError::Other(format!("the reply is over {max_bytes} bytes")));
+    }
+    parse_response(&raw).map_err(HttpError::Other)
 }
 
 async fn http_post_json(url: &str, body: &Value) -> Result<Value, HttpError> {
@@ -1092,37 +1269,72 @@ async fn http_post_json(url: &str, body: &Value) -> Result<Value, HttpError> {
 /// GET without a body, POST with one.
 async fn http_json(url: &str, body: Option<&Value>) -> Result<Value, HttpError> {
     let url = Url::parse(url).map_err(HttpError::Other)?;
-    let mut stream = tokio::net::TcpStream::connect((url.host.as_str(), url.port))
-        .await
-        .map_err(|e| HttpError::Unreachable(e.to_string()))?;
     let method = if body.is_some() { "POST" } else { "GET" };
-    let body = body.map(Value::to_string).unwrap_or_default();
-    let request = format!(
-        "{method} {} HTTP/1.1\r\nHost: {}:{}\r\nContent-Type: application/json\r\nAccept: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
-        url.path,
-        url.host,
-        url.port,
-        body.len(),
-        body
-    );
-    stream.write_all(request.as_bytes()).await.map_err(|e| HttpError::Other(e.to_string()))?;
-    let mut raw = Vec::new();
-    (&mut stream).take(MAX_REPLY_BYTES as u64 + 1).read_to_end(&mut raw).await.map_err(|e| HttpError::Other(e.to_string()))?;
-    if raw.len() > MAX_REPLY_BYTES {
-        return Err(HttpError::Other(format!("the reply is over {MAX_REPLY_BYTES} bytes")));
-    }
-    let (status, body) = parse_response(&raw).map_err(HttpError::Other)?;
-    let text = String::from_utf8_lossy(&body);
-    if !(200..300).contains(&status) {
+    let body = body.map(Value::to_string);
+    let request = request_text(method, &url, "application/json", body.as_deref());
+    let reply = send(&url, &request, MAX_REPLY_BYTES).await?;
+    let text = String::from_utf8_lossy(&reply.body);
+    if !(200..300).contains(&reply.status) {
         let short: String = text.chars().take(500).collect();
-        return Err(HttpError::Other(format!("the server answered HTTP {status}: {short}")));
+        return Err(HttpError::Other(format!("the server answered HTTP {}: {short}", reply.status)));
     }
     serde_json::from_str(&text).map_err(|_| HttpError::Other("the server did not answer with JSON".into()))
 }
 
-/// Status code and body of a whole HTTP/1.1 response (Content-Length,
-/// chunked, or read to the end).
-fn parse_response(raw: &[u8]) -> Result<(u16, Vec<u8>), String> {
+/// GETs a page, following up to MAX_REDIRECTS redirects. Returns the final
+/// address and the response, whatever its status.
+#[cfg_attr(not(feature = "web-watch"), allow(dead_code))] // used by the web watch
+pub(crate) async fn http_get(url: &str, max_bytes: usize) -> Result<(Url, Response), HttpError> {
+    let mut url = Url::parse(url).map_err(HttpError::Other)?;
+    for _ in 0..=MAX_REDIRECTS {
+        let request = request_text("GET", &url, "text/html, */*", None);
+        let reply = send(&url, &request, max_bytes).await?;
+        match (reply.status, &reply.location) {
+            (301 | 302 | 303 | 307 | 308, Some(location)) => url = url.join(location).map_err(HttpError::Other)?,
+            _ => return Ok((url, reply)),
+        }
+    }
+    Err(HttpError::Other(format!("more than {MAX_REDIRECTS} redirects")))
+}
+
+/// TLS for https addresses: rustls with the `ring` crypto library and the
+/// root certificates from webpki-roots (Mozilla's list, built in).
+#[cfg(feature = "web-watch")]
+mod tls {
+    use std::sync::{Arc, OnceLock};
+
+    use tokio::net::TcpStream;
+    use tokio_rustls::client::TlsStream;
+    use tokio_rustls::rustls;
+    use tokio_rustls::TlsConnector;
+
+    /// Built once; a failure is kept and reported on every https request
+    /// rather than ending the app.
+    fn connector() -> Result<TlsConnector, String> {
+        static CONNECTOR: OnceLock<Result<TlsConnector, String>> = OnceLock::new();
+        CONNECTOR
+            .get_or_init(|| {
+                let mut roots = rustls::RootCertStore::empty();
+                roots.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
+                let config = rustls::ClientConfig::builder_with_provider(Arc::new(rustls::crypto::ring::default_provider()))
+                    .with_safe_default_protocol_versions()
+                    .map_err(|e| format!("TLS set-up failed: {e}"))?
+                    .with_root_certificates(roots)
+                    .with_no_client_auth();
+                Ok(TlsConnector::from(Arc::new(config)))
+            })
+            .clone()
+    }
+
+    pub async fn connect(host: &str, tcp: TcpStream) -> Result<TlsStream<TcpStream>, String> {
+        let name = rustls::pki_types::ServerName::try_from(host.to_string()).map_err(|e| format!("{host}: {e}"))?;
+        connector()?.connect(name, tcp).await.map_err(|e| format!("TLS with {host} failed: {e}"))
+    }
+}
+
+/// Status, Location header and body of a whole HTTP/1.1 response
+/// (Content-Length, chunked, or read to the end).
+fn parse_response(raw: &[u8]) -> Result<Response, String> {
     let split = raw.windows(4).position(|w| w == b"\r\n\r\n").ok_or("the reply has no HTTP header")?;
     let head = String::from_utf8_lossy(&raw[..split]);
     let body = &raw[split + 4..];
@@ -1138,14 +1350,17 @@ fn parse_response(raw: &[u8]) -> Result<(u16, Vec<u8>), String> {
             k.trim().eq_ignore_ascii_case(name).then(|| v.trim().to_string())
         })
     };
-    if header("transfer-encoding").is_some_and(|v| v.eq_ignore_ascii_case("chunked")) {
-        return Ok((status, dechunk(body)?));
-    }
-    match header("content-length").and_then(|v| v.parse::<usize>().ok()) {
-        Some(n) if n <= body.len() => Ok((status, body[..n].to_vec())),
-        Some(_) => Err("the reply ended early".into()),
-        None => Ok((status, body.to_vec())),
-    }
+    let location = header("location");
+    let body = if header("transfer-encoding").is_some_and(|v| v.eq_ignore_ascii_case("chunked")) {
+        dechunk(body)?
+    } else {
+        match header("content-length").and_then(|v| v.parse::<usize>().ok()) {
+            Some(n) if n <= body.len() => body[..n].to_vec(),
+            Some(_) => return Err("the reply ended early".into()),
+            None => body.to_vec(),
+        }
+    };
+    Ok(Response { status, location, body })
 }
 
 fn dechunk(mut body: &[u8]) -> Result<Vec<u8>, String> {
@@ -1225,9 +1440,9 @@ pub mod test_kind {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
-    use crate::jobs::{JobState, Origin, Queue};
+    use crate::jobs::{Given, JobState, Origin, Queue};
     use std::sync::Arc;
     use tokio::io::AsyncBufReadExt;
     use tokio::runtime::Handle;
@@ -1416,29 +1631,26 @@ mod tests {
     }
 
     #[test]
-    fn placeholders_bring_in_the_value_and_message() {
-        let p = Previous {
-            schedule: "disk".into(),
-            job: 3,
-            state: JobState::Done,
-            label: Some("disk_high".into()),
-            value: Some(json!({ "percent": 92, "mount": "/", "disk": { "free_gb": 4.5 } })),
-            message: Some("says {previous_label}".into()),
-            output: "Filesystem ... {previous_value}".into(),
+    fn placeholders_bring_in_the_reading_and_the_output() {
+        let g = Given {
+            from: "trigger gbp".into(),
+            value: Some(json!({ "text": "£5,212.66", "number": 5212.66, "disk": { "free_gb": 4.5 } })),
+            previous: Some(json!({ "text": "£5,100.00", "number": 5100.0 })),
+            output: "Summary {value.text}".into(),
         };
         let filled = fill_text(
-            "{previous_value.percent}% of {previous_value.mount}, {previous_value.disk.free_gb} GB free, \
-             [{previous_value.nothing}] {previous_value} | {previous_message} | {previous_output} | {previous_other} {previous_",
-            Some(&p),
+            "{value.text} ({value.number}) was {previous.text}; {value.disk.free_gb} GB [{value.nothing}] \
+             | {output} | {from} | {other} {value. {\"json\": 1} {value",
+            Some(&g),
             100,
         );
         assert_eq!(
             filled,
-            "92% of /, 4.5 GB free, [] {\"disk\":{\"free_gb\":4.5},\"mount\":\"/\",\"percent\":92} | says {previous_label} | \
-             Filesystem ... {previous_value} | {previous_other} {previous_",
-            "one pass: placeholders inside the result stay as text; unknown ones are left"
+            "£5,212.66 (5212.66) was £5,100.00; 4.5 GB [] | Summary {value.text} | trigger gbp | {other} {value. {\"json\": 1} {value",
+            "one pass: placeholders inside the output stay as text; unknown ones and JSON are left"
         );
-        assert_eq!(fill_text("[{previous_value.percent}]", None, 100), "[]");
+        assert_eq!(fill_text("{previous}", Some(&g), 100), r#"{"number":5100.0,"text":"£5,100.00"}"#);
+        assert_eq!(fill_text("[{value.number}] [{output}]", None, 100), "[] []");
     }
 
     #[tokio::test]
@@ -1447,19 +1659,16 @@ mod tests {
         use_test_bus(Some(bus.address.clone()));
         let q = queue();
         let id = q
-            .start_after(
+            .start_given(
                 "notify",
-                json!({ "title": "Disk {previous_value.percent}% full", "text": "{previous_message}", "urgency": "critical", "sound": true }),
+                json!({ "title": "Disk {value.percent}% full", "text": "{output}", "urgency": "critical", "sound": true }),
                 Origin::User,
                 None,
-                Some(Arc::new(Previous {
-                    schedule: "disk".into(),
-                    job: 1,
-                    state: JobState::Done,
-                    label: Some("disk_high".into()),
+                Some(Arc::new(Given {
+                    from: "trigger disk".into(),
                     value: Some(json!({ "percent": 92 })),
-                    message: Some("Clear the cache.".into()),
-                    output: String::new(),
+                    previous: None,
+                    output: "Clear the cache.".into(),
                 })),
             )
             .unwrap();
@@ -1484,6 +1693,19 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn notify_gives_up_on_a_service_that_does_not_answer() {
+        let (bus, _) = test_bus::start_with("slow", true, true).await;
+        use_test_bus(Some(bus.address.clone()));
+        let q = queue();
+        let started = Instant::now();
+        let id = q.start("notify", json!({ "title": "Hello" }), Origin::User, None).unwrap();
+        assert_eq!(finish(&q, id).await, (JobState::Failed, Some("unavailable".into())));
+        assert!(started.elapsed() < Duration::from_secs(4), "gave up after NOTIFY_WAIT, not the job's 30 s");
+        assert!(outcome(&q, id).message.unwrap().contains("did not answer within 1 s"), "{:?}", outcome(&q, id));
+        use_test_bus(None);
+    }
+
+    #[tokio::test]
     async fn notify_without_a_notification_service_is_unavailable() {
         // A bus with nothing answering for notifications.
         let (bus, _) = test_bus::start("no_service", false).await;
@@ -1501,31 +1723,197 @@ mod tests {
 
     #[test]
     fn prompts_are_filled_and_a_long_output_is_cut_to_its_end() {
-        assert_eq!(fill_prompt("A {previous_output} B {previous_label}", None), "A  B ", "nothing before: empty");
-        let long = format!("{}THE END", "x".repeat(PROMPT_PREVIOUS_BYTES * 2));
-        let p = Previous { schedule: "s".into(), job: 7, state: JobState::TimedOut, label: None, value: None, message: None, output: long };
-        let filled = fill_prompt("[{previous_state}] {previous_output}", Some(&p));
-        assert!(filled.starts_with("[timed_out] x") && filled.ends_with("THE END"));
-        assert_eq!(filled.len(), "[timed_out] ".len() + PROMPT_PREVIOUS_BYTES);
-        let env = previous_env(&Previous { output: "a\0b".into(), ..p }, &std::env::temp_dir()).unwrap();
-        assert_eq!(env[0].1, OsString::from("ab"), "a NUL byte cannot go into a variable");
+        assert_eq!(fill_prompt("A {output} B {from}", None), "A  B ", "nothing given: empty");
+        let long = format!("{}THE END", "x".repeat(PROMPT_OUTPUT_BYTES * 2));
+        let g = Given { from: "action a".into(), output: long, ..Given::default() };
+        let filled = fill_prompt("[{from}] {output}", Some(&g));
+        assert!(filled.starts_with("[action a] x") && filled.ends_with("THE END"));
+        assert_eq!(filled.len(), "[action a] ".len() + PROMPT_OUTPUT_BYTES);
+        let env = given_env(&Given { output: "a\0b".into(), ..g }, &std::env::temp_dir()).unwrap();
+        let output = env.iter().find(|(name, _)| *name == "JOB_OUTPUT").unwrap();
+        assert_eq!(output.1, OsString::from("ab"), "a NUL byte cannot go into a variable");
     }
 
     #[test]
     fn urls_and_responses_are_parsed() {
         assert_eq!(
             Url::parse("http://127.0.0.1:11434/api/chat").unwrap(),
-            Url { host: "127.0.0.1".into(), port: 11434, path: "/api/chat".into() }
+            Url { tls: false, host: "127.0.0.1".into(), port: 11434, path: "/api/chat".into() }
         );
         assert_eq!(Url::parse("http://localhost").unwrap().port, 80);
-        assert!(Url::parse("https://openrouter.ai/api").unwrap_err().contains("https is not supported"));
+        assert_eq!(Url::parse("http://localhost/a#part").unwrap().path, "/a", "the #part is not sent");
         assert!(Url::parse("ftp://x").is_err());
         assert!(Url::parse("http://:80/").is_err());
+        assert_eq!(Url::parse("http://localhost:8080/x").unwrap().origin(), "http://localhost:8080");
         let plain = b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\n{}extra";
-        assert_eq!(parse_response(plain).unwrap(), (200, b"{}".to_vec()));
+        assert_eq!(parse_response(plain).unwrap(), Response { status: 200, location: None, body: b"{}".to_vec() });
         let chunked = b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n3\r\n{\"a\r\n4\r\n\":1}\r\n0\r\n\r\n";
-        assert_eq!(parse_response(chunked).unwrap(), (200, b"{\"a\":1}".to_vec()));
+        assert_eq!(parse_response(chunked).unwrap().body, b"{\"a\":1}".to_vec());
         assert!(parse_response(b"HTTP/1.1 200 OK\r\nContent-Length: 9\r\n\r\n{}").is_err());
+        let moved = b"HTTP/1.1 301 Moved\r\nlocation: /probe/\r\nContent-Length: 0\r\n\r\n";
+        assert_eq!(parse_response(moved).unwrap().location.as_deref(), Some("/probe/"));
+    }
+
+    #[cfg(feature = "web-watch")]
+    #[test]
+    fn https_addresses_and_redirect_targets() {
+        let url = Url::parse("https://bitmods.com/probe/index.php?x=1").unwrap();
+        assert_eq!((url.tls, url.port, url.origin()), (true, 443, "https://bitmods.com".to_string()));
+        assert_eq!(Url::parse("https://h:8443/").unwrap().origin(), "https://h:8443");
+        assert_eq!(url.join("/a").unwrap().path, "/a");
+        assert_eq!(url.join("b.php").unwrap().path, "/probe/b.php");
+        assert_eq!(url.join("//other.org/c").unwrap(), Url::parse("https://other.org/c").unwrap());
+        let plain = url.join("http://h/d").unwrap();
+        assert!(!plain.tls && plain.port == 80, "a redirect may change the scheme");
+    }
+
+    /// Answers each connection with the next reply and sends back the first
+    /// line of each request (the method and path).
+    pub(crate) async fn fake_site(replies: Vec<String>) -> (u16, tokio::sync::mpsc::UnboundedReceiver<String>) {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+        tokio::spawn(async move {
+            for reply in replies {
+                let (socket, _) = listener.accept().await.unwrap();
+                let mut reader = tokio::io::BufReader::new(socket);
+                let mut first = String::new();
+                reader.read_line(&mut first).await.unwrap();
+                loop {
+                    let mut line = String::new();
+                    reader.read_line(&mut line).await.unwrap();
+                    if line == "\r\n" || line.is_empty() {
+                        break;
+                    }
+                }
+                let _ = tx.send(first.trim().to_string());
+                reader.get_mut().write_all(reply.as_bytes()).await.unwrap();
+            }
+        });
+        (port, rx)
+    }
+
+    fn redirect(to: &str) -> String {
+        format!("HTTP/1.1 302 Found\r\nLocation: {to}\r\nContent-Length: 0\r\n\r\n")
+    }
+
+    #[tokio::test]
+    async fn get_follows_redirects_and_returns_any_status() {
+        let page = "<p><span id=\"probe-token\">abc</span></p>";
+        let ok = format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n{page}", page.len());
+        let (port, mut asked) = fake_site(vec![redirect("/probe/"), redirect("index.php"), ok]).await;
+        let (url, reply) = http_get(&format!("http://127.0.0.1:{port}/probe"), 1024).await.unwrap();
+        assert_eq!((reply.status, String::from_utf8(reply.body).unwrap()), (200, page.to_string()));
+        assert_eq!(url.path, "/probe/index.php");
+        let mut lines = Vec::new();
+        while let Ok(line) = asked.try_recv() {
+            lines.push(line);
+        }
+        assert_eq!(lines, ["GET /probe HTTP/1.1", "GET /probe/ HTTP/1.1", "GET /probe/index.php HTTP/1.1"]);
+
+        let (port, _) = fake_site(vec!["HTTP/1.1 404 Not Found\r\nContent-Length: 4\r\n\r\ngone".into()]).await;
+        let (_, reply) = http_get(&format!("http://127.0.0.1:{port}/"), 1024).await.unwrap();
+        assert_eq!(reply.status, 404, "the caller decides what a status means");
+    }
+
+    #[tokio::test]
+    async fn get_stops_after_too_many_redirects_and_large_pages() {
+        let (port, _) = fake_site((0..=MAX_REDIRECTS).map(|_| redirect("/again")).collect()).await;
+        match http_get(&format!("http://127.0.0.1:{port}/"), 1024).await {
+            Err(HttpError::Other(why)) => assert!(why.contains("redirects"), "{why}"),
+            other => panic!("expected a redirect error, got {other:?}"),
+        }
+        let big = "x".repeat(2000);
+        let (port, _) = fake_site(vec![format!("HTTP/1.1 200 OK\r\nContent-Length: 2000\r\n\r\n{big}")]).await;
+        match http_get(&format!("http://127.0.0.1:{port}/"), 1024).await {
+            Err(HttpError::Other(why)) => assert!(why.contains("over 1024 bytes"), "{why}"),
+            other => panic!("expected a size error, got {other:?}"),
+        }
+        let port = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap().local_addr().unwrap().port();
+        assert!(matches!(http_get(&format!("http://127.0.0.1:{port}/"), 1024).await, Err(HttpError::Unreachable(_))));
+    }
+
+    /// Kim's probe page with the three values added on 16 November 2026.
+    #[cfg(feature = "web-watch")]
+    pub(crate) const PROBE_PAGE: &str = "<!doctype html>\n<html><head><meta charset=\"utf-8\"><title>probe</title></head><body>\n<p><span id=\"probe-token\">2f3a8ec2157a39f90c474db4d032a4e1</span></p>\n<p><span id=\"probe-gbp\">£3,577.30</span></p>\n<p><span id=\"probe-usd\">$3,649.36</span></p>\n<p><small>2026-11-16 12:25:53</small></p>\n</body></html>";
+
+    #[cfg(feature = "web-watch")]
+    pub(crate) fn page_reply(page: &str) -> String {
+        format!("HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: {}\r\n\r\n{page}", page.len())
+    }
+
+    #[cfg(feature = "web-watch")]
+    fn watch(url: &str, find: &str, name: &str, read_as: &str) -> crate::web_watch::WebWatch {
+        serde_json::from_value(json!({ "url": url, "find": find, "name": name, "read_as": read_as })).unwrap()
+    }
+
+    #[cfg(feature = "web-watch")]
+    #[tokio::test]
+    async fn web_watch_reads_text_and_numbers() {
+        let (port, _) = fake_site(vec![page_reply(PROBE_PAGE); 3]).await;
+        let url = format!("http://127.0.0.1:{port}/probe");
+        let token = watch(&url, "id", "probe-token", "text").read().await.unwrap();
+        assert_eq!(token, json!({ "text": "2f3a8ec2157a39f90c474db4d032a4e1" }));
+        let gbp = watch(&url, "id", "probe-gbp", "number").read().await.unwrap();
+        assert_eq!(gbp, json!({ "text": "£3,577.30", "number": 3577.3 }));
+        let usd = watch(&url, "id", "probe-usd", "number").read().await.unwrap();
+        assert_eq!(usd["number"], json!(3649.36));
+    }
+
+    #[cfg(feature = "web-watch")]
+    #[tokio::test]
+    async fn web_watch_failures_are_explained() {
+        let (port, _) = fake_site(vec![
+            page_reply(PROBE_PAGE),
+            page_reply(PROBE_PAGE),
+            "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n".into(),
+        ])
+        .await;
+        let url = format!("http://127.0.0.1:{port}/probe");
+        let missing = watch(&url, "class", "price", "text").read().await.unwrap_err();
+        assert!(missing.contains(".price is not on"), "{missing}");
+        let words = watch(&url, "id", "probe-token", "number").read().await;
+        assert!(words.is_ok(), "the token starts with a digit, so it has a number");
+        let gone = watch(&url, "id", "x", "text").read().await.unwrap_err();
+        assert!(gone.contains("HTTP 404"), "{gone}");
+
+        let (port, _) = fake_site(vec![page_reply("<p id=\"n\">sold out</p>")]).await;
+        let none = watch(&format!("http://127.0.0.1:{port}/"), "id", "n", "number").read().await.unwrap_err();
+        assert!(none.contains("no number"), "{none}");
+
+        let port = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap().local_addr().unwrap().port();
+        let down = watch(&format!("http://127.0.0.1:{port}/"), "id", "n", "text").read().await.unwrap_err();
+        assert!(down.contains("could not reach"), "{down}");
+
+        for bad in [
+            json!({ "url": "ftp://x/", "find": "id", "name": "n" }),
+            json!({ "url": "https://x/", "find": "id", "name": "" }),
+            json!({ "url": "https://x/", "find": "class", "name": "two words" }),
+        ] {
+            let w: crate::web_watch::WebWatch = serde_json::from_value(bad.clone()).unwrap();
+            assert!(w.check().is_err(), "{bad}");
+        }
+        for bad in [
+            json!({ "url": "https://x/", "find": "tag", "name": "p" }),
+            json!({ "url": "https://x/", "find": "id", "name": "n", "read_as": "html" }),
+            json!({ "url": "https://x/", "find": "id", "name": "n", "extra": 1 }),
+        ] {
+            assert!(serde_json::from_value::<crate::web_watch::WebWatch>(bad.clone()).is_err(), "{bad}");
+        }
+    }
+
+    /// Asks Kim's real probe page over HTTPS. Run with `-- --ignored`.
+    #[cfg(feature = "web-watch")]
+    #[tokio::test]
+    #[ignore]
+    async fn live_https_probe_page() {
+        let (url, reply) = http_get("https://bitmods.com/probe", 2 * 1024 * 1024).await.unwrap();
+        let page = String::from_utf8_lossy(&reply.body);
+        assert_eq!(reply.status, 200, "{url:?}");
+        assert!(page.contains("id=\"probe-token\""), "{page}");
+        let token = crate::web_watch::find_text(&page, crate::web_watch::FindBy::Id, "probe-token").unwrap();
+        assert!(token.as_deref().is_some_and(|t| t.len() >= 32), "{token:?}");
+        println!("probe-token: {token:?}");
     }
 
     /// A one-shot local server: answers the first request with `reply` and

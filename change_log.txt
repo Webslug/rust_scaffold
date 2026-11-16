@@ -6,8 +6,31 @@ reasons are in AGENTS.md (Log section); history before 14 November 2026 is in
 AGENTS.md and docs/AGENTS_OLD.bak.
 
 
+16 November 2026 (version 0.2.6, built into dist/)
+---------------------------------------------------
+- Added the project mantra to AGENTS.md: the screws for the optional drawers go in a separate bag, not already hammered in. Pinned idea (undecided): a simple and an advanced Jobs mode.
+- New docs/consolidation_audit.html: a page to tick which features are understood, wanted in a new app and finished, with code size bars. No source changed.
+- Frame-rate probe built as an experiment (in /tmp, not in dist/) to test whether the window is capped at 60 fps on a 120 Hz monitor.
+- Parked ideas written down: watching a value on a website and reacting (docs/future_web_watch.md); default AI server addresses and an hourly limit for AI jobs.
+- The app's HTTP client can now use https (rustls, feature web-watch) and follow redirects. First step of the web watch job; nothing visible yet.
+- Web watch step 2: reads the text of an element by id or class from a page, and the first number in it (ignoring £ $ € ¥ and thousands commas). Nothing visible yet.
+- New job: Web watch. Reads a value from a web page by id or class, as text or a number, at most every 30 seconds; rules react when it changes or passes a threshold.
+- Checked: Tauri 3 alpha uses the same GTK 3 and WebKit as now, so it cannot lift the 60 fps limit. 120 fps parked.
+- New docs/revisions_jobs_tasks_v2.md: Jobs 2.0 specification (Triggers, Schedules, Actions; internal API), from Kim's revisions_jobs_tasks.md. Nothing built.
+- Jobs 2.0 engine (phase 1 step 2): Triggers, Schedules and Actions in Rust, saved in jobs.json version 2 and kept across restarts. The old schedules and rules, and the "pause after failures" setting, are gone. 108 tests pass. The Jobs page is not built yet, so dist/ is unchanged.
+- Jobs 2.0 page (phase 1 step 3): Triggers, Schedules and Actions lists with Edit, Duplicate, Delete and an On switch; one trigger form with Test now and "Then start", where New action opens inside the form; Running now with Kill. Checked on the hidden screen at Kim's window size. Not yet in dist/.
+- Jobs 2.0 built into dist/: a hidden-screen check now builds "GBP changes, then notify" through the page itself, sees the notification arrive, runs and kills a command, copies and deletes a trigger, and finds everything still there after a restart. Fixed along the way: lists scrolling sideways, a command's first line not shown live, the Delete button moving on the first click.
+- Jobs Overview: the page opens on a dashboard of every trigger, schedule and action, in three sections you can drag to reorder (order and open sections saved), with sorting, a filter, 30 rows a page, hover summaries, click to open, and Enable all, Disable all, Delete all and Restore demos. Fixed: a deleted entry's old reading came back when an entry of the same name was made again. Built into dist/.
+- Fire now on triggers (reads the page at once and starts its actions) and Run now on schedules, so nothing needs waiting for. An action run by hand now gets the latest reading of its trigger, so the notification shows the price. Fixed: a command's live line could wipe its reported progress.
+- Menu search (Ctrl+K) finds the Jobs views and every trigger, schedule and action by name. Hardware-Watch: triggers can watch CPU load, memory, disk space, graphics card memory or a file (Linux).
+- New actions: fire a trigger, delay a schedule, change a count, delete an entry, write to the log, clear the Errors list, show, hide, quit or restart the app. A schedule run made up after the app was closed never quits or restarts it.
+- Select lists open in the theme's colours instead of white; a date and time picker in the theme's colours for schedule times; larger, centred Enabled/Disabled switches and a separator above Save and Cancel.
+- Version 0.2.6. README Jobs section rewritten; Help updated.
+
+
 15 November 2026
 ----------------
+- Notification jobs now give up after 10 seconds with a clear reason when the desktop's notification service does not answer (on Kim's desktop lxqt-notificationd was not running and a KDE placeholder made every call wait).
 - Jobs: a script can report its own result (label, value, message) by writing JSON to $JOB_RESULT, and progress to $JOB_PROGRESS. Rules can test a value (above, below, equals) or react only when the output changed. New Notification job (desktop notifications). Prompts and notifications can quote the earlier result ({previous_value.percent}, {previous_message}), so an AI can react to a job's outcome. New demos (all off): disk check, AI advice, notification; /etc/hosts watcher.
 - Errors and warnings are saved in errors.jsonl in the settings folder and still listed after a restart (greyed), with DEBUG_MODE on or off.
 - README: Jobs section, and how it compares with cron and Task Scheduler.

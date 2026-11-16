@@ -1,155 +1,23 @@
 {
-  "version": 1,
-  "note": "Scheduled jobs and rules. Usually edited on the Jobs page (Schedules and Rules); this file can also be edited by hand, then press Reload. Each schedule runs a job kind (src-tauri/src/job_kinds.rs) with its input: command (script, folder), ai (provider: ollama, llama_cpp, claude_code, codex or grok_build; model; prompt; folder; endpoint) or notify (title, text, urgency: low, normal or critical; sound). A script can report a result by writing JSON to the file $JOB_RESULT: {\"label\": \"disk_high\", \"value\": {\"percent\": 92}, \"message\": \"...\"}, and progress (40/100) to $JOB_PROGRESS. when: manual (only Run now or a rule), once (at), every (interval: 30s, 10m, 2h, 14d), daily (time), weekly (day, time) or monthly (day 1 to 31, time). Times are local: HH:MM and YYYY-MM-DD HH:MM. Optional: enabled (true), catch_up (true: a run missed while the app was closed runs once at start), max_runs, until, timeout_ms, retries (0 to 10), retry_wait (1m), retry_doubling (true), note. A rule: when a schedule ends (done, failed, timed_out, killed, not_done or any), optionally with a result label, a value test (value: field, above, below, equals), changed (true: the output or value differs from the last success), a number of times in a row, then start, enable or disable a schedule. A job started by a rule gets the earlier job's result: $PREVIOUS_OUTPUT, $PREVIOUS_VALUE and the rest in a script, {previous_output}, {previous_value.percent} and the rest in a prompt or notification. See docs/usage.md.",
-  "schedules": [
+  "version": 2,
+  "note": "Triggers, Schedules and Actions (Jobs 2.0). Usually edited on the Jobs page; this file can also be edited by hand, then press Reload. Triggers and Schedules start the Actions named in their then list. The demonstration Trigger is off: switch it on to watch the GBP price on bitmods.com/probe and show a notification when it changes.",
+  "triggers": [
     {
-      "name": "demo_disk_check",
-      "note": "Every hour: how full / is, reported as the value {\"percent\": N}. The rule demo_disk_full reacts when it is over 90.",
-      "kind": "command",
-      "input": {
-        "script": "pct=$(df --output=pcent / | tail -n 1 | tr -dc '0-9')\nprintf '{\"value\":{\"percent\":%s},\"message\":\"The disk / is %s%% full.\"}' \"$pct\" \"$pct\" > \"$JOB_RESULT\"\ndf -h / | tail -n 1",
-        "folder": null
-      },
-      "when": {
-        "type": "every",
-        "interval": "1h"
-      },
-      "enabled": false
-    },
-    {
-      "name": "demo_disk_advice",
-      "note": "Started by the rule demo_disk_full: asks the local model what to do about it. Ollama must be running.",
-      "kind": "ai",
-      "input": {
-        "provider": "ollama",
-        "model": "qwen3:1.7b",
-        "prompt": "{previous_message} This is the df output:\n{previous_output}\n\nIn at most three short lines, suggest safe ways to free space on a Linux desktop. Never suggest deleting system files."
-      },
-      "when": {
-        "type": "manual"
-      },
-      "enabled": false
-    },
-    {
-      "name": "demo_tell_advice",
-      "note": "Started by the rule demo_advice_ready: shows the model's answer as a desktop notification.",
-      "kind": "notify",
-      "input": {
-        "title": "Disk nearly full",
-        "text": "{previous_output}",
-        "urgency": "critical",
-        "sound": true
-      },
-      "when": {
-        "type": "manual"
-      },
-      "enabled": false
-    },
-    {
-      "name": "demo_watch_hosts",
-      "note": "Every 10 minutes: reads /etc/hosts. The rule demo_hosts_changed reacts when it differs from the last time.",
-      "kind": "command",
-      "input": {
-        "script": "cat /etc/hosts",
-        "folder": null
-      },
-      "when": {
-        "type": "every",
-        "interval": "10m"
-      },
-      "enabled": false
-    },
-    {
-      "name": "demo_tell_changed",
-      "note": "Started by the rule demo_hosts_changed.",
-      "kind": "notify",
-      "input": {
-        "title": "/etc/hosts changed",
-        "text": "{previous_output}",
-        "urgency": "normal"
-      },
-      "when": {
-        "type": "manual"
-      },
-      "enabled": false
-    },
-    {
-      "name": "demo_morning_ai",
-      "note": "Asks the local Ollama model for a line each morning at 08:00, made up once at start if the app was closed then. Ollama must be running.",
-      "kind": "ai",
-      "input": {
-        "provider": "ollama",
-        "model": "qwen3:1.7b",
-        "prompt": "Write one cheerful sentence to start the day."
-      },
-      "when": {
-        "type": "daily",
-        "time": "08:00"
-      },
-      "enabled": false
-    },
-    {
-      "name": "demo_month_end",
-      "note": "Runs on the last day of each month at 23:00, at most 12 times.",
-      "kind": "command",
-      "input": {
-        "script": "echo \"Month end: $(date)\"",
-        "folder": null
-      },
-      "when": {
-        "type": "monthly",
-        "day": 31,
-        "time": "23:00"
-      },
-      "max_runs": 12,
-      "enabled": false
+      "name": "GBP price",
+      "enabled": false,
+      "watch": { "type": "web_watch", "url": "https://bitmods.com/probe", "find": "id", "name": "probe-gbp", "read_as": "number" },
+      "every_seconds": 300,
+      "when": { "is": "changes" },
+      "then": ["Notify GBP price"]
     }
   ],
-  "rules": [
+  "schedules": [],
+  "actions": [
     {
-      "name": "demo_disk_full",
-      "note": "When the disk check reports over 90 percent twice in a row, ask the AI for advice. Set enabled to true to try it (with demo_advice_ready).",
-      "when": {
-        "schedule": "demo_disk_check",
-        "ended": "done",
-        "value": {
-          "field": "percent",
-          "above": 90
-        },
-        "times": 2
-      },
-      "then": {
-        "action": "start",
-        "schedule": "demo_disk_advice"
-      },
-      "enabled": false
-    },
-    {
-      "name": "demo_advice_ready",
-      "note": "When the AI has answered, show its answer as a notification.",
-      "when": {
-        "schedule": "demo_disk_advice",
-        "ended": "done"
-      },
-      "then": {
-        "action": "start",
-        "schedule": "demo_tell_advice"
-      },
-      "enabled": false
-    },
-    {
-      "name": "demo_hosts_changed",
-      "note": "When /etc/hosts differs from the last successful read, show a notification.",
-      "when": {
-        "schedule": "demo_watch_hosts",
-        "ended": "done",
-        "changed": true
-      },
-      "then": {
-        "action": "start",
-        "schedule": "demo_tell_changed"
-      },
-      "enabled": false
+      "name": "Notify GBP price",
+      "enabled": true,
+      "kind": "notify",
+      "input": { "title": "GBP now {value.text}", "text": "It was {previous.text}", "urgency": "normal", "sound": false }
     }
   ]
 }

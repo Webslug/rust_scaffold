@@ -1,6 +1,6 @@
 [package]
 name = "rust-scaffold"
-version = "0.2.5"
+version = "0.2.6"
 description = "Lean Rust + Tauri desktop application scaffold"
 authors = ["Kim"]
 edition = "2021"
@@ -55,11 +55,21 @@ tracing = "0.1"
 # Only the parts we use: the layer registry, and "tracing-log", which forwards
 # messages from Tauri's libraries (they use the older `log` crate).
 tracing-subscriber = { version = "0.3", default-features = false, features = ["std", "registry", "tracing-log"] }
+# HTTPS for the web watch job kind (feature web-watch): TLS in pure Rust with
+# the `ring` crypto library and Mozilla's root certificates built in, so it
+# does not depend on the system's OpenSSL. Measured on 16 November 2026: 10
+# crates and about 2 MB. See docs/future_web_watch.md.
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"], optional = true }
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "tls12"], optional = true }
+webpki-roots = { version = "1", optional = true }
+# Finding an element by id or class in a fetched page (feature web-watch).
+# Its HTML parser (html5ever) is already compiled for Tauri: no extra crates.
+dom_query = { version = "0.28", optional = true }
 
 # Builds with plain cargo (no Tauri CLI, no Node). With no devUrl the
 # frontend in ../ui is always embedded, so custom-protocol stays on.
 [features]
-default = ["custom-protocol", "linux-tray-clicks", "desktop-notifications"]
+default = ["custom-protocol", "linux-tray-clicks", "desktop-notifications", "web-watch"]
 custom-protocol = ["tauri/custom-protocol"]
 # Linux only: switches Tauri's tray to the KSNI backend (a StatusNotifierItem
 # over D-Bus), the only Linux backend that reports clicks, so a double-click
@@ -72,6 +82,9 @@ linux-tray-clicks = ["dep:tray-icon"]
 # compiles, so it adds no crates while that feature is on. Without it the
 # notify kind fails with "unavailable".
 desktop-notifications = ["dep:zbus"]
+# HTTPS in the app's own HTTP client, for the web watch job kind. Without it
+# the client speaks plain http only (enough for local AI servers).
+web-watch = ["dep:rustls", "dep:tokio-rustls", "dep:webpki-roots", "dep:dom_query"]
 
 # Size-focused release build. Cuts the binary substantially at the cost of a
 # slower full rebuild (a few minutes). panic = "abort" drops the unwinding code.

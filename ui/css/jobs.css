@@ -1,8 +1,9 @@
 /* ==========================================================================
-   Jobs tab: new-job form, job table, progress bars and the details card
+   Jobs tab: Running now, the Triggers, Schedules and Actions lists, their
+   editors and the job details card (js/jobs.js, js/automation.js)
    ========================================================================== */
 
-.jobs-form,
+.jobs-running,
 .jobs-inspect {
   margin-bottom: var(--space-3);
 }
@@ -11,15 +12,114 @@
   margin-top: var(--space-3);
 }
 
-/* Four short fields side by side, wrapping on narrow windows. */
+/* Section buttons on the left, Reload on the right. */
+.jobs-topbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.jobs-views {
+  flex-wrap: wrap;
+}
+
+.jobs-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.jobs-status {
+  margin: 0 0 var(--space-2);
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.jobs-status:empty {
+  display: none;
+}
+
+/* ---- Editors -------------------------------------------------------------- */
+
+.jobs-editor {
+  margin-bottom: var(--space-3);
+}
+
+/* Short fields side by side, wrapping on narrow windows. */
 .jobs-fields {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(var(--jobs-field-min), 1fr));
   gap: var(--space-3);
 }
 
-.jobs-fields .form-label {
+.jobs-fields .form-label,
+.jobs-wide .form-label {
   display: block;
+}
+
+.jobs-editor .card-body > * + *,
+.jobs-kind-fields > * + *,
+.jobs-section + * {
+  margin-top: var(--space-3);
+}
+
+.jobs-kind-fields {
+  margin-top: var(--space-3);
+}
+
+/* A number and its unit side by side. */
+.jobs-pair {
+  display: grid;
+  grid-template-columns: minmax(var(--jobs-pair-number), 1fr) minmax(var(--jobs-unit-min), 1.4fr);
+  gap: var(--space-1);
+}
+
+.jobs-code {
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+}
+
+/* The Enabled / Disabled toggle of each editor: centred, larger than a
+   plain check box, its label in the accent colour while on. */
+.jobs-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding-left: 0;
+}
+
+.jobs-toggle .form-check-input {
+  float: none;
+  width: var(--jobs-toggle-width);
+  height: var(--jobs-toggle-height);
+  margin: 0;
+  cursor: pointer;
+}
+
+.jobs-toggle .form-check-label {
+  min-width: var(--jobs-toggle-label);
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.jobs-toggle .form-check-input:checked + .form-check-label {
+  color: var(--accent-text);
+}
+
+/* Between the form and its Save and Cancel buttons. */
+.jobs-divider {
+  margin: var(--space-3) 0 0;
+  border: 0;
+  border-top: 1px solid var(--accent-border);
+  opacity: 1;
 }
 
 .jobs-actions {
@@ -27,15 +127,93 @@
   flex-wrap: wrap;
   justify-content: center;
   gap: var(--space-2);
-  margin-top: var(--space-3);
 }
 
-.jobs-status {
+.jobs-error {
   margin: var(--space-2) 0 0;
-  color: var(--text-muted);
+  color: var(--danger-text);
   font-size: 0.875rem;
   text-align: center;
 }
+
+.jobs-error:empty {
+  display: none;
+}
+
+.jobs-form-note {
+  margin: 0;
+}
+
+/* Test now and what it read. */
+.jobs-test {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.jobs-test-result {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
+/* ---- "Then start": chosen actions as chips -------------------------------- */
+
+.jobs-then {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface-alt);
+}
+
+.jobs-then > .form-label {
+  display: block;
+  margin-bottom: var(--space-1);
+}
+
+.jobs-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+}
+
+.jobs-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding-left: var(--space-2);
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius-pill);
+  background-color: var(--accent-soft);
+  color: var(--accent-text);
+  font-size: 0.875rem;
+}
+
+.app-content .jobs-chip .jobs-chip-remove {
+  padding: 0 var(--space-2);
+  color: inherit;
+  line-height: 1.6;
+}
+
+.jobs-then-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.jobs-then-select {
+  width: auto;
+  min-width: var(--jobs-field-min);
+}
+
+/* The action editor, when opened from a trigger or schedule editor. */
+.jobs-then-slot > .jobs-editor {
+  margin: var(--space-3) 0 0;
+}
+
+/* ---- Lists ---------------------------------------------------------------- */
 
 .jobs-table th,
 .jobs-table td {
@@ -44,54 +222,110 @@
 }
 
 /* The table measures its own width, not the window's, so the rule works
-   whether the menu is wide, icons only or along the top. When narrow,
-   Waited and Late by are hidden; narrower still, Ran and the bar go too
-   (the count stays). Inspect shows all of them. */
+   whether the menu is wide, icons only or along the top. */
 .jobs-table-wrap {
   container-type: inline-size;
 }
 
-@container (max-width: 40rem) {
+@container (max-width: 44rem) {
   .jobs-table .jobs-extra {
     display: none;
   }
 }
 
-@container (max-width: 28rem) {
-  .jobs-table .jobs-narrow-hide,
-  .jobs-progress progress {
-    display: none;
-  }
-
-  /* .app-content raises these above the shared table rule in window.css. */
-  .app-content .jobs-table.table-custom thead th,
-  .app-content .jobs-table.table-custom tbody td {
-    padding-inline: var(--space-1);
-  }
-
-  .app-content .jobs-table.table-custom thead th:first-child,
-  .app-content .jobs-table.table-custom tbody td:first-child {
-    padding-left: var(--space-2);
-  }
-
-  .app-content .jobs-table.table-custom thead th:last-child,
-  .app-content .jobs-table.table-custom tbody td:last-child {
-    padding-right: var(--space-2);
-  }
+/* Triggers, Schedules and Actions: fixed widths for the switch and the
+   buttons, the rest shared, so long text wraps instead of widening the
+   table past its card. */
+.auto-table {
+  table-layout: fixed;
+  width: 100%;
 }
 
-.jobs-table .jobs-empty {
+.auto-table .jobs-col-on {
+  width: var(--jobs-on-width);
+}
+
+.auto-table .jobs-col-buttons {
+  width: var(--jobs-buttons-width);
+}
+
+/* .app-content raises these above the shared table rule in window.css,
+   which keeps every cell on one line. */
+.app-content .jobs-table tbody td.jobs-wrap {
+  padding-right: var(--space-3);
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.app-content .jobs-table tbody .jobs-empty {
   color: var(--text-muted);
   text-align: center;
   white-space: normal;
 }
 
-.jobs-table .jobs-buttons {
-  text-align: right;
+.jobs-table .jobs-name {
+  font-weight: 600;
 }
 
-.jobs-table .jobs-buttons .btn + .btn {
+.jobs-table .jobs-value {
+  font-variant-numeric: tabular-nums;
+}
+
+.jobs-table .jobs-number {
+  font-variant-numeric: tabular-nums;
+}
+
+.jobs-subtle {
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+}
+
+/* The last line of a result, at most two lines; the whole of it is in the
+   tooltip. It wraps, so it never pushes the table wider. */
+.jobs-result-line {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* A running job's live note: one line, cut. */
+.jobs-table .jobs-note-cell {
+  max-width: var(--jobs-note-max);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-content .jobs-table tbody td.jobs-buttons {
+  text-align: right;
+  white-space: normal;
+}
+
+.jobs-button-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-1);
+}
+
+.app-content .jobs-table .jobs-buttons .btn {
+  padding: var(--space-1) var(--space-2);
+}
+
+.jobs-table .jobs-buttons > .btn + .btn {
   margin-left: var(--space-1);
+}
+
+.jobs-buttons .btn.jobs-confirm {
+  background-color: var(--danger-soft);
+  color: var(--danger-text);
+}
+
+.jobs-table .form-switch {
+  min-height: 0;
 }
 
 /* Selected row while its details are open. */
@@ -99,44 +333,13 @@
   background-color: var(--surface-alt);
 }
 
-/* Native <progress>: no width set from script, so the page's
-   Content-Security-Policy (no inline styles) is respected. */
-.jobs-progress {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.jobs-progress progress {
-  width: var(--jobs-bar-width);
-  height: var(--jobs-bar-height);
-  appearance: none;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-pill);
-  background-color: var(--surface-alt);
-  overflow: hidden;
-}
-
-.jobs-progress progress::-webkit-progress-bar {
-  background-color: var(--surface-alt);
-}
-
-.jobs-progress progress::-webkit-progress-value {
-  background-color: var(--accent);
-}
-
-.jobs-progress progress::-moz-progress-bar {
-  background-color: var(--accent);
-}
-
-.jobs-progress .jobs-count {
-  font-variant-numeric: tabular-nums;
+.jobs-note {
+  margin: var(--space-2) 0 var(--space-3);
   color: var(--text-muted);
+  font-size: 0.875rem;
 }
 
-.jobs-table .jobs-number {
-  font-variant-numeric: tabular-nums;
-}
+/* ---- Job details ------------------------------------------------------------- */
 
 .jobs-inspect .card-header {
   display: flex;
@@ -160,147 +363,6 @@
   margin: 0;
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
-}
-
-.jobs-note {
-  margin: var(--space-2) 0 0;
-  color: var(--text-muted);
-  font-size: 0.875rem;
-}
-
-/* ==========================================================================
-   Schedules, Rules and Next 24 hours views (js/schedules.js)
-   ========================================================================== */
-
-.jobs-views {
-  flex-wrap: wrap;
-  margin-bottom: var(--space-3);
-}
-
-.jobs-banner {
-  margin-bottom: var(--space-3);
-}
-
-.jobs-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
-.jobs-editor {
-  margin: var(--space-3) 0;
-}
-
-.jobs-editor .jobs-fields + .jobs-wide,
-.jobs-editor .jobs-wide + .jobs-fields,
-.jobs-editor .jobs-fields + .jobs-switches,
-.jobs-editor .jobs-switches + .jobs-wide {
-  margin-top: var(--space-3);
-}
-
-/* A number and its unit side by side. */
-.jobs-pair {
-  display: grid;
-  grid-template-columns: minmax(var(--jobs-pair-number), 1fr) 1.4fr;
-  gap: var(--space-1);
-}
-
-.jobs-code {
-  font-family: var(--font-mono);
-  font-size: 0.875rem;
-}
-
-.jobs-switches {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2) var(--space-4);
-}
-
-.jobs-error {
-  margin: var(--space-2) 0 0;
-  color: var(--danger-text);
-  font-size: 0.875rem;
-  text-align: center;
-}
-
-.jobs-error:empty {
-  display: none;
-}
-
-.jobs-table td.jobs-wrap {
-  white-space: normal;
-  min-width: var(--jobs-wrap-min);
-}
-
-.jobs-table .badge + .jobs-subtle {
-  margin-left: var(--space-1);
-}
-
-.jobs-subtle {
-  color: var(--text-muted);
-  font-size: 0.8125rem;
-}
-
-.jobs-buttons .btn.jobs-confirm {
-  background-color: var(--danger-soft);
-  color: var(--danger-text);
-}
-
-/* Schedules and Rules tables carry more buttons per row than the queue, so
-   theirs are compact, and the When and Next columns may wrap. */
-.app-content .jobs-table .jobs-buttons .btn {
-  padding: var(--space-1) var(--space-2);
-}
-
-.sched-table td.jobs-wrap {
-  min-width: var(--jobs-wrap-min-narrow);
-}
-
-/* The buttons wrap onto a second line rather than push the table wider. */
-.sched-table td.jobs-buttons {
-  white-space: normal;
-  min-width: var(--jobs-buttons-min);
-}
-
-.jobs-button-row {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: var(--space-1);
-}
-
-.app-content .sched-table .jobs-button-row .btn + .btn {
-  margin-left: 0;
-}
-
-.sched-table .badge {
-  vertical-align: baseline;
-}
-
-.jobs-fields > .jobs-span2 {
-  grid-column: span 2;
-}
-
-/* ==========================================================================
-   Job input fields (js/job_forms.js), the run form and job output
-   ========================================================================== */
-
-.jobs-section + .jobs-section,
-.jobs-kind-fields > * + *,
-.jobs-kind-fields,
-.jobs-section + .jobs-wide,
-.jobs-section + .jobs-fields {
-  margin-top: var(--space-3);
-}
-
-.jobs-form-note {
-  margin: 0;
-}
-
-.jobs-limit-box {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
 }
 
 .jobs-output-box {
@@ -330,40 +392,172 @@
   overflow-wrap: anywhere;
 }
 
-.jobs-output-small {
-  max-height: var(--jobs-output-small-max);
-  padding: var(--space-1) var(--space-2);
-  font-size: 0.75rem;
-}
-
-.jobs-history-output {
-  min-width: var(--jobs-wrap-min);
-}
-
-.jobs-limit-box .form-label {
-  white-space: nowrap;
-}
-
-/* The live note can be a long line of output: cut it, the full text is in
-   its tooltip and in Inspect. */
-.jobs-progress .jobs-count {
-  display: inline-block;
-  max-width: var(--jobs-note-max);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  vertical-align: middle;
-}
-
-/* The queue table has the most columns: Waited goes sooner. */
-@container (max-width: 52rem) {
-  .jobs-queue-table .jobs-extra {
+/* Narrow: each row stacks, the switch on the left and the rest under the
+   name, so the lists never scroll sideways. */
+@container (max-width: 32rem) {
+  .auto-table thead {
     display: none;
+  }
+
+  .auto-table tr {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .auto-table td {
+    display: block;
+    border: 0;
+  }
+
+  .auto-table td:nth-child(n + 3) {
+    grid-column: 2;
+  }
+
+  .app-content .auto-table tbody td.jobs-buttons {
+    text-align: left;
+  }
+
+  .auto-table .jobs-button-row {
+    justify-content: flex-start;
+  }
+
+  .app-content .auto-table tbody td.jobs-empty {
+    grid-column: 1 / -1;
   }
 }
 
-/* Result value under the result badge in a schedule's history. */
-.jobs-history-value {
-  font-family: var(--font-mono);
-  overflow-wrap: anywhere;
+/* ---- Overview (js/jobs_overview.js) ------------------------------------------ */
+
+.overview-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.overview-filter {
+  flex: 1 1 var(--jobs-field-min);
+  max-width: var(--jobs-filter-max);
+}
+
+.overview-quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.overview-quick .btn.jobs-confirm {
+  background-color: var(--danger-soft);
+  color: var(--danger-text);
+}
+
+.overview-count {
+  margin-left: var(--space-1);
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.overview-body {
+  padding: 0;
+}
+
+.overview-table {
+  table-layout: fixed;
+  width: 100%;
+  text-align: center;
+}
+
+.overview-table .jobs-col-on {
+  width: var(--jobs-on-width);
+}
+
+.app-content .overview-table tbody td.jobs-wrap {
+  text-align: center;
+}
+
+.overview-table tr.overview-row {
+  cursor: pointer;
+}
+
+.overview-table tr.overview-row:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: calc(var(--focus-ring-width) * -1);
+}
+
+/* Header buttons that sort the table. */
+.overview-sort {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+}
+
+.overview-sort .bi {
+  opacity: 0.4;
+}
+
+.overview-sort.active .bi {
+  opacity: 1;
+  color: var(--accent);
+}
+
+.overview-pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+}
+
+.overview-pager:empty {
+  display: none;
+}
+
+/* Hover summaries (Bootstrap tooltips, customClass "jobs-tooltip"). */
+.jobs-tooltip .tooltip-inner {
+  max-width: var(--jobs-tooltip-max);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface-raised);
+  color: var(--text);
+  text-align: left;
+  white-space: pre-line;
+}
+
+.jobs-tooltip .tooltip-arrow::before {
+  border-top-color: var(--accent-border);
+}
+
+/* The fields of one kind of watch (trigger editor); a grid row has its own
+   gap. */
+.jobs-editor div[data-watch]:not(.jobs-fields) > * + * {
+  margin-top: var(--space-3);
+}
+
+/* The On switch in each list: centred under its heading, larger than a
+   plain check box so it reads as a switch. */
+.auto-table th.jobs-col-on,
+.auto-table td:first-child {
+  text-align: center;
+}
+
+.auto-table td:first-child .form-switch {
+  display: flex;
+  justify-content: center;
+  padding-left: 0;
+  margin: 0;
+}
+
+.auto-table td:first-child .form-switch .form-check-input {
+  float: none;
+  width: var(--jobs-list-toggle-width);
+  height: var(--jobs-list-toggle-height);
+  margin: 0;
+  cursor: pointer;
 }

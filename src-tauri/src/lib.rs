@@ -1,16 +1,19 @@
+mod automation;
 mod commands;
 mod config;
 mod files;
+mod hardware_watch;
 mod gpu;
 mod job_kinds;
 mod jobs;
 mod keys;
 mod logging;
 mod options;
-mod scheduler;
 mod search;
 mod startup;
 mod tray;
+#[cfg(feature = "web-watch")]
+mod web_watch;
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -132,7 +135,6 @@ pub fn run() {
     let tray_items = state.config.tray_items.clone();
     let job_limit = state.config.job_concurrency;
     let resource_locks = state.config.job_resource_locks;
-    let failure_limit = state.config.schedule_failure_limit;
     tauri::Builder::default()
         .manage(Mutex::new(state))
         .setup(move |app| {
@@ -147,15 +149,29 @@ pub fn run() {
             let queue = jobs::Queue::new(runtime.clone(), job_limit, notify, job_kinds::KINDS);
             queue.set_resource_locks(resource_locks);
             app.manage(queue.clone());
-            // Scheduled jobs from jobs.json; the list is pushed to the window
-            // after every change.
+            // Triggers, Schedules and Actions from jobs.json; the whole list
+            // is pushed to the window after every change.
             let events = app.handle().clone();
-            let notify_ui: scheduler::NotifyUi = std::sync::Arc::new(move |reply: &scheduler::SchedulesReply| {
-                let _ = events.emit(scheduler::CHANGED_EVENT, reply);
+            let notify_ui: automation::NotifyUi = std::sync::Arc::new(move |reply: &automation::AutomationReply| {
+                let _ = events.emit(automation::CHANGED_EVENT, reply);
             });
-            let schedules = scheduler::Scheduler::for_app(settings_dir().to_path_buf(), queue, failure_limit, notify_ui);
-            schedules.spawn(&runtime);
-            app.manage(schedules);
+            // What "app" actions do: show and hide as the tray does, quit,
+            // restart.
+            let handle = app.handle().clone();
+            let app_control: automation::AppControl = std::sync::Arc::new(move |what| {
+                let handle = handle.clone();
+                match what {
+                    automation::AppDo::Show => tray::show_window(&handle),
+                    automation::AppDo::Hide => tray::hide_window(&handle),
+                    automation::AppDo::Quit => handle.exit(0),
+                    automation::AppDo::Restart => handle.restart(),
+                }
+                Ok(())
+            });
+            let automation =
+                automation::Automation::for_app(settings_dir().to_path_buf(), queue, runtime, notify_ui, app_control);
+            automation.spawn();
+            app.manage(automation);
             // Restore the saved size while the window is still hidden.
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.set_size(LogicalSize::new(width as f64, height as f64));
@@ -187,22 +203,20 @@ pub fn run() {
             commands::log_test_entry,
             commands::ui_ready,
             commands::jobs_list,
-            commands::jobs_start,
             commands::jobs_cancel,
-            commands::jobs_cancel_all,
-            commands::jobs_clear_finished,
             commands::jobs_inspect,
-            commands::schedules_list,
-            commands::schedules_reload,
-            commands::schedules_run_now,
-            commands::schedules_pause,
-            commands::schedules_save,
-            commands::schedules_delete,
-            commands::schedules_set_enabled,
-            commands::schedules_pause_all,
-            commands::rules_save,
-            commands::rules_delete,
             commands::jobs_kinds,
+            commands::automation_list,
+            commands::automation_reload,
+            commands::automation_save,
+            commands::automation_delete,
+            commands::automation_duplicate,
+            commands::automation_set_enabled,
+            commands::automation_run,
+            commands::automation_bulk,
+            commands::automation_fire_trigger,
+            commands::automation_run_schedule,
+            commands::automation_test_trigger,
             commands::ollama_models
         ])
         .run(tauri::generate_context!())

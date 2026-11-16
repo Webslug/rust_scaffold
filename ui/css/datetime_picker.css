@@ -1,0 +1,88 @@
+/* ==========================================================================
+   Date and time picker (js/datetime_picker.js)
+   ========================================================================== */
+
+.dtp {
+  position: fixed;
+  z-index: var(--select-menu-z);
+  width: var(--dtp-width);
+  padding: var(--space-2);
+  background-color: var(--surface-raised);
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+}
+
+.dtp-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-2);
+}
+
+.dtp-title {
+  font-weight: 600;
+}
+
+.dtp-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: var(--space-1);
+  text-align: center;
+}
+
+.dtp-weekday {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.dtp-day {
+  padding: var(--space-1) 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.dtp-day:hover {
+  background-color: var(--accent-soft);
+}
+
+.dtp-day.today {
+  border-color: var(--accent-border);
+}
+
+.dtp-day.chosen {
+  background-color: var(--accent);
+  color: var(--text-on-accent);
+  font-weight: 600;
+}
+
+.dtp-time {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+}
+
+.dtp-grid + .dtp-time {
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border);
+}
+
+.dtp-time .form-select {
+  width: auto;
+}
+
+.dtp-colon {
+  font-weight: 600;
+}
+
+.dtp-foot {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--space-2);
+}

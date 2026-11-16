@@ -1,13 +1,13 @@
-/* Jobs tab, Queue view: start, watch, inspect and kill jobs run by the Rust
-   job queue (src-tauri/src/jobs.rs). Kinds of job (command, AI prompt) are
-   defined in src-tauri/src/job_kinds.rs; their input fields come from
-   js/job_forms.js.
+/* Jobs tab: the "Running now" strip and the job details card. Every job is
+   started by an Action (js/automation.js, src-tauri/src/automation.rs) and
+   run by the Rust job queue (src-tauri/src/jobs.rs).
 
    Rust pushes every change to a job as a "jobs:changed" window event, so the
-   table follows each job without polling. The Tokio runtime figures in the
-   summary cannot be pushed; they are fetched when the page opens and when a
-   job starts or ends. "At once" is saved in config.json as job_concurrency,
-   the same setting as on the Options tab. */
+   strip follows each job without polling. A queued or running job is shown
+   with Inspect and Kill; finished jobs leave the strip (their results are
+   listed with their Action). window.JobsInspect.open(id) shows a job's
+   details, also after it has finished, while the queue still lists it (the
+   newest 50 finished jobs). */
 (function () {
   "use strict";
 
@@ -33,11 +33,8 @@
   };
 
   var tab = document.getElementById("tab-jobs");
-  var form = document.getElementById("jobs-form");
-  var runFields = window.JobForms.mount(document.getElementById("jobs-run-fields"), "jobs-run-");
-  var limitSelect = document.getElementById("jobs-limit");
-  var status = document.getElementById("jobs-status");
-  var rows = document.getElementById("jobs-rows");
+  var strip = document.getElementById("jobs-running");
+  var rows = document.getElementById("jobs-running-rows");
   var inspectCard = document.getElementById("jobs-inspect");
   var inspectTitle = document.getElementById("jobs-inspect-title");
   var inspectList = document.getElementById("jobs-inspect-list");
@@ -46,11 +43,8 @@
   var outputTitle = document.getElementById("jobs-output-title");
 
   var jobs = {};       // id -> job, as Rust sends it
-  var rowOf = {};      // id -> { tr, cells }
-  var limit = 2;
-  var runtime = null;
   var selected = null; // id shown in the details card
-  var message = "";    // last action result, shown before the summary
+  var timer = null;    // updates the running times once a second
 
   function isFinished(job) {
     return job.state !== "queued" && job.state !== "running";
@@ -74,21 +68,27 @@
     return job.capabilities.map(function (c) { return CAPABILITIES[c] || c; }).join(", ");
   }
 
+  // The Action a job belongs to, and what started it.
+  function actionOf(job) {
+    return job.origin && job.origin.action ? job.origin.action : window.JobForms.label(job.kind);
+  }
+
   function startedBy(origin) {
     if (!origin) { return "–"; }
-    if (origin.by === "user") { return "you, from this page"; }
-    if (origin.by === "schedule") { return "schedule " + origin.name; }
-    if (origin.by === "rule") { return "rule " + origin.rule + " (schedule " + origin.schedule + ")"; }
-    return origin.by;
+    switch (origin.by) {
+      case "run": return "you (Run)";
+      case "trigger": return "trigger " + origin.trigger;
+      case "schedule": return "schedule " + origin.schedule;
+      case "action": return "action " + origin.after;
+      default: return origin.by;
+    }
   }
 
   function json(value) {
     return value === null || value === undefined ? "–" : JSON.stringify(value);
   }
 
-  // ---- Table -------------------------------------------------------------
-
-  function button(icon, label, action) {
+  function button(icon, label, action, text) {
     var b = document.createElement("button");
     b.type = "button";
     b.className = "btn btn-secondary btn-sm";
@@ -96,112 +96,55 @@
     b.setAttribute("aria-label", label);
     b.title = label;
     var i = document.createElement("i");
-    i.className = "bi " + icon;
+    i.className = "bi " + icon + (text ? " me-1" : "");
     b.appendChild(i);
+    if (text) { b.appendChild(document.createTextNode(text)); }
     return b;
   }
 
-  function makeRow(id) {
-    var tr = document.createElement("tr");
-    tr.dataset.id = id;
-    var cells = {};
-    ["name", "state", "progress", "wait", "run", "buttons"].forEach(function (key) {
-      var td = document.createElement("td");
-      tr.appendChild(td);
-      cells[key] = td;
-    });
-    cells.run.className = "jobs-number jobs-narrow-hide";
-    cells.wait.className = "jobs-number jobs-extra";
-    cells.buttons.className = "jobs-buttons";
+  // ---- Running now --------------------------------------------------------------
 
-    cells.badge = document.createElement("span");
-    cells.state.appendChild(cells.badge);
-
-    var wrap = document.createElement("div");
-    wrap.className = "jobs-progress";
-    cells.bar = document.createElement("progress");
-    cells.count = document.createElement("span");
-    cells.count.className = "jobs-count";
-    wrap.appendChild(cells.bar);
-    wrap.appendChild(cells.count);
-    cells.progress.appendChild(wrap);
-
-    cells.buttons.appendChild(button("bi-search", "Inspect job " + id, "inspect"));
-    cells.kill = button("bi-x-octagon", "Kill job " + id, "kill");
-    cells.buttons.appendChild(cells.kill);
-    return { tr: tr, cells: cells };
+  function cell(tr, text, className) {
+    var td = document.createElement("td");
+    if (className) { td.className = className; }
+    if (text !== undefined) { td.textContent = text; }
+    tr.appendChild(td);
+    return td;
   }
 
-  function updateRow(job) {
-    var row = rowOf[job.id];
-    if (!row) {
-      row = rowOf[job.id] = makeRow(job.id);
-      var empty = rows.querySelector(".jobs-empty");
-      if (empty) { empty.parentNode.remove(); }
-      rows.insertBefore(row.tr, rows.firstChild); // newest first
-    }
-    var c = row.cells;
-    var state = STATES[job.state] || STATES.failed;
-    c.name.textContent = "#" + job.id + " " + window.JobForms.label(job.kind);
-    c.badge.className = "badge " + state.badge;
-    c.badge.textContent = state.label;
-    if (job.total > 0) {
-      c.bar.max = job.total;
-      c.bar.value = job.done;
-    } else if (isFinished(job)) {
-      c.bar.max = 1;
-      c.bar.value = job.state === "done" ? 1 : 0;
-    } else {
-      c.bar.removeAttribute("value"); // total not known: an indeterminate bar
-    }
-    c.bar.setAttribute("aria-label", "Job " + job.id + " progress");
-    // Counted progress, else the live note (a command's last line, the
-    // start of an AI answer); a failure shows why.
-    var failedText = (job.state === "failed" || job.state === "timed_out") ? job.message : null;
-    var text = job.total > 0 ? job.done + " / " + job.total : (failedText || job.note || (isFinished(job) ? "" : "working"));
-    c.count.textContent = text;
-    c.count.title = text;
-    c.wait.textContent = duration(job.wait_ms);
-    c.run.textContent = duration(job.run_ms);
-    c.kill.disabled = isFinished(job);
-    row.tr.classList.toggle("jobs-selected", selected === job.id);
-  }
-
-  function renderAll() {
+  function render() {
+    var active = Object.keys(jobs).map(Number).filter(function (id) { return !isFinished(jobs[id]); }).sort(function (a, b) { return a - b; });
     rows.textContent = "";
-    rowOf = {};
-    var ids = Object.keys(jobs).map(Number).sort(function (a, b) { return a - b; });
-    ids.forEach(function (id) { updateRow(jobs[id]); });
-    if (!ids.length) {
+    active.forEach(function (id) {
+      var job = jobs[id];
+      var state = STATES[job.state] || STATES.failed;
       var tr = document.createElement("tr");
-      var td = document.createElement("td");
-      td.colSpan = 6;
-      td.className = "jobs-empty";
-      td.textContent = "No jobs yet. Add one above.";
-      tr.appendChild(td);
+      tr.dataset.id = id;
+      tr.classList.toggle("jobs-selected", selected === id);
+      cell(tr, actionOf(job), "jobs-name");
+      var badgeCell = cell(tr);
+      var badge = document.createElement("span");
+      badge.className = "badge " + state.badge;
+      badge.textContent = state.label;
+      badgeCell.appendChild(badge);
+      cell(tr, startedBy(job.origin), "jobs-extra");
+      var note = job.total > 0 ? job.done + " / " + job.total : (job.note || "");
+      var noteCell = cell(tr, note, "jobs-note-cell");
+      noteCell.title = note;
+      var started = job.started_ms ? duration(Date.now() - job.started_ms) : "waiting";
+      cell(tr, started, "jobs-number");
+      var buttons = cell(tr, undefined, "jobs-buttons");
+      buttons.appendChild(button("bi-search", "Inspect " + actionOf(job), "inspect"));
+      buttons.appendChild(button("bi-x-octagon", "Kill " + actionOf(job), "kill", "Kill"));
       rows.appendChild(tr);
-    }
-  }
-
-  // ---- Summary -------------------------------------------------------------
-
-  function summary() {
-    var count = { queued: 0, running: 0, done: 0, failed: 0, cancelled: 0, timed_out: 0 };
-    Object.keys(jobs).forEach(function (id) {
-      if (count.hasOwnProperty(jobs[id].state)) { count[jobs[id].state] += 1; }
     });
-    var text = "Running " + count.running + " of " + limit + " at once, " + count.queued + " waiting. " +
-      "Done " + count.done + ", killed " + count.cancelled + ", failed " + count.failed +
-      (count.timed_out ? ", timed out " + count.timed_out : "") + ".";
-    if (runtime) {
-      text += " Tokio: " + runtime.workers + " worker threads, " + runtime.alive_tasks + " live tasks, " +
-        runtime.global_queue_depth + " waiting for a thread.";
+    strip.classList.toggle("d-none", active.length === 0);
+    if (active.length && timer === null) {
+      timer = setInterval(render, 1000);
+    } else if (!active.length && timer !== null) {
+      clearInterval(timer);
+      timer = null;
     }
-    status.textContent = (message ? message + " " : "") + text;
-  }
-
-  function setLimitSelect(value) {
-    limitSelect.value = String(value);
   }
 
   function load() {
@@ -215,44 +158,29 @@
         if (jobs[id].seq > reply.seq) { merged[id] = jobs[id]; }
       });
       jobs = merged;
-      limit = reply.limit;
-      runtime = reply.runtime;
-      setLimitSelect(limit);
-      renderAll();
-      summary();
+      render();
       if (selected !== null) { inspect(selected); }
-    }).catch(function (err) {
-      status.textContent = "Could not load the jobs: " + err;
-    });
-  }
-
-  // Runtime figures only, after a job starts or ends.
-  function refreshRuntime() {
-    invoke("jobs_list").then(function (reply) {
-      runtime = reply.runtime;
-      limit = reply.limit;
-      summary();
     }).catch(function () {});
   }
 
-  // ---- Details card -----------------------------------------------------------
+  // ---- Details card ---------------------------------------------------------------
 
   function inspect(id) {
     invoke("jobs_inspect", { id: id }).then(function (info) {
       var job = info.job;
       var state = STATES[job.state] || STATES.failed;
+      var given = job.given;
       var items = [
+        ["Action", actionOf(job)],
         ["State", state.label],
-        ["Kind", job.kind],
+        ["Kind", window.JobForms.label(job.kind)],
         ["Started by", startedBy(job.origin)],
         ["Uses", uses(job)],
         ["Needs", job.resources.length ? job.resources.join(", ") : "–"],
         ["Input", json(job.input)],
-        ["Given the result of", job.previous
-          ? "schedule " + job.previous.schedule + ", job #" + job.previous.job + " (" + (STATES[job.previous.state] || STATES.failed).label +
-            (job.previous.label ? ", " + job.previous.label : "") + "; " + job.previous.output_bytes + " bytes of output)"
-          : "–"],
-        ["Progress", job.total > 0 ? job.done + " of " + job.total : "not counted"],
+        ["Value given", given ? json(given.value) : "–"],
+        ["Value before", given ? json(given.previous) : "–"],
+        ["Output given", given && given.output_bytes ? given.output_bytes + " bytes" : "–"],
         ["Live note", job.note || "–"],
         ["Time limit", duration(job.timeout_ms)],
         ["Queued at", clock(job.created_ms)],
@@ -261,8 +189,6 @@
         ["Waited", duration(job.wait_ms)],
         ["Ran", duration(job.run_ms)],
         ["Place in queue", info.queue_position === null ? "–" : String(info.queue_position)],
-        ["Tokio task id", info.task_id === null ? "none (no task running)" : info.task_id],
-        ["Task ended in Tokio", info.task_finished === null ? "–" : (info.task_finished ? "yes" : "no")],
         ["Result", job.label || "–"],
         ["Result value", json(job.value)],
         ["Message", job.message || "–"]
@@ -279,62 +205,36 @@
       outputBox.classList.toggle("d-none", !info.output);
       outputPre.textContent = info.output || "";
       outputTitle.textContent = info.output_cut ? "Output (the newest part; older output was dropped)" : "Output";
-      inspectTitle.textContent = "Job #" + job.id + " " + window.JobForms.label(job.kind);
+      inspectTitle.textContent = actionOf(job) + ", job #" + job.id;
       inspectCard.classList.remove("d-none");
     }, function () {
-      closeInspect(); // the job was cleared
+      closeInspect();
+      if (window.AutomationPage) { window.AutomationPage.say("That job is no longer kept; its result is listed with its action."); }
     });
   }
 
-  function select(id) {
-    var previous = selected;
+  function open(id) {
     selected = id;
-    [previous, id].forEach(function (other) {
-      if (other !== null && rowOf[other]) {
-        rowOf[other].tr.classList.toggle("jobs-selected", selected === other);
-      }
-    });
+    render();
+    inspect(id);
+    inspectCard.scrollIntoView({ block: "nearest" });
   }
 
   function closeInspect() {
-    select(null);
+    selected = null;
     inspectCard.classList.add("d-none");
+    render();
   }
 
-  // ---- Events and actions -----------------------------------------------------
+  // ---- Events and buttons -------------------------------------------------------
 
   tauri.event.listen("jobs:changed", function (e) {
     var job = e.payload;
     var before = jobs[job.id];
     if (before && before.seq > job.seq) { return; } // already have newer
     jobs[job.id] = job;
-    updateRow(job);
-    if (!before || before.state !== job.state) {
-      refreshRuntime(); // started, finished or killed
-    }
-    summary();
+    render();
     if (selected === job.id) { inspect(job.id); }
-  });
-
-  function report(text) {
-    message = text;
-    summary();
-  }
-
-  form.addEventListener("submit", function (e) {
-    e.preventDefault();
-    var job;
-    try {
-      job = runFields.read();
-    } catch (err) {
-      report("Not started: " + err.message + ".");
-      return;
-    }
-    invoke("jobs_start", { kind: job.kind, input: job.input }).then(function (id) {
-      report("Started job #" + id + ".");
-    }, function (err) {
-      report("Not started: " + err + ".");
-    });
   });
 
   // The clipboard API, or the older copy command where it is missing (the
@@ -356,25 +256,8 @@
   }
 
   document.getElementById("btn-jobs-output-copy").addEventListener("click", function () {
-    copyText(outputPre.textContent).then(function () {
-      report("Output copied.");
-    }, function () {
-      report("Could not copy the output.");
-    });
-  });
-
-  document.getElementById("btn-jobs-cancel-all").addEventListener("click", function () {
-    invoke("jobs_cancel_all").then(function (n) {
-      report(n === 1 ? "Killed 1 job." : "Killed " + n + " jobs.");
-    });
-  });
-
-  document.getElementById("btn-jobs-clear").addEventListener("click", function () {
-    invoke("jobs_clear_finished").then(function (n) {
-      message = n === 1 ? "Cleared 1 finished job." : "Cleared " + n + " finished jobs.";
-      if (selected !== null && jobs[selected] && isFinished(jobs[selected])) { closeInspect(); }
-      load();
-    });
+    var say = window.AutomationPage ? window.AutomationPage.say : function () {};
+    copyText(outputPre.textContent).then(function () { say("Output copied."); }, function () { say("Could not copy the output."); });
   });
 
   rows.addEventListener("click", function (e) {
@@ -382,35 +265,19 @@
     if (!b) { return; }
     var id = Number(b.closest("tr").dataset.id);
     if (b.dataset.action === "inspect") {
-      select(id);
-      inspect(id);
-      inspectCard.scrollIntoView({ block: "nearest" });
+      open(id);
     } else {
-      invoke("jobs_cancel", { id: id }).then(function () {
-        report("Killed job #" + id + ".");
-      }, function (err) {
-        report("Job #" + id + ": " + err + ".");
+      invoke("jobs_cancel", { id: id }).catch(function (err) {
+        if (window.AutomationPage) { window.AutomationPage.say("Could not kill it: " + err + "."); }
       });
     }
   });
 
   document.getElementById("btn-jobs-inspect-close").addEventListener("click", closeInspect);
 
-  limitSelect.addEventListener("change", function () {
-    var value = Number(limitSelect.value);
-    window.AppConfig.commit({ job_concurrency: value }).then(function () {
-      limit = value;
-      report("Now " + value + " at once (saved).");
-    }, function (err) {
-      setLimitSelect(limit);
-      report("Not saved: " + err + ".");
-    });
-  });
-
   // Listening starts before the first load, so no change is missed.
   load();
-  tab.addEventListener("shown.bs.tab", function () {
-    message = "";
-    load(); // also picks up an "At once" change saved on the Options tab
-  });
+  tab.addEventListener("shown.bs.tab", load);
+
+  window.JobsInspect = { open: open };
 })();

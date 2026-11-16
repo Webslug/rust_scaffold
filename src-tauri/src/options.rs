@@ -104,7 +104,7 @@ fn kind_of(control: &str) -> Kind {
 fn known_field(key: &str) -> Option<&'static [Kind]> {
     match key {
         "theme" => Some(&[Kind::Choice]),
-        "width" | "height" | "error_log_max" | "schedule_failure_limit" => Some(&[Kind::Number]),
+        "width" | "height" | "error_log_max" => Some(&[Kind::Number]),
         "show_titlebar" | "rounded_corners" | "start_minimised" | "hide_to_tray" | "menu_collapsed" | "high_contrast"
         | "large_targets" | "underline_links" | "strong_focus" | "reduce_motion"
         | "hardware_acceleration" | "job_resource_locks" => Some(&[Kind::Bool]),

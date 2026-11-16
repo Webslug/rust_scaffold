@@ -16,7 +16,7 @@
 A starting point for small desktop apps. It is application-agnostic: copy the
 folder, rename it, and replace the example content. It uses plain HTML, CSS and
 JavaScript for the interface (no React, no Vite, no Node.js) and a small Rust
-core. The release binary is about 4.5 MB, well under the 50 MB target.
+core. The release binary is about 9 MB, well under the 50 MB target.
 
 ## Features
 
@@ -56,9 +56,9 @@ core. The release binary is about 4.5 MB, well under the 50 MB target.
   a switch on the Options tab.
 - An Errors page: warnings and errors (including JavaScript errors) appear the
   moment they happen, pushed from Rust through the `tracing` crate.
-- A Jobs page backed by a Tokio job queue in Rust: bash commands, AI prompts
-  and desktop notifications, run now or on schedules, with rules that react
-  to each result (see [Jobs](#jobs-schedules-rules-and-reactions)).
+- A Jobs page backed by a Tokio job queue in Rust: triggers that watch a web
+  page or this computer, schedules, and actions (notifications, commands, AI
+  prompts and more) that they start (see [Jobs](#jobs-triggers-schedules-and-actions)).
 - Shortcut keys set in `keys.json` (/ or Ctrl+K for search, Alt+1 to Alt+9
   for the pages), with a cheat sheet on the Help page.
 - Example of the interface calling a Rust command.
@@ -82,63 +82,51 @@ core. The release binary is about 4.5 MB, well under the 50 MB target.
   <img src="ui/img/autocomplete.jpg" alt="Auto Complete - Find any section instantly" width="720">
 </p>
 
-## Jobs: schedules, rules and reactions
+## Jobs: triggers, schedules and actions
 
 <p align="center">
   <img src="ui/img/jobs.jpg" alt="ASync Job Queues" width="720">
 </p>
 
-The Jobs page runs work in the background, on a timetable or in reaction to
-other work, while the app is open. It has four parts.
+The Jobs page runs work in the background while the app is open. Three kinds
+of thing, each made, edited, copied, deleted and switched on or off on the
+page, and kept in `jobs.json` in the settings folder:
 
-**Job kinds** say what a job does. Three are built in:
+**Triggers** watch a value and start their actions when it changes, or goes
+above, below or equal to a value you set: once each time that becomes true,
+not on every check.
 
-- **Command:** a bash script in any folder (cmd on Windows). Its output is
-  kept, and it can be killed with everything it started. The exit code is
-  its result, unless the script reports one of its own by writing JSON to
-  the file `$JOB_RESULT`, for example
-  `{"label": "disk_high", "value": {"percent": 92}, "message": "92% full"}`.
-  Progress written to `$JOB_PROGRESS` (`40/100` or `40%`) fills the bar.
-- **AI prompt:** a prompt to Claude Code, Codex or GrokBuild (their command
-  line tools, read-only), or to a local Ollama or llama.cpp server. Local
-  models run one at a time, so two never fill the graphics card at once.
-- **Notification:** a desktop notification with a title, text, urgency and
-  an optional sound.
+- **A web page:** the text of the first element with an id or class, read as
+  text or as a number (£ $ € ¥ and thousands commas ignored: £5,212.66 reads
+  as 5212.66). Checked every 30 seconds at the most.
+- **This computer** (Linux): CPU load, memory used, disk used or free,
+  graphics card memory (through `nvidia-smi`), or a file or folder (changes
+  to it, or to its permissions). As often as every 5 seconds.
 
-New kinds are added in Rust (`src-tauri/src/job_kinds.rs`); each must
-declare what it touches (network, GPU, files, programs, paid services).
+**Schedules** start their actions at set times: once, every so often, daily,
+weekly or monthly, with an optional run limit. A run missed while the app was
+closed happens once at the next start.
 
-**Schedules** say when a job runs: manually, once at a date and time, every
-interval (`30s`, `10m`, `2h`), daily, weekly or monthly, with limits (a
-number of runs, an end date), retries with waits, and catching up a run
-missed while the app was closed. A schedule that keeps failing pauses
-itself.
+**Actions** do the work: a desktop notification, a bash command, a prompt to
+an AI (Claude Code, Codex, GrokBuild, or a local Ollama or llama.cpp server),
+switching an entry on or off, firing a trigger, delaying a schedule, changing
+a count, deleting an entry, writing to the log, clearing the Errors list, or
+showing, hiding, quitting or restarting the app. When an action succeeds it
+can start more; a chain stops after 10 actions.
 
-**Rules** react to results. When a schedule's job ends (succeeds, fails,
-times out, or any), optionally with a given result label, a value test
-(`percent` above 90) or only when the output changed since the last
-success, a given number of times in a row, a rule starts, turns on or turns
-off another schedule. A chain of rules stops after 10 links.
+Values pass along: a notification or prompt can quote the trigger's reading
+(`{value.text}`, `{value.number}`), the reading before (`{previous.text}`)
+and what the action before printed (`{output}`); a command gets the same as
+`$JOB_VALUE`, `$JOB_PREVIOUS` and `$JOB_OUTPUT`, never pasted into the script,
+so text from a web page or an AI cannot run as code.
 
-**Pipelines** pass a result on. A job started by a rule gets the result of
-the job before it: as environment variables in a script (`$PREVIOUS_OUTPUT`,
-`$PREVIOUS_VALUE` and others, never pasted into the script, so text from an
-AI cannot run as code), and as placeholders in a prompt or notification
-(`{previous_output}`, `{previous_value.percent}`, `{previous_message}`).
-
-Put together: a script checks the disk every hour and reports
-`{"percent": 92}`. When it is over 90 twice in a row, a rule asks a local AI
-model what to do about it, and when the model answers, a second rule shows
-its answer as a desktop notification. That chain ships as a demo in
-`jobs.json` (switched off). Other uses: watching a file or web page for
-changes, nightly backups with a check that they worked, price or log
-watchers, batch work for a local model, reminders and timers.
-
-Everything is shown on the page: a queue with inspect and kill, the
-schedules with their history, the rules with how far each is towards
-firing, a preview of the next 24 hours, and a Pause everything switch.
-Schedules and rules are kept in `jobs.json` in the settings folder and can
-be edited on the page or by hand. How it all works: [docs/usage.md](docs/usage.md).
+To test without waiting, **Fire now** on a trigger reads its value at once
+and starts its actions, **Run now** starts a schedule's actions, and **Run**
+starts an action (with its trigger's latest reading). The page opens on an
+**Overview** of everything, with sorting, a filter, summaries on hover and
+buttons to switch everything on or off; Ctrl+K finds any entry by name, and
+**Running now** shows what is running, with Kill. How it works:
+[docs/usage.md](docs/usage.md).
 
 ### Compared with cron and Task Scheduler
 
@@ -147,19 +135,17 @@ are the right tool for work that must run while no app is open, and they
 need nothing from this project. For work that belongs to an app, the Jobs
 page does more:
 
-- **It reacts to results.** cron knows only the time. Here a job's result
-  (done or failed, a label, a value such as a percentage, or a changed
-  output) can start, turn on or turn off other jobs, after a number of
-  results in a row. With cron, every script has to do that bookkeeping
-  itself.
+- **It reacts to values.** cron knows only the time. Here a trigger watches
+  a price, a disk or a file and starts work when it changes or crosses a
+  line, once per crossing. With cron, every script has to do that
+  bookkeeping itself.
 - **Results flow on.** One job's output reaches the next job, an AI model or
   a notification, safely, without temporary files and glue scripts.
-- **You can see it.** Live progress, output, history, the reason each run
-  started, what will run next, and errors on the Errors page. cron writes to
+- **You can see it.** Live readings, output, results, what started each run,
+  when each will next run, and errors on the Errors page. cron writes to
   mail or a log file, if anywhere.
 - **It is controlled.** Kill a job and everything it started, time limits,
-  retries with waits, pausing after repeated failures, one GPU job at a time,
-  a loop guard on rules, and one switch that pauses everything.
+  one GPU job at a time, a loop guard on chains of actions, and Disable all.
 - **It travels with the app.** Schedules live in the app's own settings
   folder and are edited in the app, not in a system table, and the same file
   is meant to work on Windows (written, not yet tested there).
@@ -198,7 +184,7 @@ libraries. You do not need Node.js, npm or the Tauri CLI. The full list is in
 
 ### Versions used to build this release
 
-Built and tested on 13 November 2026 with:
+Built and tested on 16 November 2026 with:
 
 - Rust (rustc) 1.100.0, Cargo 1.100.0, rustup 1.29.3, stable channel
 - Tauri 2.12.5, tauri-build 2.7.4 (wry 0.57.2, tao 0.37.2, tray-icon 0.25.1)
@@ -206,7 +192,10 @@ Built and tested on 13 November 2026 with:
 - tokio 1.53.1 (async, job queue), regex 1.13.1, time 0.3.55 (dates and
   times), dirs 7.0.0 (settings folder), tracing 0.1.44 and
   tracing-subscriber 0.3.23 (Errors page)
-- 436 crates in total, pinned in `src-tauri/Cargo.lock`
+- rustls 0.23, tokio-rustls 0.26, webpki-roots 1 and dom_query 0.28 (web
+  watch, HTTPS), zbus 5 (desktop notifications), tray-icon 0.25 with KSNI
+  (tray double-click on Linux), libc (Unix)
+- 494 crates in total, pinned in `src-tauri/Cargo.lock`
 - WebKitGTK 2.50.4, GTK 3.24.33, Ubuntu 22.04 (Lubuntu, LXQt, X11)
 
 The app shows the versions it was actually compiled with on the Help page,
@@ -290,9 +279,8 @@ executable (`dist/` when started with `run.sh`), wherever it is started from.
 folder, found with the `dirs` crate: `~/.config/rust_scaffold` on Linux and
 `%APPDATA%\rust_scaffold` on Windows. This works even when the program is
 installed somewhere it cannot write, such as `C:\Program Files`. The folder is
-created on first run. If it has no `config.json` yet, the files from the
-program's own folder (where versions before 0.2.2 kept them) are copied in
-once; the originals are left alone. The environment variable
+created on first run. A missing file is written from its built-in default;
+nothing is copied from the program's folder. The environment variable
 `RUST_SCAFFOLD_DIR` points the app at another folder (the benchmark uses it).
 The Help page shows the folder in use.
 
@@ -345,7 +333,7 @@ find, and `keys.json` holds the shortcut keys. Every key is documented in
       src/                main.rs, lib.rs, config.rs, options.rs, search.rs,
                           keys.rs, files.rs, commands.rs, tray.rs, gpu.rs,
                           logging.rs, jobs.rs (queue), job_kinds.rs,
-                          scheduler.rs (schedules and rules)
+                          automation.rs (triggers, schedules, actions), hardware_watch.rs, web_watch.rs
       benchmark/          repeatable X11 desktop tests and saved results
       options.default.json  written as options.json when that file is missing
       search.default.json   written as search.json when that file is missing
@@ -478,8 +466,8 @@ setting. Every other option on the tab works.
   Bootstrap's built-in shadows are switched off in `ui/css/bootstrap-flat.css`.
   See "No shadows or blur" in [docs/usage.md](docs/usage.md). Drag and resize
   performance and Windows have not been remeasured.
-- **Linux tray icons** do not receive click or double-click events from Tauri,
-  so use the tray menu. On Windows a double-click toggles the window.
+- **Tray double-click** on Linux needs a panel with a StatusNotifier host
+  (LXQt, KDE, and GNOME with an extension); the tray menu works everywhere.
 - **Transparency** needs a compositor on X11.
 - **GPU rendering** is only enabled for the NVIDIA proprietary driver with
   kernel mode setting on; elsewhere the CPU path is used.

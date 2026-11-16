@@ -5,11 +5,11 @@ use serde_json::Value;
 use tauri::State;
 
 use crate::config::{self, Config, ConfigState, LoadStatus};
-use crate::jobs::{JobInspect, JobsReply, Origin, Queue};
+use crate::automation::{Automation, AutomationReply, Bulk, KindView, Section, TestReply};
+use crate::jobs::{JobInspect, JobsReply, Queue};
 use crate::keys::{self, KeysReply};
 use crate::logging::{self, LogEntry};
 use crate::options::{self, OptionsReply};
-use crate::scheduler::{KindView, Scheduler, SchedulesReply};
 use crate::search::{self, SearchReply};
 use crate::tray::TrayStatus;
 
@@ -87,7 +87,6 @@ pub fn get_config(state: State<Mutex<ConfigState>>, tray: State<TrayStatus>) -> 
 pub fn save_config(
     state: State<Mutex<ConfigState>>,
     jobs: State<Queue>,
-    schedules: State<Scheduler>,
     config: Config,
 ) -> Result<(), String> {
     let mut state = state.lock().unwrap();
@@ -95,7 +94,6 @@ pub fn save_config(
     logging::set_max(state.config.error_log_max);
     jobs.set_limit(state.config.job_concurrency);
     jobs.set_resource_locks(state.config.job_resource_locks);
-    schedules.set_failure_limit(state.config.schedule_failure_limit);
     Ok(())
 }
 
@@ -173,7 +171,8 @@ pub fn log_test_entry(level: String) -> Result<(), String> {
 }
 
 // ---- Job queue (src/jobs.rs) ---------------------------------------------
-// Changes to any job also arrive as `jobs:changed` window events.
+// Changes to any job also arrive as `jobs:changed` window events. The Jobs
+// page shows queued and running jobs under "Running now".
 
 /// Every job still listed, the limit, and Tokio runtime figures.
 #[tauri::command]
@@ -181,27 +180,10 @@ pub fn jobs_list(jobs: State<Queue>) -> JobsReply {
     jobs.list()
 }
 
-/// Queues a job of a kind listed in src/job_kinds.rs, with that kind's
-/// input as JSON (for "count": count, delay_ms, fail_at). `timeout_ms`
-/// replaces the kind's time limit. Returns the job id.
-#[tauri::command]
-pub fn jobs_start(jobs: State<Queue>, kind: String, input: Value, timeout_ms: Option<u64>) -> Result<u64, String> {
-    jobs.start(&kind, input, Origin::User, timeout_ms)
-}
-
+/// Kill: stops a queued or running job.
 #[tauri::command]
 pub fn jobs_cancel(jobs: State<Queue>, id: u64) -> Result<(), String> {
     jobs.cancel(id)
-}
-
-#[tauri::command]
-pub fn jobs_cancel_all(jobs: State<Queue>) -> usize {
-    jobs.cancel_all()
-}
-
-#[tauri::command]
-pub fn jobs_clear_finished(jobs: State<Queue>) -> usize {
-    jobs.clear_finished()
 }
 
 #[tauri::command]
@@ -209,78 +191,105 @@ pub fn jobs_inspect(jobs: State<Queue>, id: u64) -> Result<JobInspect, String> {
     jobs.inspect(id)
 }
 
-// ---- Scheduled jobs (src/scheduler.rs, jobs.json) ---------------------------
-// Changes also arrive as `schedules:changed` window events.
-
-/// Every schedule, its next run, run count and last result, and any
-/// schedules skipped as invalid.
-#[tauri::command]
-pub fn schedules_list(schedules: State<Scheduler>) -> SchedulesReply {
-    schedules.list()
-}
-
-/// Reads jobs.json again after an edit.
-#[tauri::command]
-pub fn schedules_reload(schedules: State<Scheduler>) -> SchedulesReply {
-    schedules.reload();
-    schedules.list()
-}
-
-/// Starts a schedule's job now. Returns the job id.
-#[tauri::command]
-pub fn schedules_run_now(schedules: State<Scheduler>, name: String) -> Result<u64, String> {
-    schedules.run_now(&name)
-}
-
-#[tauri::command]
-pub fn schedules_pause(schedules: State<Scheduler>, name: String, paused: bool) -> Result<(), String> {
-    schedules.set_paused(&name, paused)
-}
-
-/// Adds a schedule (`oldName` empty) or replaces the one called `oldName`,
-/// writing jobs.json. Refused, with nothing written, when not valid.
-#[tauri::command]
-pub fn schedules_save(schedules: State<Scheduler>, old_name: Option<String>, definition: Value) -> Result<SchedulesReply, String> {
-    schedules.save_schedule(old_name, definition)?;
-    Ok(schedules.list())
-}
-
-#[tauri::command]
-pub fn schedules_delete(schedules: State<Scheduler>, name: String) -> Result<SchedulesReply, String> {
-    schedules.delete_schedule(&name)?;
-    Ok(schedules.list())
-}
-
-/// Turns a schedule's timetable on or off in jobs.json.
-#[tauri::command]
-pub fn schedules_set_enabled(schedules: State<Scheduler>, name: String, enabled: bool) -> Result<SchedulesReply, String> {
-    schedules.set_enabled(&name, enabled)?;
-    Ok(schedules.list())
-}
-
-/// Pause everything: no schedule or rule starts a job until resumed.
-#[tauri::command]
-pub fn schedules_pause_all(schedules: State<Scheduler>, paused: bool) -> SchedulesReply {
-    schedules.set_paused_all(paused);
-    schedules.list()
-}
-
-#[tauri::command]
-pub fn rules_save(schedules: State<Scheduler>, old_name: Option<String>, definition: Value) -> Result<SchedulesReply, String> {
-    schedules.save_rule(old_name, definition)?;
-    Ok(schedules.list())
-}
-
-#[tauri::command]
-pub fn rules_delete(schedules: State<Scheduler>, name: String) -> Result<SchedulesReply, String> {
-    schedules.delete_rule(&name)?;
-    Ok(schedules.list())
-}
-
-/// The job kinds a schedule can run, with an example input for each.
+/// The kinds an Action can be: the job kinds (with an example input) and
+/// the built-in ones (switch, delay, set_count ...).
 #[tauri::command]
 pub fn jobs_kinds(jobs: State<Queue>) -> Vec<KindView> {
-    crate::scheduler::kind_views(jobs.kinds())
+    let mut kinds = crate::automation::kind_views(jobs.kinds());
+    kinds.extend(crate::automation::builtin_views());
+    kinds
+}
+
+// ---- Triggers, Schedules and Actions (src/automation.rs, jobs.json) --------
+// Changes also arrive as `automation:changed` window events.
+
+/// Every Trigger, Schedule and Action, with readings, next times, recent
+/// results and any entries skipped as invalid.
+#[tauri::command]
+pub fn automation_list(automation: State<Automation>) -> AutomationReply {
+    automation.list()
+}
+
+/// Reads jobs.json again after a hand edit.
+#[tauri::command]
+pub fn automation_reload(automation: State<Automation>) -> AutomationReply {
+    automation.reload();
+    automation.list()
+}
+
+/// Adds an entry (`oldName` empty) or replaces the one called `oldName`,
+/// writing jobs.json. Refused, with nothing written, when not valid.
+#[tauri::command]
+pub fn automation_save(
+    automation: State<Automation>,
+    section: Section,
+    old_name: Option<String>,
+    definition: Value,
+) -> Result<AutomationReply, String> {
+    automation.save(section, old_name, definition)?;
+    Ok(automation.list())
+}
+
+#[tauri::command]
+pub fn automation_delete(automation: State<Automation>, section: Section, name: String) -> Result<AutomationReply, String> {
+    automation.delete(section, &name)?;
+    Ok(automation.list())
+}
+
+/// Copies an entry; the reply's list holds the copy. Returns the new name.
+#[tauri::command]
+pub fn automation_duplicate(automation: State<Automation>, section: Section, name: String) -> Result<String, String> {
+    automation.duplicate(section, &name)
+}
+
+#[tauri::command]
+pub fn automation_set_enabled(
+    automation: State<Automation>,
+    section: Section,
+    name: String,
+    enabled: bool,
+) -> Result<AutomationReply, String> {
+    automation.set_enabled(section, &name, enabled)?;
+    Ok(automation.list())
+}
+
+/// The Overview's quick buttons: enable_all, disable_all, delete_all,
+/// restore_demos.
+#[tauri::command]
+pub fn automation_bulk(automation: State<Automation>, what: Bulk) -> Result<AutomationReply, String> {
+    automation.bulk(what)?;
+    Ok(automation.list())
+}
+
+/// Fire now on a Trigger: reads its page at once and starts its actions
+/// with the reading. Returns the reading.
+#[tauri::command]
+pub async fn automation_fire_trigger(automation: State<'_, Automation>, name: String) -> Result<Value, String> {
+    automation.fire_trigger(&name).await
+}
+
+/// Run now on a Schedule: starts its actions at once. Returns how many.
+#[tauri::command]
+pub fn automation_run_schedule(automation: State<Automation>, name: String) -> Result<usize, String> {
+    automation.run_schedule(&name)
+}
+
+/// The Run button of an Action. Returns its job id (none for a switch).
+#[tauri::command]
+pub fn automation_run(automation: State<Automation>, name: String) -> Result<Option<u64>, String> {
+    automation.run(&name)
+}
+
+/// "Test now" on the Trigger form: reads the watch and checks the
+/// condition. `name` is the saved Trigger being edited, if any, to compare
+/// a "changes" Trigger with its last reading.
+#[tauri::command]
+pub async fn automation_test_trigger(
+    automation: State<'_, Automation>,
+    name: Option<String>,
+    definition: Value,
+) -> Result<TestReply, String> {
+    automation.test_trigger_named(name, definition).await
 }
 
 /// The models installed in a local Ollama (for the AI job's model list).

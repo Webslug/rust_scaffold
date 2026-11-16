@@ -89,30 +89,36 @@ pub enum Capability {
     CostsMoney,
 }
 
-/// Who started a run. Later steps add rules and outside callers.
+/// Who started a run. Every run outside the queue tests belongs to an
+/// Action (`src/automation.rs`); the variant says what started it.
 #[derive(Serialize, Clone, Debug, PartialEq)]
 #[serde(tag = "by", rename_all = "snake_case")]
 pub enum Origin {
-    /// A person, from the Jobs page.
+    /// Started directly on the queue (tests only).
+    #[allow(dead_code)]
     User,
-    /// A schedule in jobs.json, by name.
-    Schedule { name: String },
-    /// A rule in jobs.json that started this schedule's job.
-    Rule { rule: String, schedule: String },
+    /// A person pressed the Action's Run button.
+    Run { action: String },
+    /// A Trigger fired.
+    Trigger { action: String, trigger: String },
+    /// A Schedule was due.
+    Schedule { action: String, schedule: String },
+    /// Another Action finished and started this one.
+    Action { action: String, after: String },
 }
 
-/// The result of the job that led to this one (a rule fired on it): what it
-/// printed or answered, and how it ended. A command job gets it as
-/// environment variables, an AI or notify job in its text
-/// (`{previous_output}`, `{previous_value}` and so on).
-#[derive(Debug, Clone, PartialEq)]
-pub struct Previous {
-    pub schedule: String,
-    pub job: u64,
-    pub state: JobState,
-    pub label: Option<String>,
+/// What a job is given by whatever started it: the reading of the Trigger
+/// that started the chain (`value`, and `previous`, the Trigger's reading
+/// before it), and what the Action before this one printed or answered
+/// (`output`). A command gets these as environment variables, an AI prompt
+/// or notification as placeholders (`{value.text}`, `{previous.text}`,
+/// `{output}` and so on).
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct Given {
+    /// "trigger NAME", "schedule NAME", "action NAME" or "you".
+    pub from: String,
     pub value: Option<Value>,
-    pub message: Option<String>,
+    pub previous: Option<Value>,
     pub output: String,
 }
 
@@ -122,16 +128,13 @@ pub fn value_field<'a>(value: &'a Value, path: &str) -> Option<&'a Value> {
     path.split('.').try_fold(value, |v, name| v.get(name))
 }
 
-/// What the window sees of `Previous`: everything but the output, which can
-/// be large (Inspect of the earlier job shows it).
+/// What the window sees of `Given`: everything but the output, which can be
+/// large (Inspect of the earlier job shows it).
 #[derive(Serialize, Clone, Debug)]
-pub struct PreviousView {
-    pub schedule: String,
-    pub job: u64,
-    pub state: JobState,
-    pub label: Option<String>,
+pub struct GivenView {
+    pub from: String,
     pub value: Option<Value>,
-    pub message: Option<String>,
+    pub previous: Option<Value>,
     pub output_bytes: usize,
 }
 
@@ -220,7 +223,7 @@ pub trait JobKind: 'static {
     const RESOURCES: &'static [&'static str];
     /// Time limit of one run, unless the caller gives another.
     const TIMEOUT: Duration = DEFAULT_TIMEOUT;
-    /// A valid input as JSON, offered when a schedule is added on the Jobs
+    /// A valid input as JSON, offered when an Action is added on the Jobs
     /// page.
     const EXAMPLE: &'static str = "{}";
     /// What the caller sends to start a job of this kind, as JSON.
@@ -341,8 +344,8 @@ pub struct JobView {
     pub value: Option<Value>,
     /// The outcome's message, or why the job failed, was killed or timed out.
     pub message: Option<String>,
-    /// The job whose result this one was given, if a rule started it.
-    pub previous: Option<PreviousView>,
+    /// What this job was given by whatever started it.
+    pub given: Option<GivenView>,
 }
 
 /// Extra, live details for the Inspect button.
@@ -395,7 +398,7 @@ struct Job {
     /// stay small; Inspect fetches it.
     output: String,
     output_cut: bool,
-    previous: Option<Arc<Previous>>,
+    given: Option<Arc<Given>>,
 }
 
 struct Inner {
@@ -453,8 +456,14 @@ impl JobCtx {
         });
     }
 
+    /// Sends the live note and details set since the last change to the
+    /// window, without changing the progress.
+    pub fn send(&self) {
+        self.queue.update(self.id, true, |_| {});
+    }
+
     /// Short live text ("connecting", "3 files left"). Sent with the next
-    /// `progress`.
+    /// `progress` or `send`.
     pub fn note(&self, text: &str) {
         let text = shorten(text, MAX_TEXT_CHARS);
         self.queue.update(self.id, false, |view| view.note = Some(text));
@@ -486,10 +495,10 @@ impl JobCtx {
         }
     }
 
-    /// The result of the job that led to this one, when a rule started it
-    /// (None for a job started by a person or a timetable).
-    pub fn previous(&self) -> Option<Arc<Previous>> {
-        self.queue.lock().jobs.get(&self.id).and_then(|job| job.previous.clone())
+    /// What whatever started this job gave it (None for a job started
+    /// directly on the queue).
+    pub fn given(&self) -> Option<Arc<Given>> {
+        self.queue.lock().jobs.get(&self.id).and_then(|job| job.given.clone())
     }
 
     /// True once the job has been killed or has run out of time. Long loops
@@ -595,6 +604,7 @@ impl Queue {
     }
 
     /// The state and result label of a job, while it is still listed.
+    #[cfg(test)]
     pub fn result(&self, id: u64) -> Option<(JobState, Option<String>)> {
         self.lock().jobs.get(&id).map(|job| (job.view.state, job.view.label.clone()))
     }
@@ -610,18 +620,19 @@ impl Queue {
     /// Queues a job of the named kind and starts it at once if a slot is
     /// free. `timeout_ms` replaces the kind's time limit. Bad kinds, input
     /// and limits are refused before anything is queued.
+    #[cfg(test)]
     pub fn start(&self, kind: &str, input: Value, origin: Origin, timeout_ms: Option<u64>) -> Result<u64, String> {
-        self.start_after(kind, input, origin, timeout_ms, None)
+        self.start_given(kind, input, origin, timeout_ms, None)
     }
 
-    /// `start`, giving the job the result of the job before it.
-    pub fn start_after(
+    /// `start`, giving the job what started it (see `Given`).
+    pub fn start_given(
         &self,
         kind: &str,
         input: Value,
         origin: Origin,
         timeout_ms: Option<u64>,
-        previous: Option<Arc<Previous>>,
+        given: Option<Arc<Given>>,
     ) -> Result<u64, String> {
         let (entry, timeout) = self.request(kind, &input, timeout_ms)?;
         let prepared = (entry.prepare)(input)?;
@@ -655,14 +666,11 @@ impl Queue {
                 label: None,
                 value: None,
                 message: None,
-                previous: previous.as_ref().map(|p| PreviousView {
-                    schedule: p.schedule.clone(),
-                    job: p.job,
-                    state: p.state,
-                    label: p.label.clone(),
-                    value: p.value.clone(),
-                    message: p.message.clone(),
-                    output_bytes: p.output.len(),
+                given: given.as_ref().map(|g| GivenView {
+                    from: g.from.clone(),
+                    value: g.value.clone(),
+                    previous: g.previous.clone(),
+                    output_bytes: g.output.len(),
                 }),
             },
             created: Instant::now(),
@@ -672,7 +680,7 @@ impl Queue {
             timeout,
             output: String::new(),
             output_cut: false,
-            previous,
+            given,
         };
         self.notify(&mut job);
         info!("job {id} ({}): queued by {:?}", entry.name, job.view.origin);
@@ -853,6 +861,7 @@ impl Queue {
 
     /// Cancels every queued job first (so none starts), then the running ones.
     /// Returns how many were cancelled.
+    #[allow(dead_code)] // Kill all returns with the Overview (phase 2); tested
     pub fn cancel_all(&self) -> usize {
         let (queued, running): (Vec<u64>, Vec<u64>) = {
             let inner = self.lock();
@@ -868,6 +877,7 @@ impl Queue {
     }
 
     /// Removes finished jobs from the list. Returns how many.
+    #[allow(dead_code)] // tested; finished jobs are pruned to the newest 50
     pub fn clear_finished(&self) -> usize {
         let mut inner = self.lock();
         let before = inner.jobs.len();

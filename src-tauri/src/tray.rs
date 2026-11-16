@@ -44,7 +44,7 @@ fn tray_available(app: &AppHandle) -> bool {
 
 /// Brings the window back. A hidden window is centred on the primary
 /// monitor first; a minimised one is restored where it was.
-fn show_window(app: &AppHandle) {
+pub(crate) fn show_window(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         if !window.is_visible().unwrap_or(true) {
             let (width, height, _) = window_settings(app);
@@ -59,7 +59,7 @@ fn show_window(app: &AppHandle) {
 /// Hides the window off the taskbar, or minimises it to the taskbar when
 /// hide_to_tray is off. Without a tray it always minimises, so the window
 /// can never become unreachable.
-fn hide_window(app: &AppHandle) {
+pub(crate) fn hide_window(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         let (_, _, hide_to_tray) = window_settings(app);
         if hide_to_tray && tray_available(app) {
