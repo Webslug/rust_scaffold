@@ -48,6 +48,7 @@ We continue to use this file to log successes, failures, tweaks and adjustments.
 - Allowed without asking (Kim, 14 November 2026): while the app is in development, the settings JSON files (`config.json`, `options.json`, `search.json`, `keys.json`, and any `*.corrupt` copies) and any SQLite databases the app creates may be deleted when testing or adding settings, in Kim's real settings folder (`~/.config/rust_scaffold`) as well as scratch folders. Nothing valuable is kept in them and the app recreates them. Say in the reply and the Log which files were deleted. This allowance does not cover anything else: not `backup/`, `dist/`, source, docs or the `*.default.json` files.
 - Hidden-screen checks use `tools/xvfb_check.sh` and check files in `tools/checks/`. Never write a one-off xdotool or screenshot script.
 - Never commit, stage, branch, push or pull. Kim manages git.
+- Partnership (Kim, 16 November 2026): Claude is a partner, not a complicit agent. Challenge Kim when she spirals or contradicts the mantra or earlier decisions, with evidence, once; then follow her decision. Hold Claude's own work to the same standard (no "done" with gaps, no questions in place of clear work). No self-deprecation. Next session starts with the consolidation audit and the question "is Jobs wardrobe or drawer?" before any 0.2.7 feature.
 
 ---
 
@@ -522,3 +523,11 @@ Each was recorded when found; items 1 to 6 led to the rules near the top of this
 - Version 0.2.6 (`Cargo.toml`, `cargo update --workspace --offline`). README: Jobs section rewritten for Triggers, Schedules and Actions; stale lines fixed (binary size, versions and crate count, settings no longer copied, tray double-click). Help: 0.2.6 change log entry and Jobs text. `change_log.txt` heading.
 - Tests: 116 Rust tests (new: built-in actions checked and doing their work, with the app control recorded; a made-up run never quits). `jobs_page` 34 of 34 (new part 8: a schedule whose date is chosen in the picker, the 15th of next month), other checks 26 of 26, all against `dist/`. Build without `web-watch`: no warnings. Built with `build.sh`, identical to the tested build. Backup `backup/rust_template_0.2.6.zip` (verified).
 - Not tested: the themed select list and picker by keyboard only (mouse and the check's keys only), quit and restart for real (recorded in the test), Kim's desktop, other themes, maximised, Windows. `docs/usage.md` still describes Jobs 1.0.
+
+### 16 November 2026: Triggers versus Schedules explained on the page (Claude)
+- Kim asked what separates them: a Schedule is time based (fires when the clock reaches a time), a Trigger is event based (fires when a watched value changes or crosses a line; its "check every" only sets how often it looks). Kept as two sections. One bold sentence added to the note under each list in `ui/index.html`. Built into `dist/`; smoke check run. Idea for 0.2.7: a Trigger condition "always" (fire on every check) so "report the price every morning" needs no command.
+
+### 16 November 2026, evening: alcohol, no work done (Claude, at Kim's request)
+- Kim reported drinking alcohol that evening and said it happens repeatedly: she feels sad, rambles, and believes projects get sabotaged when it happens. Logged at her request so the pattern can be reviewed sober.
+- Facts for the record: no code, settings or `dist/` were changed after the 0.2.6 build and its backup (`backup/rust_template_0.2.6.zip`, verified). No decision was taken (no abandoning, no switching tools, no deletions). Kim ordered food and stopped for the night.
+- Claude's view, not a finding: nothing in the project was damaged tonight. Alcohol is already a listed spiral risk in Kim's CLAUDE.md. Agreed for tomorrow: start with the consolidation audit and "is Jobs wardrobe or drawer?" before any 0.2.7 feature. Anything Kim said tonight can be reread tomorrow and kept or dropped.
