@@ -54,10 +54,6 @@ AGENTS.md and docs/AGENTS_OLD.bak.
 
 14 November 2026 (version 0.2.4, built into dist/)
 --------------------------------------------------
-- Recorded Kim's description of Claude Code's behaviour as "evil" for
-  fostering feelings of helplessness and lack of developer agency.
-- Recorded Kim's concern about Claude undermining developer agency and
-  added instructions to respect her ownership and avoid permission loops.
 - Documented keeping docs/ locally while removing it from GitHub tracking:
   docs/github_exclusions.md. Kim confirmed the removal succeeded.
 - Kim checked the dist/ build: tray double-click, tray menu and Quit work.
