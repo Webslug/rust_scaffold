@@ -2536,14 +2536,17 @@ mod tests {
 
     #[cfg(feature = "web-watch")]
     #[tokio::test]
-    async fn the_default_file_has_the_probe_demo_switched_off() {
+    async fn the_default_file_has_the_probe_demos_switched_off() {
         let q = Queue::new(Handle::current(), 1, Arc::new(|_| {}), crate::job_kinds::KINDS);
         let parsed = parse(DEFAULT_FILE, &q).unwrap();
         assert!(parsed.skipped.is_empty(), "{:?}", parsed.skipped.iter().map(Skip::text).collect::<Vec<_>>());
-        assert_eq!(parsed.triggers.len(), 1);
-        assert!(!parsed.triggers[0].def.enabled);
+        let names: Vec<_> = parsed.triggers.iter().map(|t| t.def.name.as_str()).collect();
+        assert_eq!(names, ["GBP price", "USD price", "Probe token"]);
+        assert!(parsed.triggers.iter().all(|t| !t.def.enabled), "every demo trigger is off");
         assert_eq!(parsed.triggers[0].def.then, ["Notify GBP price"]);
-        assert_eq!(parsed.actions[0].def.kind, "notify");
+        assert_eq!(parsed.triggers[1].def.then, ["Notify USD price"]);
+        assert_eq!(parsed.triggers[2].def.then, ["Notify probe token"]);
+        assert!(parsed.actions.iter().all(|a| a.def.kind == "notify"));
     }
 
     #[test]
@@ -2831,15 +2834,15 @@ mod tests {
         assert_eq!(s.auto.bulk(Bulk::EnableAll).unwrap(), 0, "nothing left to switch on");
         assert_eq!(s.auto.bulk(Bulk::DisableAll).unwrap(), 2);
         assert!(s.auto.list().triggers.iter().all(|t| !t.enabled));
-        assert_eq!(s.auto.bulk(Bulk::RestoreDemos).unwrap(), 2, "the demo trigger and its action");
+        assert_eq!(s.auto.bulk(Bulk::RestoreDemos).unwrap(), 6, "the three demo triggers and their actions");
         assert_eq!(s.auto.bulk(Bulk::RestoreDemos).unwrap(), 0, "already there");
         let demo = s.trigger_def("GBP price");
         s.auto.record_check(&demo, reading("£5,479.38", 5479.38));
         assert!(s.trigger("GBP price").state.primed);
-        assert_eq!(s.auto.bulk(Bulk::DeleteAll).unwrap(), 5);
+        assert_eq!(s.auto.bulk(Bulk::DeleteAll).unwrap(), 9);
         let list = s.auto.list();
         assert!(list.triggers.is_empty() && list.schedules.is_empty() && list.actions.is_empty());
-        assert_eq!(s.auto.bulk(Bulk::RestoreDemos).unwrap(), 2);
+        assert_eq!(s.auto.bulk(Bulk::RestoreDemos).unwrap(), 6);
         assert_eq!(s.trigger("GBP price").state, TriggerState::default(), "nothing kept from before the delete");
     }
 

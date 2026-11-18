@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "note": "Triggers, Schedules and Actions (Jobs 2.0). Usually edited on the Jobs page; this file can also be edited by hand, then press Reload. Triggers and Schedules start the Actions named in their then list. The demonstration Trigger is off: switch it on to watch the GBP price on bitmods.com/probe and show a notification when it changes.",
+  "note": "Triggers, Schedules and Actions (Jobs 2.0). Usually edited on the Jobs page; this file can also be edited by hand, then press Reload. Triggers and Schedules start the Actions named in their then list. The demonstration Triggers are off: switch one on to watch a value on bitmods.com/probe (the GBP and USD prices as numbers, the token as text) and show a notification when it changes.",
   "triggers": [
     {
       "name": "GBP price",
@@ -9,6 +9,22 @@
       "every_seconds": 300,
       "when": { "is": "changes" },
       "then": ["Notify GBP price"]
+    },
+    {
+      "name": "USD price",
+      "enabled": false,
+      "watch": { "type": "web_watch", "url": "https://bitmods.com/probe", "find": "id", "name": "probe-usd", "read_as": "number" },
+      "every_seconds": 300,
+      "when": { "is": "changes" },
+      "then": ["Notify USD price"]
+    },
+    {
+      "name": "Probe token",
+      "enabled": false,
+      "watch": { "type": "web_watch", "url": "https://bitmods.com/probe", "find": "id", "name": "probe-token", "read_as": "text" },
+      "every_seconds": 300,
+      "when": { "is": "changes" },
+      "then": ["Notify probe token"]
     }
   ],
   "schedules": [],
@@ -18,6 +34,18 @@
       "enabled": true,
       "kind": "notify",
       "input": { "title": "GBP now {value.text}", "text": "It was {previous.text}", "urgency": "normal", "sound": false }
+    },
+    {
+      "name": "Notify USD price",
+      "enabled": true,
+      "kind": "notify",
+      "input": { "title": "USD now {value.text}", "text": "It was {previous.text}", "urgency": "normal", "sound": false }
+    },
+    {
+      "name": "Notify probe token",
+      "enabled": true,
+      "kind": "notify",
+      "input": { "title": "Probe token changed", "text": "Now {value.text}, was {previous.text}", "urgency": "normal", "sound": false }
     }
   ]
 }

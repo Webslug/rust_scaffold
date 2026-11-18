@@ -1,9 +1,12 @@
 [package]
 name = "rust-scaffold"
-version = "0.2.6"
+version = "0.2.7"
 description = "Lean Rust + Tauri desktop application scaffold"
 authors = ["Kim"]
 edition = "2021"
+# The compiler this project is tested with. Cargo stops with a clear message
+# on an older one; it downloads nothing (see docs/rust-toolchain.md).
+rust-version = "1.100"
 
 [lib]
 name = "rust_scaffold_lib"

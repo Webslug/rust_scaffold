@@ -2951,7 +2951,7 @@ dependencies = [
 
 [[package]]
 name = "rust-scaffold"
-version = "0.2.6"
+version = "0.2.7"
 dependencies = [
  "dirs",
  "dom_query 0.28.0",

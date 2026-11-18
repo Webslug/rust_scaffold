@@ -216,11 +216,26 @@
   };
 
   function syncTriggerWhen() {
-    var w = $("trigger-when").value;
-    $("trigger-value-box").classList.toggle("d-none", w === "changes");
-    if ((w === "above" || w === "below") && $("trigger-watch-type").value === "web_watch") { $("trigger-read").value = "number"; }
+    $("trigger-value-box").classList.toggle("d-none", $("trigger-when").value === "changes");
   }
   $("trigger-when").addEventListener("change", syncTriggerWhen);
+
+  // "is above" and "is below" need a number: hidden for a web page read as
+  // text and for a file (which has no number).
+  function syncWhenOptions() {
+    var type = $("trigger-watch-type").value;
+    var numbers = type === "web_watch" ? $("trigger-read").value === "number" : type !== "file";
+    ["above", "below"].forEach(function (v) {
+      var option = $("trigger-when").querySelector('option[value="' + v + '"]');
+      option.hidden = !numbers;
+      option.disabled = !numbers;
+    });
+    if (!numbers && ($("trigger-when").value === "above" || $("trigger-when").value === "below")) {
+      $("trigger-when").value = "changes";
+    }
+    syncTriggerWhen();
+  }
+  $("trigger-read").addEventListener("change", syncWhenOptions);
 
   // Shows the fields of the chosen watch (data-watch lists the types).
   function syncWatchType() {
@@ -228,14 +243,7 @@
     trig.card.querySelectorAll("[data-watch]").forEach(function (box) {
       box.classList.toggle("d-none", box.dataset.watch.split(" ").indexOf(type) < 0);
     });
-    // A file has no number: only "changes" and "equals" make sense.
-    ["above", "below"].forEach(function (v) {
-      $("trigger-when").querySelector('option[value="' + v + '"]').disabled = type === "file";
-    });
-    if (type === "file" && ($("trigger-when").value === "above" || $("trigger-when").value === "below")) {
-      $("trigger-when").value = "changes";
-      syncTriggerWhen();
-    }
+    syncWhenOptions();
   }
   $("trigger-watch-type").addEventListener("change", syncWatchType);
 
@@ -550,6 +558,8 @@
     var tr = el("tr");
     tr.dataset.section = section;
     tr.dataset.name = item.name;
+    tr.tabIndex = 0;
+    tr.title = "Click to edit " + item.name;
     tbody.appendChild(tr);
     var on = el("td");
     on.appendChild(onSwitch(section, item));
@@ -685,7 +695,12 @@
 
   function rowAction(e) {
     var target = e.target.closest("[data-action]");
-    if (!target) { return; }
+    if (!target) {
+      // A click anywhere else on a row opens that entry's editor, as Edit does.
+      var clicked = e.type === "click" ? e.target.closest("tr[data-name]") : null;
+      if (clicked && !e.target.closest("button, input, a, select, label")) { openEntry(clicked.dataset.section, clicked.dataset.name); }
+      return;
+    }
     var tr = target.closest("tr");
     var section = tr.dataset.section;
     var name = tr.dataset.name;
@@ -767,6 +782,13 @@
       rowAction(e);
     });
     $(id).addEventListener("change", rowAction);
+    // Enter on a focused row opens its editor too.
+    $(id).addEventListener("keydown", function (e) {
+      if (e.key === "Enter" && e.target.matches("tr[data-name]")) {
+        e.preventDefault();
+        openEntry(e.target.dataset.section, e.target.dataset.name);
+      }
+    });
   });
 
   $("btn-auto-reload").addEventListener("click", function () {

@@ -86,7 +86,12 @@
     var label = select.getAttribute("aria-label") ||
       (select.id && document.querySelector('label[for="' + select.id + '"]') ? document.querySelector('label[for="' + select.id + '"]').textContent : "");
     if (label) { menu.setAttribute("aria-label", label); }
-    Array.prototype.forEach.call(select.options, function (opt, i) {
+    var shown = 0;          // position in the menu (hidden options are left out)
+    var current = 0;        // menu position of the selected option
+    Array.prototype.forEach.call(select.options, function (opt) {
+      if (opt.hidden) { return; } // options the page has hidden are not offered
+      var i = shown++;
+      if (opt.selected) { current = i; }
       var el = document.createElement("div");
       el.className = "select-menu-option" + (opt.disabled ? " disabled" : "") + (opt.selected ? " selected" : "");
       el.setAttribute("role", "option");
@@ -100,7 +105,7 @@
     select.setAttribute("aria-expanded", "true");
     place();
     active = -1;
-    highlight(select.selectedIndex < 0 ? 0 : select.selectedIndex);
+    highlight(current);
   }
 
   // Mouse: open instead of the GTK list.

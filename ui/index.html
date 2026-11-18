@@ -360,16 +360,6 @@
           <div id="options-groups" class="options-groups"></div>
         </div>
         <div class="tab-pane" id="page-jobs" role="tabpanel" aria-labelledby="tab-jobs" tabindex="0">
-          <div id="jobs-running" class="card card-custom jobs-running d-none" aria-live="polite">
-            <div class="card-header"><h2 class="h6 card-header-title mb-0"><i class="bi bi-activity me-1" aria-hidden="true"></i>Running now</h2></div>
-            <div class="table-responsive jobs-table-wrap">
-              <table class="table table-custom mb-0 jobs-table">
-                <caption class="visually-hidden">Jobs queued or running</caption>
-                <tbody id="jobs-running-rows"></tbody>
-              </table>
-            </div>
-          </div>
-
           <div class="jobs-topbar">
             <div class="btn-group jobs-views" role="group" aria-label="Jobs sections">
               <button type="button" class="btn btn-secondary btn-sm active" data-jobs-view="overview" aria-pressed="true"><i class="bi bi-grid-1x2 me-1" aria-hidden="true"></i>Overview</button>
@@ -532,7 +522,12 @@
                     </select>
                   </div>
                 </div>
-                <p data-watch="cpu memory vram disk file" class="jobs-subtle jobs-form-note">Read from this computer (Linux), as often as every 5 seconds. A file that appears or disappears counts as a change.</p>
+                <p data-watch="cpu" class="jobs-subtle jobs-form-note">How busy the processor is, 0 to 100%, measured over one second. For example: when the value is above 90, notify me.</p>
+                <p data-watch="memory" class="jobs-subtle jobs-form-note">How much of the memory (RAM) is in use, in %. For example: when the value is above 85, notify me.</p>
+                <p data-watch="vram" class="jobs-subtle jobs-form-note">How much of the graphics card's memory is in use, in % (NVIDIA cards, read with nvidia-smi). For example: when the value is above 90, notify me.</p>
+                <p data-watch="disk" class="jobs-subtle jobs-form-note">Watches the drive that holds this folder: / is the main drive, ~ your home folder. Used (%) is how full the drive is, as <code>df -h</code> shows it; Free (GB) is the space left. "Changes" fires whenever the number moves, so for a drive "is above" (used) or "is below" (free) is usually what you want. For example: when Used (%) is above 90, notify me.</p>
+                <p data-watch="file" class="jobs-subtle jobs-form-note">Fires when the file changes (its size or time) or its permissions change, as chosen above. A file that appears or disappears counts as a change.</p>
+                <p data-watch="cpu memory vram disk file" class="jobs-subtle jobs-form-note">Read from this computer (Linux), as often as every 5 seconds.</p>
                 <div class="jobs-fields">
                   <div>
                     <label class="form-label" for="trigger-every">Check every</label>
@@ -732,6 +727,17 @@
             </div>
           </div>
 
+          <!-- Below the lists, so its appearing and disappearing never moves the rows above. -->
+          <div id="jobs-running" class="card card-custom jobs-running d-none" aria-live="polite">
+            <div class="card-header"><h2 class="h6 card-header-title mb-0"><i class="bi bi-activity me-1" aria-hidden="true"></i>Running now</h2></div>
+            <div class="table-responsive jobs-table-wrap">
+              <table class="table table-custom mb-0 jobs-table">
+                <caption class="visually-hidden">Jobs queued or running</caption>
+                <tbody id="jobs-running-rows"></tbody>
+              </table>
+            </div>
+          </div>
+
           <div id="jobs-inspect" class="card card-custom jobs-inspect d-none" aria-live="polite">
             <div class="card-header">
               <h2 class="h6 card-header-title mb-0" id="jobs-inspect-title">Job</h2>
@@ -829,6 +835,7 @@
               <div class="card-header"><h2 class="h6 card-header-title mb-0" id="help-changelog-title"><i class="bi bi-journal-text me-2" aria-hidden="true"></i>Change log</h2></div>
               <div class="card-body">
                 <ul class="help-changelog">
+                  <li><strong>0.2.7, 18 November 2026.</strong> Click a row in the Triggers, Schedules or Actions list (or press Enter on it) to edit that entry. "Is above" and "is below" are only offered when the value is a number. Each computer watch (CPU, memory, disk, graphics card memory, file) explains what it reads, with an example. The page no longer jumps when a job starts or ends: Running now sits below the lists. Two more demonstration triggers read the USD price and the token from bitmods.com/probe. The project states the Rust version it needs (1.100).</li>
                   <li><strong>0.2.6, 16 November 2026.</strong> Jobs rebuilt as Triggers, Schedules and Actions. Triggers watch a value on a web page (by id or class, as text or a number; HTTPS now built in) or on this computer (CPU load, memory, disk space, graphics card memory, a file or its permissions) and start their actions when it changes or goes above, below or equal to a value you set, once each time. Schedules start actions once, every so often, daily, weekly or monthly. Actions show a notification, run a command, ask an AI, switch an entry on or off, fire a trigger, delay a schedule, change a count, delete an entry, write to the log, clear the Errors list, or show, hide, quit or restart the app, and can start more actions in a chain. Fire now, Run now and Run test everything without waiting. The page opens on an Overview with sorting, a filter, hover summaries and buttons to switch everything on or off; Ctrl+K finds any job by name; Running now shows what runs, with Kill. Everything is kept in jobs.json and survives a restart. Select lists and a new date and time picker follow the theme's colours.</li>
                   <li><strong>0.2.5, 15 November 2026.</strong> The Jobs page has schedules and rules. Schedules run a job once, every so often, daily, weekly or monthly, with run limits, end dates, retries and catch-up; rules start, turn on or turn off a schedule when another ends a given way, a number of times in a row. Two job kinds: Command (a bash script in any folder) and AI prompt (Claude Code, Codex, GrokBuild, or a local Ollama or llama.cpp server). A job started by a rule is given the result of the job before it ({previous_output} in a prompt, $PREVIOUS_OUTPUT in a script), so jobs form pipelines. Inspect shows what a job printed or answered. The Ollama model list leaves out image models. Pause everything stops all schedules and rules. The counting demo is gone. Later the same day: a script can report its own result (label, value such as a percentage, message) by writing JSON to $JOB_RESULT, and progress to $JOB_PROGRESS; rules can test a value (above, below, equals) or react only when the output changed; a new Notification job shows a desktop notification; prompts and notifications can quote the earlier result ({previous_value.percent}, {previous_message}), so an AI can react to a job's outcome. Errors and warnings are kept in errors.jsonl and still listed after a restart.</li>
                   <li><strong>0.2.4, 14 November 2026.</strong> Double-click the tray icon to hide or show the window, now on Linux too. New option "Hide to the tray" (on by default): hiding takes the window off the taskbar; turn it off to minimise to the taskbar instead. A hidden window comes back centred on the main screen. Options now sits with Help at the end of the menu. Racing Green is the default theme, and Alt+1 to Alt+9 follow the menu order. Settings files are recreated when missing, and a file over its size limit is set aside as .corrupt and replaced with defaults. If the start-up script fails, the window still appears after 5 seconds and the Errors page says why. The Errors badge now counts every warning from start-up.</li>

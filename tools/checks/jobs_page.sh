@@ -28,6 +28,14 @@
 CHECK_DIR="$(dirname "${BASH_SOURCE[0]}")"
 mkdir -p "$SETTINGS" "$SCRATCH/site/probe"
 echo '{"width":960,"height":1028}' >"$SETTINGS/config.json"
+# Start from the single GBP demo, so the click positions below (worked out
+# for one demo row) stay right. Restore demos later brings back all of them.
+python3 -c "
+import json,sys
+d=json.load(open(sys.argv[1]))
+d['triggers']=[t for t in d['triggers'] if t['name']=='GBP price']
+d['actions']=[a for a in d['actions'] if a['name']=='Notify GBP price']
+json.dump(d,open(sys.argv[2],'w'),indent=2)" "$ROOT/src-tauri/jobs.default.json" "$SETTINGS/jobs.json"
 
 # The probe page, as on bitmods.com (16 November 2026).
 probe_page() {
@@ -60,7 +68,7 @@ shot jobs_start
 # ---- 1. Trigger and its action, through the forms --------------------------
 click 450 90                        # Triggers view (the page opens on the Overview)
 sleep 1
-click 337 141                       # New trigger
+click 337 171                       # New trigger (below the reserved status line)
 sleep 1
 type_text 'GBP watch'
 key Tab Tab                         # past Watch (a value on a web page)
@@ -73,7 +81,7 @@ type_text '30'
 key Tab Up                          # minutes -> seconds
 sleep 0.5
 shot trigger_filled
-click 552 850                       # New action, inside the trigger editor
+click 552 838                       # New action, inside the trigger editor
 sleep 1
 shot action_inside
 type_text 'Tell me GBP'
@@ -139,7 +147,7 @@ sleep 2
 shot running_now
 expect "Running now lists the command while it runs" \
     test "$(json_get "$STATE" 'len(f["actions"].get("Wait a minute", {}).get("history", []))')" = 0
-click 879 145                       # Kill, in the Running now strip
+click 879 684                       # Kill, in the Running now strip (below the list)
 sleep 3
 shot killed
 expect "Kill stopped it: its result is Killed" \
@@ -191,7 +199,7 @@ expect "an unchanged page after the restart gives no second notification" test "
 # ---- 4b. Fire now: no waiting for the next check ------------------------------
 click 450 90                        # Triggers view
 sleep 1
-click 859 405                       # Fire now on "GBP watch" (the page has not changed)
+click 859 435                       # Fire now on "GBP watch" (the page has not changed)
 for _ in $(seq 1 15); do
     [ "$(wc -l <"$NOTES")" -ge 2 ] && break
     sleep 1
@@ -251,8 +259,8 @@ expect "the second press deleted every trigger, schedule and action" \
 click 615 225                       # Restore demos
 sleep 1.5
 shot overview_restored
-expect "Restore demos brought back the demonstration trigger and its action" \
-    test "$(json_get "$FILE" '[t["name"] for t in f["triggers"]] + [a["name"] for a in f["actions"]]')" = "['GBP price', 'Notify GBP price']"
+expect "Restore demos brought back the three demonstration triggers and their actions" \
+    test "$(json_get "$FILE" '[t["name"] for t in f["triggers"]] + [a["name"] for a in f["actions"]]')" = "['GBP price', 'USD price', 'Probe token', 'Notify GBP price', 'Notify USD price', 'Notify probe token']"
 
 # ---- 6. Menu search finds jobs by name ------------------------------------------
 # Ctrl+K, "Notify GBP", Enter opens that action's editor with the cursor in
@@ -269,7 +277,7 @@ key Return
 sleep 1.5
 shot search_opened
 expect "search opened the action's editor (renamed through it)" \
-    test "$(json_get "$FILE" '[a["name"] for a in f["actions"]]')" = "['Notify GBP price 2']"
+    test "$(json_get "$FILE" '[a["name"] for a in f["actions"]]')" = "['Notify GBP price 2', 'Notify USD price', 'Notify probe token']"
 expect "the trigger's list followed the rename" \
     test "$(json_get "$FILE" 'f["triggers"][0]["then"]')" = "['Notify GBP price 2']"
 
@@ -290,7 +298,7 @@ key Tab Up                          # minutes -> seconds
 key Tab Tab Tab Tab Down            # When, Fire at most, Test now, then "Add an action": the first one
 sleep 0.5
 shot file_trigger_filled
-click 525 861                       # Save
+click 526 894                       # Save
 sleep 2
 shot file_trigger_saved
 expect "the file trigger was saved from the form" \
@@ -344,5 +352,37 @@ shot schedule_saved
 expect "the date picker filled in the date (the 15th of next month), saved through the form" \
     test "$(json_get "$FILE" '[s["when"]["at"][:10] for s in f["schedules"] if s["name"]=="Monthly report"]')" = "['$WANT']"
 
+
+# ---- 9. A click on a row opens its editor; text has no "is above" ---------------
+click 400 290                       # the "Monthly report" row (not a button)
+sleep 1
+shot schedule_row_opened
+key End
+type_text ' 2'
+key Return                          # Enter saves: renamed through the editor the row opened
+sleep 1.5
+expect "clicking a schedule row opened its editor (renamed through it)" \
+    test "$(json_get "$FILE" '[s["name"] for s in f["schedules"]]')" = "['Monthly report 2']"
+# A web page read as text: "is above" and "is below" are hidden, so Down on
+# the closed "When the value" list goes from "changes" straight to "equals".
+click 450 90                        # Triggers view
+sleep 1
+click 337 171                       # New trigger
+sleep 1
+type_text 'Token watch'
+key Tab Tab                         # past Watch (a value on a web page)
+type_text "http://127.0.0.1:$PORT/probe/"
+key Tab Tab                         # past Find by (id)
+type_text 'probe-token'
+key Tab Tab Tab Tab                 # past Read as (Text), Check every and its unit, to When
+key Down                            # changes -> equals ("is above" is hidden)
+key Tab
+type_text 'abc'
+shot text_trigger_filled
+key Return                          # Enter in the value box saves
+sleep 1.5
+shot text_trigger_saved
+expect "for a value read as text, the next choice after changes is equals" \
+    test "$(json_get "$FILE" '[t["when"]["is"] for t in f["triggers"] if t["name"]=="Token watch"]')" = "['equals']"
 app_stop
 kill "$FAKE_PID" "$SITE_PID" 2>/dev/null || true

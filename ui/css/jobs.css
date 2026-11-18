@@ -8,6 +8,7 @@
   margin-bottom: var(--space-3);
 }
 
+.jobs-running,
 .jobs-inspect {
   margin-top: var(--space-3);
 }
@@ -40,8 +41,10 @@
   text-align: center;
 }
 
-.jobs-status:empty {
-  display: none;
+/* An empty status line keeps its height, so a message appearing or going
+   never moves the page below it. */
+.jobs-status:empty::before {
+  content: "\00a0";
 }
 
 /* ---- Editors -------------------------------------------------------------- */
@@ -477,8 +480,14 @@
   text-align: center;
 }
 
-.overview-table tr.overview-row {
+.overview-table tr.overview-row,
+.auto-table tr[data-name] {
   cursor: pointer;
+}
+
+.auto-table tr[data-name]:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: calc(var(--focus-ring-width) * -1);
 }
 
 .overview-table tr.overview-row:focus-visible {
